@@ -1,4 +1,4 @@
-# Analog Matrix Multiplication with Propriception
+# Analog Matrix Multiplication with Proprioception
 ## Analog 2T1C Matrix with Inverted Meta-Learning (MAML)
 
 ### Project Vision: Redefining Efficient Inference
