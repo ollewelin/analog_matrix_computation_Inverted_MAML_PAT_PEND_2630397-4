@@ -12,3 +12,7 @@ Working with analog computing is an act of balancing physics and precision.
 This is incredible funny project!
 
 ![](Fig1.png)
+### PATENT APP NO: SE 2630397-4
+### STATUS: PATENT PENDING
+### INVENTORY: OLLE WELIN
+### PRIORITY DATE: 2026-06-03
