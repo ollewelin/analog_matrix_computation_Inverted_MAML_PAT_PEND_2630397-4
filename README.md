@@ -9,7 +9,7 @@ Our approach combines analog matrix hardware with a novel Inverted Meta-Learning
 
 ### The Adventure of Discovery
 Working with analog computing is an act of balancing physics and precision.
-This is incredible funny project!
+Incredible funny project!
 
 ![](Fig1.png)
 ### PATENT APP NO: SE 2630397-4
