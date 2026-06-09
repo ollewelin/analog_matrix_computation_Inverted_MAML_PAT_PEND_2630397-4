@@ -1,4 +1,4 @@
-# Monster MALM, Analog Matrix Multiplication with Propriception
+# Analog Matrix Multiplication with Propriception
 ## Analog 2T1C Matrix with Inverted Meta-Learning (MAML)
 
 ### Project Vision: Redefining Efficient Inference
