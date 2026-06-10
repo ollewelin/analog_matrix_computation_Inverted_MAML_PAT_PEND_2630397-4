@@ -23,3 +23,6 @@ states that this has already been tested and run; this is not true. NotebookLM i
 ### STATUS: PATENT PENDING
 ### INVENTOR: OLLE WELIN
 ### PRIORITY DATE: 2026-06-03
+
+![](Cell_Kernel.png)
+![](6x6_matrix.png)
