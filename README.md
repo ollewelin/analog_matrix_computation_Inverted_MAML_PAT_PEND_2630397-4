@@ -10,7 +10,7 @@ Our approach combines analog matrix hardware with a novel Inverted Meta-Learning
 ### The Adventure of Discovery
 Working with analog computing is an act of balancing physics and precision. Very funny and exciting project!
 
-### Status 
+### Status and Disclamer
 2026-06-10 Nothing is yet tested or simulated only a plan to do a test board of  3x 6x6 matrix PCB board at 500Khz throughput, 8bit R-R2 DAC's and 10bit ADC SAR and FPGA Trion and N-channel transistors
 Disclaimer the POD tell this tli ther is already tested and runned thet is not true NotebookLM just try to summirize the patetn document without knowing the status.
 
