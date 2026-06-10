@@ -19,10 +19,14 @@ The
 states that this has already been tested and run; this is not true. NotebookLM is simply trying to summarize the patent document without knowing the current status.
 
 ![](Fig1.png)
-### PATENT APP NO: SE 2630397-4
-### STATUS: PATENT PENDING
-### INVENTOR: OLLE WELIN
-### PRIORITY DATE: 2026-06-03
+#### PATENT APP NO: SE 2630397-4
+#### STATUS: PATENT PENDING
+#### INVENTOR: OLLE WELIN
+#### PRIORITY DATE: 2026-06-03
 
+### Mutiplication cell
 ![](Cell_Kernel.png)
+### 6x6 matrix EasyEDA
 ![](6x6_matrix.png)
+### LTspice simulation sigmoid OP-amp
+![](LTspice_sigmoid_sim.png)
