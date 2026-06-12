@@ -1,5 +1,5 @@
 # Analog Matrix Multiplication with Proprioception
-### Patent document inverterad MAML_12_Eng.pdf translated
+### Patent pending: document inverterad MAML_12_Eng.pdf translated
 `inverterad MAML_12_Eng.pdf`
 ![](Fig1.png)
 
