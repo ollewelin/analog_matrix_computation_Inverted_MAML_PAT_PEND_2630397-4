@@ -1,4 +1,5 @@
 # Analog Matrix Multiplication with Proprioception
+![](Fig1.png)
 ## Analog 2T1C Matrix with Inverted Meta-Learning (MAML)
 
 ### Project Vision: Redefining Efficient Inference
@@ -18,7 +19,7 @@ The
 `pod_inverted_maml_audiobook_96k.m4a`
 states that this has already been tested and run; this is not true. NotebookLM is simply trying to summarize the patent document without knowing the current status.
 
-![](Fig1.png)
+
 #### PATENT APP NO: SE 2630397-4
 #### STATUS: PATENT PENDING
 #### INVENTOR: OLLE WELIN
