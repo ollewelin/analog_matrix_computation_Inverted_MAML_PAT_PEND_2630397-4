@@ -1,4 +1,6 @@
 # Analog Matrix Multiplication with Proprioception
+### Patent document inverterad MAML_12_Eng.pdf translated
+`inverterad MAML_12_Eng.pdf`
 ![](Fig1.png)
 
 #### PATENT APP NO: SE 2630397-4
