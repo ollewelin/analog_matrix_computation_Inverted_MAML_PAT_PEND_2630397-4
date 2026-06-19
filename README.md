@@ -26,7 +26,8 @@ The
 `pod_inverted_maml_audiobook_96k.m4a`
 states that this has already been tested and run; this is not true. NotebookLM is simply trying to summarize the patent document without knowing the current status.
 
-
+### The Atomic Triad
+![](Atomic_Triad.png)
 ### Mutiplication cell
 ![](Cell_Kernel.png)
 ### 6x6 matrix EasyEDA
