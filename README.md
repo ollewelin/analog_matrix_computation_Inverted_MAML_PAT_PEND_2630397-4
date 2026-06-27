@@ -25,6 +25,11 @@ Working with analog computing is an act of balancing physics and precision. Very
 The 
 `pod_inverted_maml_audiobook_96k.m4a`
 states that this has already been tested and run; this is not true. NotebookLM is simply trying to summarize the patent document without knowing the current status.
+Updated audiobook the:
+#### Resonable good audiobook 52 minutes:
+`Shattering_the_Memory_Wall_with_Proprioception_56k.m4a`
+Is better and reflect this project more fair I think.  
+
 
 ### The Atomic Triad
 ![](Atomic_Triad.png)
