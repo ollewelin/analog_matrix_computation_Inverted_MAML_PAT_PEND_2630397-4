@@ -1,0 +1,64 @@
+================================================================================
+SCHEMATIC BLOCK POSITION MAP (CBB DESIGNATORS TO GRID CELL)
+================================================================================
+Project: Inverted MAML IMC
+File: schematic_block_position.txt
+Generated Date: 2026-06-28
+
+This file stores the complete mapping of schematic block instances (using their
+CBBxx designator numbers) to their physical grid cell row and column positions
+within each of the three matrices (matrix3, matrix8, and matrix33).
+
+Unit Grid Step:
+- X axis (Column distance): ~508.70 mil
+- Y axis (Row distance):    520.00 mil (13.208 mm)
+
+--------------------------------------------------------------------------------
+1. MATRIX33 (MUL_NO_H_CELL_2X_2T1C)
+- Layout: 6 Rows, 6 Columns
+- Row 7, 8: Empty holes (no blocks placed)
+--------------------------------------------------------------------------------
+Row\Col | Col 1  | Col 2  | Col 3  | Col 4  | Col 5  | Col 6  |
+--------+--------+--------+--------+--------+--------+--------+
+Row 1   | CBB1   | CBB7   | CBB13  | CBB19  | CBB25  | CBB31  |
+Row 2   | CBB2   | CBB8   | CBB14  | CBB20  | CBB26  | CBB32  |
+Row 3   | CBB3   | CBB9   | CBB15  | CBB21  | CBB27  | CBB33  |
+Row 4   | CBB4   | CBB10  | CBB16  | CBB22  | CBB28  | CBB34  |
+Row 5   | CBB5   | CBB11  | CBB17  | CBB23  | CBB29  | CBB35  |
+Row 6   | CBB6   | CBB12  | CBB18  | CBB24  | CBB30  | CBB36  |
+--------+--------+--------+--------+--------+--------+--------+
+
+--------------------------------------------------------------------------------
+2. MATRIX8 (MUL_CELL_2X_2T1C)
+- Layout: 7 Rows, 6 Columns
+- Row 8: Empty hole (no block placed)
+--------------------------------------------------------------------------------
+Row\Col | Col 1  | Col 2  | Col 3  | Col 4  | Col 5  | Col 6  |
+--------+--------+--------+--------+--------+--------+--------+
+Row 1   | CBB1   | CBB7   | CBB13  | CBB19  | CBB25  | CBB31  |
+Row 2   | CBB2   | CBB8   | CBB14  | CBB20  | CBB26  | CBB32  |
+Row 3   | CBB3   | CBB9   | CBB15  | CBB21  | CBB27  | CBB33  |
+Row 4   | CBB4   | CBB10  | CBB16  | CBB22  | CBB28  | CBB34  |
+Row 5   | CBB5   | CBB11  | CBB17  | CBB23  | CBB29  | CBB35  |
+Row 6   | CBB6   | CBB12  | CBB18  | CBB24  | CBB30  | CBB36  |
+Row 7   | CBB37  | CBB38  | CBB39  | CBB40  | CBB41  | CBB42  |
+--------+--------+--------+--------+--------+--------+--------+
+
+--------------------------------------------------------------------------------
+3. MATRIX3 (MUL_CELL_2X_2T1C + REF_CELL_2X_2T1C on Row 8)
+- Layout: 8 Rows, 6 Columns
+- Rows 1-7: Same cell type as matrix8 (MUL_CELL_2X_2T1C)
+- Row 8: SPECIAL reference cell row (REF_CELL_2X_2T1C), skips script auto-placement
+--------------------------------------------------------------------------------
+Row\Col | Col 1  | Col 2  | Col 3  | Col 4  | Col 5  | Col 6  |
+--------+--------+--------+--------+--------+--------+--------+
+Row 1   | CBB1   | CBB7   | CBB13  | CBB19  | CBB25  | CBB31  |
+Row 2   | CBB2   | CBB8   | CBB14  | CBB20  | CBB26  | CBB32  |
+Row 3   | CBB3   | CBB9   | CBB15  | CBB21  | CBB27  | CBB33  |
+Row 4   | CBB4   | CBB10  | CBB16  | CBB22  | CBB28  | CBB34  |
+Row 5   | CBB5   | CBB11  | CBB17  | CBB23  | CBB29  | CBB35  |
+Row 6   | CBB6   | CBB12  | CBB18  | CBB24  | CBB30  | CBB36  |
+Row 7   | CBB37  | CBB38  | CBB39  | CBB40  | CBB41  | CBB42  |
+Row 8   | CBB43  | CBB44  | CBB45  | CBB46  | CBB47  | CBB48  |
+--------+--------+--------+--------+--------+--------+--------+
+================================================================================

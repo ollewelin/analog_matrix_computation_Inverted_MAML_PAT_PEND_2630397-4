@@ -1,0 +1,156 @@
+================================================================================
+TEMPLATE BLOCK [1,1] DESIGNATOR MAP — ALL THREE MATRICES
+================================================================================
+
+This file documents ALL component templates found in the three matrix [1,1] 
+reference blocks. Each matrix has its own [1,1] block containing the same 
+relative component pattern. These templates are used to calculate component 
+positions for all other unplaced blocks using grid offset formulas.
+
+Template area boundaries (combined from all three [1,1] blocks):
+  X: 890.00 to 1310.00 mil (22.606 to 33.274 mm)
+  Y: 5220.00 to 5665.00 mil (132.588 to 143.891 mm)
+  Total area: 420 mil × 445 mil (10.668 mm × 11.303 mm)
+
+================================================================================
+MATRIX3 [1,1] BLOCK — PREFIX: $1I2
+================================================================================
+
+Grid Cell Position: Row 1, Column 1
+Block Anchor Point: X = 991.00 mil, Y = 5547.00 mil
+
+Component area extent:
+  X: 890.00 to 1090.00 mil (22.606 to 27.686 mm)
+  Y: 5475.00 to 5665.00 mil (139.065 to 143.891 mm)
+  Size: 200.00 mil × 190.00 mil (5.080 mm × 4.826 mm)
+
+Components (10 total, sorted by Y then X):
+
+Designator      X (mil)    Y (mil)    X (mm)     Y (mm)    Rel X (mil)  Rel Y (mil)  Rel X (mm)  Rel Y (mm)
+-----------------------------------------------------------------------------------------------------------
+R1$CBB49/CBB1     950.00    5475.00    24.130    139.065      60.00        0.00       1.524       0.000
+R2$CBB49/CBB1    1030.00    5475.00    26.162    139.065     140.00        0.00       3.556       0.000
+C2$CBB49/CBB1     890.00    5500.00    22.606    139.700       0.00       25.00       0.000       0.635
+C4$CBB49/CBB1    1090.00    5500.00    27.686    139.700     200.00       25.00       5.080       0.635
+C1$CBB49/CBB1     950.00    5515.00    24.130    140.081      60.00       40.00       1.524       1.016
+C3$CBB49/CBB1    1030.00    5515.00    26.162    140.081     140.00       40.00       3.556       1.016
+Q6$CBB49/CBB1     930.00    5580.00    23.622    141.732      40.00      105.00       1.016       2.667
+Q5$CBB49/CBB1    1055.00    5580.00    26.797    141.732     165.00      105.00       4.191       2.667
+Q9$CBB49/CBB1     930.00    5665.00    23.622    143.891      40.00      190.00       1.016       4.826
+Q8$CBB49/CBB1    1055.00    5665.00    26.797    143.891     165.00      190.00       4.191       4.826
+
+================================================================================
+MATRIX8 [1,1] BLOCK — PREFIX: $1I2
+================================================================================
+
+Grid Cell Position: Row 1, Column 1
+Block Anchor Point: X = 989.50 mil, Y = 5292.00 mil
+
+Component area extent:
+  X: 890.00 to 1085.00 mil (22.606 to 27.559 mm)
+  Y: 5220.00 to 5410.00 mil (132.588 to 137.414 mm)
+  Size: 195.00 mil × 190.00 mil (4.953 mm × 4.826 mm)
+
+Components (9 total, sorted by Y then X):
+
+Designator      X (mil)    Y (mil)    X (mm)     Y (mm)    Rel X (mil)  Rel Y (mil)  Rel X (mm)  Rel Y (mm)
+-----------------------------------------------------------------------------------------------------------
+R1$CBB9/CBB1      950.00    5220.00    24.130    132.588      60.00        0.00       1.524       0.000
+R2$CBB9/CBB1     1025.00    5220.00    26.035    132.588     135.00        0.00       3.429       0.000
+C2$CBB9/CBB1      890.00    5245.00    22.606    133.223       0.00       25.00       0.000       0.635
+C4$CBB9/CBB1     1085.00    5245.00    27.559    133.223     195.00       25.00       4.953       0.635
+C1$CBB9/CBB1      950.00    5260.00    24.130    133.604      60.00       40.00       1.524       1.016
+C3$CBB9/CBB1     1025.00    5260.00    26.035    133.604     135.00       40.00       3.429       1.016
+Q6$CBB9/CBB1      930.00    5325.00    23.622    135.255      40.00      105.00       1.016       2.667
+Q5$CBB9/CBB1     1055.00    5325.00    26.797    135.255     165.00      105.00       4.191       2.667
+Q9$CBB9/CBB1      930.00    5410.00    23.622    137.414      40.00      190.00       1.016       4.826
+Q8$CBB9/CBB1     1055.00    5410.00    26.797    137.414     165.00      190.00       4.191       4.826
+
+================================================================================
+MATRIX33 [1,1] BLOCK — PREFIX: $1I263
+================================================================================
+
+Grid Cell Position: Row 1, Column 1
+Block Anchor Point: X = 1242.50 mil, Y = 5558.75 mil
+
+Component area extent:
+  X: 1185.00 to 1310.00 mil (30.099 to 33.274 mm)
+  Y: 5475.00 to 5665.00 mil (139.065 to 143.891 mm)
+  Size: 125.00 mil × 190.00 mil (3.175 mm × 4.826 mm)
+
+Components (9 total, sorted by Y then X):
+
+Designator       X (mil)    Y (mil)    X (mm)     Y (mm)    Rel X (mil)  Rel Y (mil)  Rel X (mm)  Rel Y (mm)
+-----------------------------------------------------------------------------------------------------------
+R1$CBB19/CBB34  1200.00    5475.00    30.480    139.065      15.00        0.00       0.381       0.000
+R2$CBB19/CBB34  1275.00    5475.00    32.385    139.065      90.00        0.00       2.286       0.000
+C1$CBB19/CBB34  1200.00    5515.00    30.480    140.081      15.00       40.00       0.381       1.016
+C3$CBB19/CBB34  1275.00    5515.00    32.385    140.081      90.00       40.00       2.286       1.016
+Q6$CBB19/CBB34  1185.00    5580.00    30.099    141.732       0.00      105.00       0.000       2.667
+Q5$CBB19/CBB34  1310.00    5580.00    33.274    141.732     125.00      105.00       3.175       2.667
+Q9$CBB19/CBB34  1185.00    5665.00    30.099    143.891       0.00      190.00       0.000       4.826
+Q8$CBB19/CBB34  1310.00    5665.00    33.274    143.891     125.00      190.00       3.175       4.826
+
+================================================================================
+USAGE: COMPONENT PLACEMENT ALGORITHM
+================================================================================
+
+For each unplaced block at grid position [Row, Col] in each matrix:
+
+1. Determine target anchor point:
+   target_x = matrix_anchor_x + (Col - 1) × 508.70 mil
+   target_y = matrix_anchor_y + (Row - 1) × 520.00 mil
+
+2. For each component in the corresponding matrix template:
+   component_x = target_x + rel_x_mil
+   component_y = target_y + rel_y_mil
+
+3. Apply this to all components in the template for that matrix
+
+Example (matrix3, Row 2, Col 2):
+   target_x = 991.00 + (2-1) × 508.70 = 1499.70 mil
+   target_y = 5547.00 + (2-1) × 520.00 = 6067.00 mil
+   
+   R1 position: x = 1499.70 + 60.00 = 1559.70 mil
+                y = 6067.00 + 0.00 = 6067.00 mil
+
+================================================================================
+KEY OBSERVATIONS
+================================================================================
+
+1. All three matrices use the same component template pattern with identical 
+   relative positions within each [1,1] block cell.
+
+2. Designators follow pattern: Component_RefDes$CBBxx/CBByy
+   - Component_RefDes: R1, R2, C1, C2, C3, C4, Q5, Q6, Q8, Q9
+   - CBBxx: Schematic block reference for matrix3 row 1
+   - CBByy: Extended reference indicator
+
+3. Component variations by matrix:
+   - matrix3 [1,1]: 10 components (all R, C, Q types)
+   - matrix8 [1,1]: 9 components (missing one pair, possibly)
+   - matrix33 [1,1]: 9 components (uses MUL_NO_H_CELL variant)
+
+4. X spacing between components varies by matrix (affects block width):
+   - matrix3: 200 mil wide (890-1090)
+   - matrix8: 195 mil wide (890-1085) - slightly narrower
+   - matrix33: 125 mil wide (1185-1310) - much narrower (higher density)
+
+5. Y spacing is consistent across all matrices: 190 mil (5475-5665 mil, or offset by 520 mil per row)
+
+================================================================================
+REFERENCE: PCB GRID PARAMETERS
+================================================================================
+
+Grid anchors (locked blocks, Row 1):
+  matrix3:  X = 991.00 mil, Y = 5547.00 mil
+  matrix8:  X = 989.50 mil, Y = 5292.00 mil
+  matrix33: X = 1242.50 mil, Y = 5558.75 mil
+
+Grid spacing:
+  X column step: 508.70 mil (12.921 mm)
+  Y row step: 520.00 mil (13.208 mm)
+
+================================================================================
+END OF TEMPLATE MAP
+================================================================================
