@@ -41,3 +41,6 @@ Is better and reflect this project more fair I think.
 ![](6x6_matrix.png)
 ### LTspice simulation sigmoid OP-amp
 ![](LTspice_sigmoid_sim.png)
+### The MATRIX 
+![](EasyEDA/Autoplace_matrix1.png)
+    
