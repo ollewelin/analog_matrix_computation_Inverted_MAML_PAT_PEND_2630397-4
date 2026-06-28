@@ -43,4 +43,7 @@ Is better and reflect this project more fair I think.
 ![](LTspice_sigmoid_sim.png)
 ### The MATRIX 
 ![](EasyEDA/Autoplace_matrix1.png)
+
+![](EasyEDA/Autoplace_matrix/Autoplace_matrix2.png)
+    
     
