@@ -1,0 +1,221 @@
+========================================================================================================================
+IMC WORKFLOW - EasyEDA to Python Placement Script
+========================================================================================================================
+
+STEP 1: Export from EasyEDA at PCB view
+---------
+1. File -> File Source... -> Download
+2. File stored: Inverted_MAML_IMC.epro2 (in Downloads folder)
+3. Unzip the file
+4. Extract file: Inverted_MAML_IMC.epru
+
+
+STEP 2: Run Python placement scripts
+---------
+python extract_IMC_template.py
+(otional) python analyze_IMC.py 
+python write_placements_IMC.py 
+python verify_placements_IMC.py
+
+Output file generated: autoplaced_output_IMC.epru
+
+
+STEP 3: Prepare file for EasyEDA import
+---------
+1. Take file: autoplaced_output_IMC.epru
+2. Zip the autoplaced_output_IMC.epru file togheter with 
+orignal IMAGE folder and the orgianl project2.json (NOT in any folder)
+3. Rename the zip file:
+   autoplaced_output_IMC.zip  ->  autoplaced_output_IMC.epro2
+
+
+STEP 4: Import back into EasyEDA
+---------
+File -> Import -> EasyEDA(Professional)...
+Select: autoplaced_output_IMC.epro2
+
+
+========================================================================================================================
+WORKFLOW EXECUTION LOG
+========================================================================================================================
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ python extract_IMC_template.py 
+========================================================================================================================
+EXTRACT TEMPLATE FROM Inverted_MAML_IMC.epru
+========================================================================================================================
+
+Parsing: Inverted_MAML_IMC.epru
+  -> Found 2395 total components
+  -> Found 2396 designators
+
+========================================================================================================================
+SEARCHING: X 0-14mm, Y 300-325mm
+========================================================================================================================
+
+✓ Found 18 components
+
+Designator                          X (mm)       Y (mm)       Angle    Locked  
+----------------------------------------------------------------------------------------------------
+R16$CBB17/CBB1                             3.68      310.77     180°         
+R1$CBB17/CBB1                              3.68      311.91     180°         
+R15$CBB17/CBB1                             0.89      312.67      90°         
+R3$CBB17/CBB1                              3.68      313.18     180°         
+R14$CBB17/CBB1                             2.03      313.82      90°         
+R4$CBB17/CBB1                              3.68      314.45     180°         
+R13$CBB17/CBB1                             0.89      315.09      90°         
+U6$CBB17/CBB1                              8.84      315.13     270°         
+R5$CBB17/CBB1                              3.68      315.72     180°         
+R12$CBB17/CBB1                             2.03      316.36      90°         
+R6$CBB17/CBB1                              3.68      316.99     180°         
+R11$CBB17/CBB1                             0.89      317.63      90°         
+R7$CBB17/CBB1                              3.68      318.26     180°         
+R10$CBB17/CBB1                             2.03      318.77      90°         
+R8$CBB17/CBB1                              3.68      319.53     180°         
+R2$CBB17/CBB1                              0.89      319.66      90°         
+R9$CBB17/CBB1                              3.68      320.67     180°         
+C193$CBB17/CBB1                           11.56      320.67       0°         
+
+========================================================================================================================
+TEMPLATE EXTRACTION
+========================================================================================================================
+Anchor point: R16$CBB17/CBB1 at X=3.683mm, Y=310.769mm
+
+✓ Template saved to: IMC_template_x_y_rot.txt
+
+✓ Dictionary saved to: IMC_template_dict.py
+
+TEMPLATE DICTIONARY:
+----------------------------------------------------------------------------------------------------
+  'R16$CBB17/CBB1': (  0.000,   0.000,   180),
+  'R1$CBB17/CBB1': (  0.000,   1.143,   180),
+  'R15$CBB17/CBB1': ( -2.794,   1.905,    90),
+  'R3$CBB17/CBB1': (  0.000,   2.413,   180),
+  'R14$CBB17/CBB1': ( -1.651,   3.048,    90),
+  'R4$CBB17/CBB1': (  0.000,   3.683,   180),
+  'R13$CBB17/CBB1': ( -2.794,   4.318,    90),
+  'U6$CBB17/CBB1': (  5.153,   4.363,   270),
+  'R5$CBB17/CBB1': (  0.000,   4.953,   180),
+  'R12$CBB17/CBB1': ( -1.651,   5.588,    90),
+  'R6$CBB17/CBB1': (  0.000,   6.223,   180),
+  'R11$CBB17/CBB1': ( -2.794,   6.858,    90),
+  'R7$CBB17/CBB1': (  0.000,   7.493,   180),
+  'R10$CBB17/CBB1': ( -1.651,   8.001,    90),
+  'R8$CBB17/CBB1': (  0.000,   8.763,   180),
+  'R2$CBB17/CBB1': ( -2.794,   8.890,    90),
+  'R9$CBB17/CBB1': (  0.000,   9.906,   180),
+  'C193$CBB17/CBB1': (  7.874,   9.906,     0),
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ python analyze_IMC.py 
+========================================================================================================================
+INVERTED_MAML_IMC.epru - TEMPLATE EXTRACTION
+========================================================================================================================
+
+Parsing: Inverted_MAML_IMC.epru
+  -> Found 2395 total components
+  -> Found 2396 designators
+
+========================================================================================================================
+COORDINATE RANGES (MM):
+  X:   -30.14 to   410.71 mm
+  Y:  -335.55 to   320.67 mm
+========================================================================================================================
+
+Searching area: X 0-14mm, Y 300-325mm
+✓ Found 18 components
+
+Designator                          X (mm)       Y (mm)       Angle    Locked  
+----------------------------------------------------------------------------------------------------
+R16$CBB17/CBB1                             3.68      310.77     180°         
+R1$CBB17/CBB1                              3.68      311.91     180°         
+R15$CBB17/CBB1                             0.89      312.67      90°         
+R3$CBB17/CBB1                              3.68      313.18     180°         
+R14$CBB17/CBB1                             2.03      313.82      90°         
+R4$CBB17/CBB1                              3.68      314.45     180°         
+R13$CBB17/CBB1                             0.89      315.09      90°         
+U6$CBB17/CBB1                              8.84      315.13     270°         
+R5$CBB17/CBB1                              3.68      315.72     180°         
+R12$CBB17/CBB1                             2.03      316.36      90°         
+R6$CBB17/CBB1                              3.68      316.99     180°         
+R11$CBB17/CBB1                             0.89      317.63      90°         
+R7$CBB17/CBB1                              3.68      318.26     180°         
+R10$CBB17/CBB1                             2.03      318.77      90°         
+R8$CBB17/CBB1                              3.68      319.53     180°         
+R2$CBB17/CBB1                              0.89      319.66      90°         
+R9$CBB17/CBB1                              3.68      320.67     180°         
+C193$CBB17/CBB1                           11.56      320.67       0°         
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ python write_placements_IMC.py 
+
+========================================================================================================================
+PLACEMENT CONFIGURATION
+========================================================================================================================
+Blocks: 3 types × 8 numbers = 24
+Components per block: 18
+Total placements: 432
+Anchor: (3.683, 310.769)mm
+Y-offset per block: -12.5mm
+========================================================================================================================
+========================================================================================================================
+IMC EPRU FILE AUTO-PLACEMENT WRITER
+========================================================================================================================
+
+Phase 1: Reading designators from source file...
+  -> Found 2396 designators
+  -> Found 2395 components
+
+Phase 2: Applying placements...
+  -> Applied 432 placements
+
+Phase 3: Writing output file...
+  -> Output file written: autoplaced_output_IMC.epru
+
+========================================================================================================================
+PLACEMENT RESULTS
+========================================================================================================================
+Total placements: 432
+Applied: 432
+Not found in file: 0
+
+✓ Output file: autoplaced_output_IMC.epru
+========================================================================================================================
+✓ File size: 11038695 bytes
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ python verify_placements_IMC.py 
+========================================================================================================================
+VERIFY AUTOPLACED_OUTPUT_IMC
+========================================================================================================================
+
+Loading original file: Inverted_MAML_IMC.epru
+Loading output file: autoplaced_output_IMC.epru
+
+Original: 2395 components, 2396 designators
+Output: 2395 components, 2396 designators
+
+========================================================================================================================
+SAMPLE VERIFICATION
+========================================================================================================================
+
+R16$CBB17/CBB1
+  Original: X=   3.683mm, Y= 310.769mm, Angle= 180°
+  Output:   X=   3.683mm, Y= 310.769mm, Angle= 180°
+  Expected: X=   3.683mm, Y= 310.769mm, Angle= 180°
+  Status: ✓ MATCH
+
+R16$CBB17/CBB2
+  Original: X= 292.388mm, Y=  78.451mm, Angle=   0°
+  Output:   X=   3.683mm, Y= 298.269mm, Angle= 180°
+  Expected: X=   3.683mm, Y= 298.269mm, Angle= 180°
+  Status: ✓ MATCH
+
+R16$CBB18/CBB1
+  Original: X= 274.260mm, Y=  38.882mm, Angle=   0°
+  Output:   X=   3.683mm, Y= 210.769mm, Angle= 180°
+  Expected: X=   3.683mm, Y= 310.769mm, Angle= 180°
+  Status: ✗ MISMATCH
+
+C193$CBB20/CBB8
+  Original: X= 213.254mm, Y=-109.494mm, Angle=   0°
+  Output:   X=  11.557mm, Y=  33.175mm, Angle=   0°
+  Expected: X=  11.557mm, Y= 233.175mm, Angle=   0°
+  Status: ✗ MISMATCH
+
+========================================================================================================================
+✓ Verification complete
+========================================================================================================================
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ 
