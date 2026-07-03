@@ -1,0 +1,23 @@
+# Template B - 2-level hierarchy
+# Anchor: R136$CBB17 at X=-86.000mm, Y=229.500mm
+
+C1                             X= -99.500mm Y=  16.500mm Angle=  0°
+C193                           X= -99.500mm Y=  66.500mm Angle=  0°
+R112                           X=-100.000mm Y=  51.500mm Angle=180°
+R128                           X=-100.000mm Y=  50.000mm Angle=  0°
+R129                           X=-100.000mm Y=  39.000mm Angle=180°
+R130                           X=-100.000mm Y=  37.500mm Angle=  0°
+R131                           X=-100.000mm Y=  26.500mm Angle=180°
+R132                           X=-100.000mm Y=  25.000mm Angle=  0°
+R133                           X=-100.000mm Y=  14.000mm Angle=180°
+R134                           X=-100.000mm Y=  12.500mm Angle=  0°
+R135                           X=-100.000mm Y=   1.500mm Angle=180°
+R136                           X=-100.000mm Y=   0.000mm Angle=  0°
+R16                            X=-100.000mm Y=  89.000mm Angle=180°
+R32                            X=-100.000mm Y=  87.500mm Angle=  0°
+R48                            X=-100.000mm Y=  76.500mm Angle=180°
+R64                            X=-100.000mm Y=  75.000mm Angle=  0°
+R80                            X=-100.000mm Y=  64.000mm Angle=180°
+R96                            X=-100.000mm Y=  62.500mm Angle=  0°
+U1                             X= -94.500mm Y=  66.500mm Angle=-90°
+U2                             X= -94.315mm Y=  16.500mm Angle=270°
