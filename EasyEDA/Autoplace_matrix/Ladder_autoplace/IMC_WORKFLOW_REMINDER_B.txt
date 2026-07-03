@@ -1,0 +1,273 @@
+========================================================================================================================
+IMC WORKFLOW VERSION B - EasyEDA to Python Placement Script
+Updated Workflow with X-100mm offset and 2-level hierarchy template
+========================================================================================================================
+
+STEP 1: Export from EasyEDA at PCB view
+---------
+1. File -> File Source... -> Download
+2. File stored: Inverted_MAML_IMC.epru (in Downloads folder or working directory)
+
+
+STEP 2: Extract Template B (New 2-level hierarchy template)
+---------
+python extract_IMC_template_B.py
+
+This extracts:
+- Search area: X: 12.7-25mm, Y: 225-321mm
+- Creates: IMC_template_B_x_y_rot.txt
+- Creates: IMC_template_B_dict.py (with 2-level hierarchy: designator$CBB17, no /CBBx suffix)
+
+
+STEP 3: Run Python placement scripts for Version B
+---------
+python write_placement_IMC_B.py
+
+This applies:
+- Template A (3-level hierarchy): all 3x8 blocks with X -100mm offset
+  Example: R16$CBB17/CBB1, R16$CBB17/CBB2, ..., R16$CBB18/CBB1, etc.
+- Template B (2-level hierarchy): CBB17, CBB18, CBB20 with Y offsets
+  Example: U1$CBB17, U1$CBB18 (Y-100mm), U1$CBB20 (Y-200mm)
+
+Output file generated: autoplaced_output_IMC_B.epru
+
+
+STEP 4: Verify placements (Optional)
+---------
+python verify_placements_IMC.py
+
+(Use existing verification script)
+
+
+STEP 5: Prepare file for EasyEDA import
+---------
+1. Take file: autoplaced_output_IMC_B.epru
+2. Zip together with:
+   - Original IMAGE folder
+   - Original project2.json (NOT in any folder)
+3. Rename zip file:
+   autoplaced_output_IMC_B.zip  ->  autoplaced_output_IMC_B.epro2
+
+
+STEP 6: Import back into EasyEDA
+---------
+File -> Import -> EasyEDA(Professional)...
+Select: autoplaced_output_IMC_B.epro2
+
+
+========================================================================================================================
+KEY DIFFERENCES FROM VERSION A
+========================================================================================================================
+
+Version A (Original):
+  - Only Template A (3-level hierarchy)
+  - Anchor at X=3.683mm
+  - 24 blocks total (3 types × 8 numbers)
+
+Version B (Updated):
+  - Template A: 3-level hierarchy with X -100mm offset
+    Anchor moved: X=3.683mm → X=-96.317mm
+  - Template B: 2-level hierarchy (designator$CBB17, designator$CBB18, designator$CBB20)
+    - CBB17: Base position
+    - CBB18: Y offset = -100mm from CBB17
+    - CBB20: Y offset = -200mm from CBB17
+  - More space on board due to X-offset
+
+
+========================================================================================================================
+CONFIGURATION DETAILS
+========================================================================================================================
+
+Template A:
+  - Block Types: CBB17, CBB18, CBB20
+  - Block Numbers: 1-8 (per type)
+  - Total: 24 blocks
+  - Components per block: 18
+  - Total placements: 432
+  - Anchor: (3.683-100, 310.769)mm = (-96.317, 310.769)mm
+  - Y-offset per block: -12.5mm
+
+Template B:
+  - Block Types: CBB17, CBB18, CBB20
+  - No sub-numbers (2-level hierarchy only)
+  - Components: Extracted from area X: 12.7-25mm, Y: 225-321mm
+  - Anchor X offset: -100mm from original
+  - Y-offset per outer block: -100mm (8 × -12.5mm)
+
+
+========================================================================================================================
+GENERATED FILES
+========================================================================================================================
+
+From extract_IMC_template_B.py:
+  - IMC_template_B_x_y_rot.txt (human-readable template)
+  - IMC_template_B_dict.py (Python dictionary for scripting)
+
+From write_placement_IMC_B.py:
+  - autoplaced_output_IMC_B.epru (placement results, ready for import)
+
+For EasyEDA import:
+  - autoplaced_output_IMC_B.epro2 (zipped with IMAGE and project2.json)
+
+
+========================================================================================================================
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ python extract_IMC_template_B.py 
+========================================================================================================================
+EXTRACT TEMPLATE B FROM Inverted_MAML_IMC.epru
+========================================================================================================================
+
+Parsing: Inverted_MAML_IMC.epru
+  -> Found 2395 total components
+  -> Found 2396 designators
+
+========================================================================================================================
+SEARCHING: X 12.7-25mm, Y 225-321mm
+========================================================================================================================
+
+✓ Found 20 components
+
+Designator                          X (mm)       Y (mm)       Angle    Locked  
+----------------------------------------------------------------------------------------------------
+R136$CBB17                                14.00      229.50       0°         
+R135$CBB17                                14.00      231.00     180°         
+R134$CBB17                                14.00      242.00       0°         
+R133$CBB17                                14.00      243.50     180°         
+C1$CBB17                                  14.50      246.00       0°         
+U2$CBB17                                  19.68      246.00     270°         
+R132$CBB17                                14.00      254.50       0°         
+R131$CBB17                                14.00      256.00     180°         
+R130$CBB17                                14.00      267.00       0°         
+R129$CBB17                                14.00      268.50     180°         
+R128$CBB17                                14.00      279.50       0°         
+R112$CBB17                                14.00      281.00     180°         
+R96$CBB17                                 14.00      292.00       0°         
+R80$CBB17                                 14.00      293.50     180°         
+C193$CBB17                                14.50      296.00       0°         
+U1$CBB17                                  19.50      296.00     -90°         
+R64$CBB17                                 14.00      304.50       0°         
+R48$CBB17                                 14.00      306.00     180°         
+R32$CBB17                                 14.00      317.00       0°         
+R16$CBB17                                 14.00      318.50     180°         
+
+========================================================================================================================
+TEMPLATE EXTRACTION
+========================================================================================================================
+
+Anchor point: R136$CBB17 at X=14.000mm, Y=229.500mm
+After X-offset (-100mm): X=-86.000mm, Y=229.500mm
+
+✓ Template saved to: IMC_template_B_x_y_rot.txt
+✓ Dictionary saved to: IMC_template_B_dict.py
+
+========================================================================================================================
+TEMPLATE DICTIONARY:
+----------------------------------------------------------------------------------------------------
+  'C1': ( -99.500,   16.500, 0),
+  'C193': ( -99.500,   66.500, 0),
+  'R112': (-100.000,   51.500, 180),
+  'R128': (-100.000,   50.000, 0),
+  'R129': (-100.000,   39.000, 180),
+  'R130': (-100.000,   37.500, 0),
+  'R131': (-100.000,   26.500, 180),
+  'R132': (-100.000,   25.000, 0),
+  'R133': (-100.000,   14.000, 180),
+  'R134': (-100.000,   12.500, 0),
+  'R135': (-100.000,    1.500, 180),
+  'R136': (-100.000,    0.000, 0),
+  'R16': (-100.000,   89.000, 180),
+  'R32': (-100.000,   87.500, 0),
+  'R48': (-100.000,   76.500, 180),
+  'R64': (-100.000,   75.000, 0),
+  'R80': (-100.000,   64.000, 180),
+  'R96': (-100.000,   62.500, 0),
+  'U1': ( -94.500,   66.500, -90),
+  'U2': ( -94.315,   16.500, 270),
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ write_placement_IMC_B.py 
+write_placement_IMC_B.py: command not found
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ python write_placement_IMC_B.py 
+✓ Loaded Template B from IMC_template_B_dict.py
+  Anchor: X=-86.000mm, Y=229.500mm
+
+========================================================================================================================
+PLACEMENT CONFIGURATION
+========================================================================================================================
+Template A: 3 types × 8 numbers = 24 blocks
+  Components per block: 18
+  Total placements: 432
+  Anchor (Template A): (-96.317, 310.769)mm
+  Y-offset per block: -12.5mm
+
+Template B: 3 types (CBB17, CBB18, CBB20)
+  Components per type: 20
+  Total placements: 60
+  Anchor (Template B): (-86.000, 229.500)mm
+  Y-offset per outer block: -100.0mm
+
+========================================================================================================================
+========================================================================================================================
+IMC EPRU FILE AUTO-PLACEMENT WRITER - VERSION B
+========================================================================================================================
+
+Phase 1: Reading designators from source file...
+  -> Found 2396 designators
+  -> Found 2395 components
+
+Phase 2: Applying placements...
+  -> Applied 492 placements
+
+Phase 3: Writing output file...
+  -> Output file written: autoplaced_output_IMC_B.epru
+
+========================================================================================================================
+PLACEMENT RESULTS
+========================================================================================================================
+Total placements configured: 492
+Applied: 492
+Not found in file: 0
+
+✓ Output file: autoplaced_output_IMC_B.epru
+✓ File size: 12183429 bytes
+========================================================================================================================
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ python verify_placements_IMC.py
+========================================================================================================================
+VERIFY AUTOPLACED_OUTPUT_IMC
+========================================================================================================================
+
+Loading original file: Inverted_MAML_IMC.epru
+Loading output file: autoplaced_output_IMC.epru
+
+Original: 2395 components, 2396 designators
+Output: 2395 components, 2396 designators
+
+========================================================================================================================
+SAMPLE VERIFICATION
+========================================================================================================================
+
+R16$CBB17/CBB1
+  Original: X=   3.683mm, Y= 310.769mm, Angle= 180°
+  Output:   X=   3.683mm, Y= 310.769mm, Angle= 180°
+  Expected: X=   3.683mm, Y= 310.769mm, Angle= 180°
+  Status: ✓ MATCH
+
+R16$CBB17/CBB2
+  Original: X=   3.683mm, Y= 298.269mm, Angle= 180°
+  Output:   X=   3.683mm, Y= 298.269mm, Angle= 180°
+  Expected: X=   3.683mm, Y= 298.269mm, Angle= 180°
+  Status: ✓ MATCH
+
+R16$CBB18/CBB1
+  Original: X=   3.683mm, Y= 210.769mm, Angle= 180°
+  Output:   X=   3.683mm, Y= 210.769mm, Angle= 180°
+  Expected: X=   3.683mm, Y= 310.769mm, Angle= 180°
+  Status: ✗ MISMATCH
+
+C193$CBB20/CBB8
+  Original: X=  11.557mm, Y=  33.175mm, Angle=   0°
+  Output:   X=  11.557mm, Y=  33.175mm, Angle=   0°
+  Expected: X=  11.557mm, Y= 233.175mm, Angle=   0°
+  Status: ✗ MISMATCH
+
+========================================================================================================================
+✓ Verification complete
+========================================================================================================================
+(base) olle@olle-SSD-256:~/AnalogAI/Matrix(3,8,33)_scriptetd_place$ 
