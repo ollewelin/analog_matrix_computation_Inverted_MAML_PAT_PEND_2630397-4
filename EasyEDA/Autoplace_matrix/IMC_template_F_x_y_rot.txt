@@ -1,0 +1,21 @@
+# Template F - First-level hierarchy (BOTTOM LAYER)
+# Anchor: Q3$CBB8 at X=92.583mm, Y=12.319mm
+# Layer: Top
+
+C193                           X=   4.699mm Y=   8.509mm Angle= 90° Layer=Top       
+Q1                             X=  -2.661mm Y=   8.636mm Angle=180° Layer=Top       
+Q2                             X=   0.121mm Y=   8.636mm Angle=  0° Layer=Top       
+Q3                             X=   0.121mm Y=   6.350mm Angle=  0° Layer=Top       
+Q4                             X=  -2.661mm Y=   6.350mm Angle=180° Layer=Top       
+R10                            X=  -3.048mm Y=  10.414mm Angle=180° Layer=Top       
+R13                            X=  -4.445mm Y=  12.319mm Angle= 90° Layer=Top       
+R15                            X=   1.016mm Y=   4.064mm Angle=180° Layer=Top       
+R2                             X=  -4.445mm Y=  12.319mm Angle=270° Layer=Top       
+R3                             X=   4.699mm Y=  12.319mm Angle=270° Layer=Top       
+R4                             X=   4.699mm Y=  10.541mm Angle=270° Layer=Top       
+R5                             X=   4.699mm Y=  12.446mm Angle=-90° Layer=Top       
+R6                             X=   6.223mm Y=  12.700mm Angle=  0° Layer=Top       
+R7                             X=   6.223mm Y=  13.843mm Angle=  0° Layer=Top       
+R8                             X=   4.699mm Y=  14.224mm Angle= 90° Layer=Top       
+R9                             X=   0.889mm Y=  10.414mm Angle=  0° Layer=Top       
+U1                             X=   0.127mm Y=   9.144mm Angle=270° Layer=Top       
