@@ -1,0 +1,81 @@
+# Inverted MAML 3x6x6 Simulator Configuration
+# Reference: SE 2630397-4 (Patent Pending)
+
+# Cell Physics Parameters
+cell:
+  capacitor_nF: 100                # Weight storage capacitor (100 nF)
+  discharge_resistor_MOhm: 1.0     # Slow discharge (1 MΩ → τ=100ms)
+  fast_ref_resistor_kOhm: 330      # Fast reference (330 kΩ → τ=33ms)
+  transistor_Vth_V: 0.6            # Threshold voltage (DOX3134A)
+  transconductance_scale: 1.0e-4   # g_m scaling factor
+
+# Timing & Synchronization
+timing:
+  refresh_cycle_ms: 10             # 10 ms between weight updates
+  num_strata: 10                   # Stratified measurement windows
+  sampling_time_us: 2              # Per-sample throughput during inference
+  stratum_duration_us: 1000        # 1 ms per stratum (10ms / 10 strata)
+
+# Voltage Levels & Operating Ranges
+voltages:
+  data_swing_mV: 250               # Row voltage: 1.65V (0) → 1.90V (255)
+  data_min_V: 1.65                 # Data swing minimum (virtual ground)
+  data_max_V: 1.90                 # Data swing maximum
+  weight_swing_V: 1.0              # Gate voltage: 2.1V (0) → 3.1V (255)
+  weight_min_V: 2.1                # Weight swing minimum
+  weight_max_V: 3.1                # Weight swing maximum
+  source_potential_V: 1.65         # Central reference (virtual ground)
+  droop_target_percent: 9.5        # Expected voltage drop per cycle
+
+# Matrix Configuration
+matrix:
+  size: 6                          # 6×6 matrix
+  activation: tanh                 # Activation function for M3 layer
+  num_matrices: 3                  # M33 (payload) + M3, M8 (corrections)
+
+# MAML Learning Parameters
+maml:
+  learning_rate: 0.1               # Gradient descent step size (Phase 2: increased from 0.01)
+  max_cycles: 100                  # Maximum training cycles
+  convergence_threshold_bits: 5.5  # Target precision (6-bit ≈ 5.5 bits margin)
+  num_test_vectors: 16             # Number of test inputs per cycle
+  test_vector_scale: 1.0           # Normalize test vectors to [-1, +1]
+
+# Physical Non-Idealities Injection
+noise:
+  thermal_drift_enabled: true
+  thermal_drift_rate_per_degC: 0.005  # 0.5% per °C leakage increase
+  thermal_drift_R_rate_per_degC: -0.003  # R decreases with temp
+  
+  manufacturing_sigma_percent: 2.0  # ±2% component variation (Gaussian)
+  manufacturing_Vth_sigma: 0.02     # V_th tolerance
+  
+  thermal_noise_enabled: true
+  thermal_noise_sigma_percent: 0.1  # 0.1% injected noise floor
+  
+  environmental_temp_delta_C: 0     # Ambient temperature sweep (for analysis)
+
+# Measurement & Sensing
+measurement:
+  hadamard_encoding: true          # Use orthogonal encoding for excitation
+  num_ref_cells: 6                 # Reference cells per matrix
+  num_bias_cells: 6                # Hardware bias cells per layer
+  adc_resolution_bits: 12          # ADC quantization
+  adc_noise_lsb: 0.5               # ADC noise in LSBs
+
+# Test Vector Generation
+test_vectors:
+  type: random_uniform             # Type: random_uniform, sweep, or sine
+  dimension: 6                     # Input dimensionality
+  num_vectors: 16                  # Number of test patterns
+  seed: 42                         # For reproducibility
+
+# Output & Logging
+output:
+  save_results: true
+  results_dir: ./results
+  save_frequency_cycles: 1         # Save metrics every N cycles
+  plot_convergence: true
+  plot_robustness: false           # Generate noise sweep plots
+  verbose: true
+  log_level: INFO                  # DEBUG, INFO, WARNING, ERROR

@@ -1,0 +1,53 @@
+{
+  "experiment": "Inverted MAML 3x6x6 MVP",
+  "date": "2026-07-07T17:42:18.696140",
+  "parameters": {
+    "matrix_size": 6,
+    "num_matrices": 3,
+    "num_strata": 1,
+    "learning_rate": 0.05,
+    "num_training_samples": 16,
+    "max_cycles": 10
+  },
+  "physical_effects": {
+    "manufacturing_tolerance_percent": 2.0,
+    "thermal_drift_delta_C": 5.0,
+    "thermal_noise_percent": 0.1
+  },
+  "convergence": {
+    "cycles_completed": 10,
+    "converged": false,
+    "convergence_cycle": null,
+    "final_loss": 0.015521603021223187,
+    "final_precision_bits": 0.5570893466772219,
+    "target_precision_bits": 5.5
+  },
+  "performance": {
+    "elapsed_time_sec": 0.15700459480285645,
+    "cycles_per_sec": 63.69240347746859
+  },
+  "loss_history": [
+    0.01967934463611236,
+    0.01881287386139631,
+    0.01798047971257459,
+    0.017398193828835142,
+    0.016971983644545274,
+    0.01663657448017185,
+    0.016335898528062744,
+    0.01605132131069935,
+    0.015778512827550908,
+    0.015521603021223187
+  ],
+  "precision_history": [
+    0.46833916817216603,
+    0.4882567830876796,
+    0.5040701957144171,
+    0.5154921387510545,
+    0.5229077544768606,
+    0.5300822617278171,
+    0.5361298018336652,
+    0.5434437936961684,
+    0.54975985442385,
+    0.5570893466772219
+  ]
+}
