@@ -1,0 +1,16 @@
+{
+  "test_type": "DIRECT",
+  "timestamp": "2026-07-07T17:47:05.314398",
+  "config": {
+    "max_cycles": 100,
+    "num_samples": 16,
+    "seed": 42,
+    "num_strata": 1,
+    "learning_rate": 0.05,
+    "physical_effects": "DISABLED"
+  },
+  "convergence": {
+    "final_loss": 0.004279581799874785,
+    "final_precision_bits": 7.868314461102185,
+    "target_precision_bits": 5.5,
+    "converged": 
