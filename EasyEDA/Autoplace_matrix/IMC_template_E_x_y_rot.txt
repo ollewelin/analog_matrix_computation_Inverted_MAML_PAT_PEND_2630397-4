@@ -1,0 +1,23 @@
+# Template E - First-level hierarchy
+# Anchor: Q4$CBB1 at X=89.922mm, Y=18.669mm
+
+C193                           X=  -1.784mm Y=   8.636mm Angle= 90°
+Q1                             X=   0.000mm Y=   2.286mm Angle=180°
+Q2                             X=   2.782mm Y=   2.286mm Angle=  0°
+Q3                             X=   2.782mm Y=   0.000mm Angle=  0°
+Q4                             X=   0.000mm Y=   0.000mm Angle=180°
+R1                             X=   7.360mm Y=   9.906mm Angle= 90°
+R10                            X=  -0.387mm Y=   4.064mm Angle=180°
+R11                            X=   9.519mm Y=   9.017mm Angle= 90°
+R12                            X=   8.503mm Y=   9.017mm Angle= 90°
+R13                            X=   1.518mm Y=   4.064mm Angle=180°
+R14                            X=   7.360mm Y=  12.319mm Angle= 90°
+R2                             X=  -1.784mm Y=   5.969mm Angle=270°
+R3                             X=   7.360mm Y=   5.969mm Angle=270°
+R4                             X=  -1.784mm Y=  10.668mm Angle=270°
+R5                             X=  -1.784mm Y=  12.573mm Angle=270°
+R6                             X=   8.884mm Y=   6.350mm Angle=  0°
+R7                             X=   8.884mm Y=   7.493mm Angle=  0°
+R8                             X=   7.360mm Y=   7.874mm Angle= 90°
+R9                             X=   3.550mm Y=   4.064mm Angle=  0°
+U1                             X=   2.788mm Y=   9.144mm Angle=270°
