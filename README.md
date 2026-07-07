@@ -43,7 +43,9 @@ Is better and reflect this project more fair I think.
 ![](LTspice_sigmoid_sim.png)
 ### The MATRIX ! The self aware MATRIX :) (placement only not routed all yet..
 ![](EasyEDA/Autoplace_matrix1.png)
-
 ![](EasyEDA/Autoplace_matrix/Autoplace_matrix2.png)
+### Claude Simulation 3x6x6 PCB (NO hadamard included):
+![](Simulation_Proof_of_concept_3x6x6_triad.png)
+
     
     
