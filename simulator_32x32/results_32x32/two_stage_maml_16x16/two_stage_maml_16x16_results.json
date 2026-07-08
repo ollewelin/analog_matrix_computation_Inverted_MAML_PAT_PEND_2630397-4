@@ -1,0 +1,57 @@
+{
+  "matrix_size": "16x16",
+  "total_cells": 768,
+  "stage1_training": {
+    "outer_iterations": 5,
+    "initial_base_precision": 4.373815786378952,
+    "final_base_precision": 4.387461441445317,
+    "base_improvement": 0.013645655066365059,
+    "per_iteration": [
+      {
+        "iteration": 1,
+        "baseline": 3.727642186218464,
+        "final": 4.373815786378952,
+        "improvement": 0.6461736001604876,
+        "avg_loss": 0.004581906376146052
+      },
+      {
+        "iteration": 2,
+        "baseline": 4.339992345830691,
+        "final": 4.37709943709399,
+        "improvement": 0.03710709126329892,
+        "avg_loss": 0.004152441750850132
+      },
+      {
+        "iteration": 3,
+        "baseline": 4.362247027188776,
+        "final": 4.401596609270525,
+        "improvement": 0.039349582081749546,
+        "avg_loss": 0.00399562350078125
+      },
+      {
+        "iteration": 4,
+        "baseline": 4.348210466692031,
+        "final": 4.3807252187311745,
+        "improvement": 0.03251475203914378,
+        "avg_loss": 0.0039506667366835755
+      },
+      {
+        "iteration": 5,
+        "baseline": 4.357683342686879,
+        "final": 4.387461441445317,
+        "improvement": 0.029778098758438176,
+        "avg_loss": 0.003996256259779427
+      }
+    ]
+  },
+  "stage2_operation": {
+    "operation_cycles": 150,
+    "initial_precision": 3.0490767379474506,
+    "final_precision": 4.259425580619936,
+    "max_precision": 4.261070572089705,
+    "precision_retention": 1.2103488426724858,
+    "total_drift": 0.49666666666666665,
+    "avg_weight_change": 0.3928473775125686,
+    "avg_loss": 0.007602859789836402
+  }
+}
