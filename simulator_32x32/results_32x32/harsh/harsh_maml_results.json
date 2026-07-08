@@ -1,0 +1,28 @@
+{
+  "test": "HARSH_COMPRESSION_MAML",
+  "config": {
+    "harsh_compression": true,
+    "mfg_variation": "\u00b115-20%",
+    "temp_stress": "+35\u00b0C",
+    "noise_level": "3%",
+    "initial_lr": 0.5,
+    "adaptive_decay": 0.95,
+    "momentum": 0.95,
+    "num_strata": 1,
+    "num_samples": 32,
+    "num_cycles": 100
+  },
+  "baseline": {
+    "average_precision": 5.271848416277421,
+    "average_loss": 0.025883053709033637
+  },
+  "learning": {
+    "final_precision": 6.494141788977871,
+    "improvement": 1.2222933727004506,
+    "max_precision": 6.495959069062919
+  },
+  "patent_strength": {
+    "improvement": 1.2222933727004506,
+    "status": "MODERATE"
+  }
+}
