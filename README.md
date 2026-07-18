@@ -41,7 +41,7 @@ Is better and reflect this project more fair I think.
 ![](6x6_matrix.png)
 ### LTspice simulation sigmoid OP-amp
 ![](LTspice_sigmoid_sim.png)
-### The MATRIX ! The self aware MATRIX :) (placement only not routed all yet..
+### The MATRIX ! The self aware MATRIX :) 
 ![](EasyEDA/matrix.png)
 ![](EasyEDA/Autoplace_matrix/Autoplace_matrix2.png)
 ### Claude Simulation 3x6x6 PCB (NO hadamard included):
