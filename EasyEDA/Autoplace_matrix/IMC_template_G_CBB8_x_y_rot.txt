@@ -1,0 +1,22 @@
+# Template G_CBB8 - First-level hierarchy (BOTTOM LAYER)
+# Anchor: Q3$CBB8 at X=91.054mm, Y=18.497mm
+# Layer: Bottom
+
+C193                           X=   6.223mm Y=   9.836mm Angle=270° Layer=Bottom    
+H1                             X=  -3.297mm Y=   0.426mm Angle= 90° Layer=Bottom    
+Q1                             X=   2.794mm Y=   2.286mm Angle=  0° Layer=Bottom    
+Q2                             X=   0.000mm Y=   2.286mm Angle=180° Layer=Bottom    
+Q3                             X=   0.000mm Y=   0.000mm Angle=180° Layer=Bottom    
+Q4                             X=   2.794mm Y=   0.000mm Angle=  0° Layer=Bottom    
+R10                            X=   3.429mm Y=   4.064mm Angle=  0° Layer=Bottom    
+R13                            X=  -2.921mm Y=  12.503mm Angle= 90° Layer=Bottom    
+R15                            X=   7.366mm Y=   7.677mm Angle= 90° Layer=Bottom    
+R2                             X=   1.524mm Y=   4.064mm Angle=  0° Layer=Bottom    
+R3                             X=  -2.921mm Y=   6.153mm Angle=270° Layer=Bottom    
+R4                             X=   7.366mm Y=   9.709mm Angle=270° Layer=Bottom    
+R5                             X=   6.731mm Y=  11.233mm Angle=  0° Layer=Bottom    
+R6                             X=  -3.937mm Y=   6.153mm Angle=270° Layer=Bottom    
+R7                             X=  -4.948mm Y=   5.760mm Angle=270° Layer=Bottom    
+R8                             X=  -2.921mm Y=   8.566mm Angle= 90° Layer=Bottom    
+R9                             X=  -0.381mm Y=   4.064mm Angle=180° Layer=Bottom    
+U1                             X=   1.651mm Y=   9.328mm Angle=270° Layer=Bottom    
