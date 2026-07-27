@@ -19,7 +19,7 @@ My approach combines analog matrix hardware with a novel Inverted Meta-Learning 
 Working with analog computing is an act of balancing physics and precision. Very funny and exciting project!
 
 ### Status and Disclaimer
-2026-06-10: Nothing is yet tested or simulated. This is currently only a plan to build a test board with a 3x 6x6 matrix PCB at 500 kHz throughput, 8-bit R-2R DACs, 10-bit SAR ADCs, a Trion FPGA, and N-channel transistors.
+2026-06-10: Nothing is yet tested (little simulated 2026-06). This is currently only a plan to build a test board with a 3x 6x6 matrix PCB at 500 kHz throughput, 8-bit R-2R DACs, 10-bit SAR ADCs, a Trion FPGA, and N-channel transistors.
 
 #### Disclaimer: 
 The 
