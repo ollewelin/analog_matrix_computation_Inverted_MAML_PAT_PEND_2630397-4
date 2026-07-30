@@ -9,6 +9,9 @@
 #### PRIORITY DATE: 2026-06-03
 ## Analog 2T1C Matrix with Inverted Meta-Learning (MAML)
 
+## Youtube Video Audio:
+https://youtu.be/LbWriQ0J6QY?si=GyIZ1UnNZuVdLi54
+
 ### Project Vision: Redefining Efficient Inference
 
 The primary goal of this project is to drastically reduce power consumption for Neural Network inference. By moving away from energy-intensive digital data movement and leveraging In-Memory Computing (IMC), my aim to overcome the traditional "memory wall."
