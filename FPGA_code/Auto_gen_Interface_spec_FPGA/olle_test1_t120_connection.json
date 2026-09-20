@@ -18425,7 +18425,7 @@
       "source_line": 28576
     },
     {
-      "name": "TX11_T20_N",
+      "name": "TX11_T20_N1",
       "raw_net": "$4I198\\TX11_T20_N",
       "package_pin": "C13",
       "source_gpio_def": "GPIOT_RXN01",
@@ -24832,7 +24832,7 @@
       "source_line": 28579
     },
     {
-      "name": "TX12_T20_P",
+      "name": "TX12_T20_P1",
       "raw_net": "$4I198\\TX12_T20_P",
       "package_pin": "C16",
       "source_gpio_def": "GPIOT_RXP02",
@@ -48673,7 +48673,7 @@
       "source_line": 28594
     },
     {
-      "name": "TX11_T20_P",
+      "name": "TX11_T20_P1",
       "raw_net": "$4I198\\TX11_T20_P",
       "package_pin": "D13",
       "source_gpio_def": "GPIOT_RXP01",
@@ -48745,7 +48745,7 @@
       "source_line": 28597
     },
     {
-      "name": "TX12_T20_N",
+      "name": "TX12_T20_N1",
       "raw_net": "$4I198\\TX12_T20_N",
       "package_pin": "D16",
       "source_gpio_def": "GPIOT_RXN02",
@@ -48817,7 +48817,7 @@
       "source_line": 28600
     },
     {
-      "name": "CAM3_D0_P",
+      "name": "CAM3_D0_P1",
       "raw_net": "$4I2\\CAM3_D0_P",
       "package_pin": "D4",
       "source_gpio_def": "",
@@ -48849,7 +48849,7 @@
       "source_line": 28586
     },
     {
-      "name": "CAM2_D1_N",
+      "name": "CAM2_D1_N1",
       "raw_net": "$4I2\\CAM2_D1_N",
       "package_pin": "D5",
       "source_gpio_def": "",
@@ -48934,7 +48934,7 @@
       "source_line": 28589
     },
     {
-      "name": "CAM2_D0_N",
+      "name": "CAM2_D0_N1",
       "raw_net": "$4I2\\CAM2_D0_N",
       "package_pin": "D8",
       "source_gpio_def": "",
@@ -49938,7 +49938,7 @@
       "source_line": 28618
     },
     {
-      "name": "CAM3_D0_N",
+      "name": "CAM3_D0_N1",
       "raw_net": "$4I2\\CAM3_D0_N",
       "package_pin": "E4",
       "source_gpio_def": "",
@@ -49969,7 +49969,7 @@
       "source_line": 28604
     },
     {
-      "name": "CAM2_D1_P",
+      "name": "CAM2_D1_P1",
       "raw_net": "$4I2\\CAM2_D1_P",
       "package_pin": "E5",
       "source_gpio_def": "",
@@ -50001,7 +50001,7 @@
       "source_line": 28605
     },
     {
-      "name": "CAM2_D0_P",
+      "name": "CAM2_D0_P1",
       "raw_net": "$4I2\\CAM2_D0_P",
       "package_pin": "E8",
       "source_gpio_def": "",
@@ -50057,7 +50057,7 @@
       "source_line": 28609
     },
     {
-      "name": "CAM3_CLK_N",
+      "name": "CAM3_CLK_N1",
       "raw_net": "$4I2\\CAM3_CLK_N",
       "package_pin": "F1",
       "source_gpio_def": "",
@@ -63114,7 +63114,7 @@
       "source_line": 28620
     },
     {
-      "name": "CAM3_D1_P",
+      "name": "CAM3_D1_P1",
       "raw_net": "$4I2\\CAM3_D1_P",
       "package_pin": "F3",
       "source_gpio_def": "",
@@ -68845,7 +68845,7 @@
       "source_line": 28622
     },
     {
-      "name": "CAM2_CLK_N",
+      "name": "CAM2_CLK_N1",
       "raw_net": "$4I2\\CAM2_CLK_N",
       "package_pin": "F5",
       "source_gpio_def": "",
@@ -68877,7 +68877,7 @@
       "source_line": 28623
     },
     {
-      "name": "CAM2_CLK_P",
+      "name": "CAM2_CLK_P1",
       "raw_net": "$4I2\\CAM2_CLK_P",
       "package_pin": "F6",
       "source_gpio_def": "",
@@ -69057,7 +69057,7 @@
       "source_line": 28627
     },
     {
-      "name": "CAM3_CLK_P",
+      "name": "CAM3_CLK_P1",
       "raw_net": "$4I2\\CAM3_CLK_P",
       "package_pin": "G1",
       "source_gpio_def": "",
@@ -75467,7 +75467,7 @@
       "source_line": 28654
     },
     {
-      "name": "CAM3_D1_N",
+      "name": "CAM3_D1_N1",
       "raw_net": "$4I2\\CAM3_D1_N",
       "package_pin": "G3",
       "source_gpio_def": "",
@@ -210018,7 +210018,7 @@
       "source_line": 28760
     },
     {
-      "name": "T120_CRESET_N",
+      "name": "T120_CRESET_N1",
       "raw_net": "$4I280\\T120_CRESET_N",
       "package_pin": "N17",
       "source_gpio_def": "",
@@ -210355,7 +210355,7 @@
       "source_line": 28779
     },
     {
-      "name": "RX02_T20_N",
+      "name": "RX02_T20_N1",
       "raw_net": "$4I198\\RX02_T20_N",
       "package_pin": "P18",
       "source_gpio_def": "GPIOB_TXN02",
@@ -223231,7 +223231,7 @@
       "source_line": 28796
     },
     {
-      "name": "RX00_T20_N",
+      "name": "RX00_T20_N1",
       "raw_net": "$4I198\\RX00_T20_N",
       "package_pin": "R17",
       "source_gpio_def": "GPIOB_TXN00",
@@ -223255,7 +223255,7 @@
       "source_line": 28797
     },
     {
-      "name": "RX02_T20_P",
+      "name": "RX02_T20_P1",
       "raw_net": "$4I198\\RX02_T20_P",
       "package_pin": "R18",
       "source_gpio_def": "GPIOB_TXP02",
@@ -241896,7 +241896,7 @@
       "source_line": 28814
     },
     {
-      "name": "RX00_T20_P",
+      "name": "RX00_T20_P1",
       "raw_net": "$4I198\\RX00_T20_P",
       "package_pin": "T17",
       "source_gpio_def": "GPIOB_TXP00",
@@ -241920,7 +241920,7 @@
       "source_line": 28815
     },
     {
-      "name": "RX01_T20_N",
+      "name": "RX01_T20_N1",
       "raw_net": "$4I198\\RX01_T20_N",
       "package_pin": "T18",
       "source_gpio_def": "GPIOB_TXN01",
@@ -242423,7 +242423,7 @@
       "source_line": 28831
     },
     {
-      "name": "RX03_T20_P",
+      "name": "RX03_T20_P1",
       "raw_net": "$4I198\\RX03_T20_P",
       "package_pin": "U16",
       "source_gpio_def": "GPIOB_TXP03_CDI31",
@@ -243131,7 +243131,7 @@
       "source_line": 28833
     },
     {
-      "name": "RX01_T20_P",
+      "name": "RX01_T20_P1",
       "raw_net": "$4I198\\RX01_T20_P",
       "package_pin": "U18",
       "source_gpio_def": "GPIOB_TXP01",
@@ -249651,7 +249651,7 @@
       "source_line": 28849
     },
     {
-      "name": "RX03_T20_N",
+      "name": "RX03_T20_N1",
       "raw_net": "$4I198\\RX03_T20_N",
       "package_pin": "V16",
       "source_gpio_def": "GPIOB_TXN03_CDI30",
@@ -303314,7 +303314,7 @@
       "source_line": 28581
     },
     {
-      "name": "CAM3_D0_P",
+      "name": "CAM3_D0_P1",
       "raw_net": "$4I2\\CAM3_D0_P",
       "package_pin": "D4",
       "source_gpio_def": "",
@@ -303346,7 +303346,7 @@
       "source_line": 28586
     },
     {
-      "name": "CAM2_D1_N",
+      "name": "CAM2_D1_N1",
       "raw_net": "$4I2\\CAM2_D1_N",
       "package_pin": "D5",
       "source_gpio_def": "",
@@ -303431,7 +303431,7 @@
       "source_line": 28589
     },
     {
-      "name": "CAM2_D0_N",
+      "name": "CAM2_D0_N1",
       "raw_net": "$4I2\\CAM2_D0_N",
       "package_pin": "D8",
       "source_gpio_def": "",
@@ -309161,7 +309161,7 @@
       "source_line": 28592
     },
     {
-      "name": "CAM3_D0_N",
+      "name": "CAM3_D0_N1",
       "raw_net": "$4I2\\CAM3_D0_N",
       "package_pin": "E4",
       "source_gpio_def": "",
@@ -309192,7 +309192,7 @@
       "source_line": 28604
     },
     {
-      "name": "CAM2_D1_P",
+      "name": "CAM2_D1_P1",
       "raw_net": "$4I2\\CAM2_D1_P",
       "package_pin": "E5",
       "source_gpio_def": "",
@@ -309224,7 +309224,7 @@
       "source_line": 28605
     },
     {
-      "name": "CAM2_D0_P",
+      "name": "CAM2_D0_P1",
       "raw_net": "$4I2\\CAM2_D0_P",
       "package_pin": "E8",
       "source_gpio_def": "",
@@ -309940,7 +309940,7 @@
       "source_line": 28610
     },
     {
-      "name": "CAM3_CLK_N",
+      "name": "CAM3_CLK_N1",
       "raw_net": "$4I2\\CAM3_CLK_N",
       "package_pin": "F1",
       "source_gpio_def": "",
@@ -315671,7 +315671,7 @@
       "source_line": 28620
     },
     {
-      "name": "CAM3_D1_P",
+      "name": "CAM3_D1_P1",
       "raw_net": "$4I2\\CAM3_D1_P",
       "package_pin": "F3",
       "source_gpio_def": "",
@@ -321402,7 +321402,7 @@
       "source_line": 28622
     },
     {
-      "name": "CAM2_CLK_N",
+      "name": "CAM2_CLK_N1",
       "raw_net": "$4I2\\CAM2_CLK_N",
       "package_pin": "F5",
       "source_gpio_def": "",
@@ -321434,7 +321434,7 @@
       "source_line": 28623
     },
     {
-      "name": "CAM2_CLK_P",
+      "name": "CAM2_CLK_P1",
       "raw_net": "$4I2\\CAM2_CLK_P",
       "package_pin": "F6",
       "source_gpio_def": "",
@@ -328755,7 +328755,7 @@
       "source_line": 28636
     },
     {
-      "name": "CAM3_CLK_P",
+      "name": "CAM3_CLK_P1",
       "raw_net": "$4I2\\CAM3_CLK_P",
       "package_pin": "G1",
       "source_gpio_def": "",
@@ -328787,7 +328787,7 @@
       "source_line": 28637
     },
     {
-      "name": "CAM3_D1_N",
+      "name": "CAM3_D1_N1",
       "raw_net": "$4I2\\CAM3_D1_N",
       "package_pin": "G3",
       "source_gpio_def": "",
@@ -468914,7 +468914,7 @@
       "source_line": 28760
     },
     {
-      "name": "T120_CRESET_N",
+      "name": "T120_CRESET_N1",
       "raw_net": "$4I280\\T120_CRESET_N",
       "package_pin": "N17",
       "source_gpio_def": "",
