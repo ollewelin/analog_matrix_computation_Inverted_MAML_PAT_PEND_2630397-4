@@ -26,6 +26,10 @@ SKIP_EXTERNAL_TYPES = {
     "W25Q64JVZPIQ",
     "0402WGF1000TCE",
 }
+GPIO_DEF_PATTERN = re.compile(
+    r"^(GPI(?:OL|OR)_\d+|GPIOT_(?:RXP|RXN|TXP|TXN)\d+|"
+    r"GPIOB_(?:TXP|TXN|RXP|RXN)\d+)"
+)
 
 
 def is_skipped_external_type(device_type: str) -> bool:
@@ -120,9 +124,7 @@ def read_shared_strings(archive: zipfile.ZipFile) -> list[str]:
 
 def base_gpio_def(gpio: str) -> str:
     """Return the Efinix GPIO identifier without its functional suffix."""
-    match = re.match(
-        r"^(GPI(?:OL|OR)_\d+|GPIOT_(?:RXP|RXN|TXP|TXN)\d+)", gpio
-    )
+    match = GPIO_DEF_PATTERN.match(gpio)
     return match.group(1) if match else gpio
 
 
@@ -168,7 +170,7 @@ def read_t120_pinout(path: Path) -> dict[str, tuple[str, str]]:
         if len(row) > 8:
             gpio = row[1]
             package_pin = row[8]
-            if gpio and package_pin and re.match(r"GPI(?:OL|OR|OT)_[A-Z0-9]+", gpio):
+            if gpio and package_pin and GPIO_DEF_PATTERN.match(gpio):
                 base_gpio = base_gpio_def(gpio)
                 gpio_by_package_pin[package_pin] = gpio, base_gpio
     return gpio_by_package_pin
