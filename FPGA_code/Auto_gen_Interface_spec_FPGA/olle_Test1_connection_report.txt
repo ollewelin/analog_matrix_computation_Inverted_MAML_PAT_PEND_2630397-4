@@ -1,0 +1,254 @@
+T120 FPGA I/O REVIEW
+====================
+
+Review mode values and replace them with the direction confirmed from the external circuit:
+  input / output / inout / power / unknown
+
+Columns: package pin | Excel GPIO (before) | Efinix GPIO (after) | net | current mode | confidence | External circuit Type
+
+  A1 | -                      | -                 | GND                              | power   | high   | power/ground net
+ A10 | GPIOT_RXP28_EXTFB2     | GPIOT_RXP28       | SI_DAC5_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB5) : 14 : SER
+ A11 | GPIOT_RXP27            | GPIOT_RXP27       | SI_DAC1_DAC_2                    | output  | high   | 74HC595 (U6$CBB16/CBB1) : 14 : SER
+ A12 | GPIOT_RXP24            | GPIOT_RXP24       | SCK_DAC3_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB3) : 11 : SCK
+ A13 | GPIOT_RXN23            | GPIOT_RXN23       | SCK_DAC6_DAC_2                   | output  | high   | 74HC595 (U6$CBB16/CBB6) : 11 : SCK
+ A14 | GPIOT_RXN22            | GPIOT_RXN22       | SI_DAC1_W_34                     | output  | high   | 74HC595 (U6$CBB20/CBB1) : 14 : SER
+ A15 | GPIOT_RXN21            | GPIOT_RXN21       | SI_DAC5_W_34                     | output  | high   | 74HC595 (U6$CBB20/CBB5) : 14 : SER
+ A16 | GPIOT_RXN20            | GPIOT_RXN20       | SI_DAC6_W_34                     | output  | high   | 74HC595 (U6$CBB20/CBB6) : 14 : SER
+ A17 | GPIOT_RXP19_CLKP1      | GPIOT_RXP19       | SI_DAC7_W_34                     | output  | high   | 74HC595 (U6$CBB20/CBB7) : 14 : SER
+ A18 | -                      | -                 | GND                              | power   | high   | power/ground net
+  A9 | GPIOT_RXN29_CLKN2      | GPIOT_RXN29       | SI_DAC3_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB3) : 14 : SER
+ B10 | GPIOT_RXN28_EXTFB2     | GPIOT_RXN28       | RCK_DAC_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB1) : 12 : RCK, 74HC595 (U6$CBB17/CBB2) : 12 : RCK, 74HC595 (U6$CBB17/CBB3) : 12 : RCK, 74HC595 (U6$CBB17/CBB4) : 12 : RCK, 74HC595 (U6$CBB17/CBB5) : 12 : RCK, 74HC595 (U6$CBB17/CBB6) : 12 : RCK, 74HC595 (U6$CBB17/CBB7) : 12 : RCK, 74HC595 (U6$CBB17/CBB8) : 12 : RCK
+ B11 | GPIOT_RXN27            | GPIOT_RXN27       | SCK_DAC4_DAC_2                   | output  | high   | 74HC595 (U6$CBB16/CBB4) : 11 : SCK
+ B12 | GPIOT_RXN24            | GPIOT_RXN24       | SCLR_DAC_2                       | output  | high   | 74HC595 (U6$CBB16/CBB1) : 10 : SCLR#, 74HC595 (U6$CBB16/CBB2) : 10 : SCLR#, 74HC595 (U6$CBB16/CBB3) : 10 : SCLR#, 74HC595 (U6$CBB16/CBB4) : 10 : SCLR#, 74HC595 (U6$CBB16/CBB5) : 10 : SCLR#, 74HC595 (U6$CBB16/CBB6) : 10 : SCLR#
+ B13 | GPIOT_RXP23            | GPIOT_RXP23       | SCK_DAC5_DAC_2                   | output  | high   | 74HC595 (U6$CBB16/CBB5) : 11 : SCK
+ B14 | GPIOT_RXP22            | GPIOT_RXP22       | RCK_DAC_2                        | output  | high   | 74HC595 (U6$CBB16/CBB1) : 12 : RCK, 74HC595 (U6$CBB16/CBB2) : 12 : RCK, 74HC595 (U6$CBB16/CBB3) : 12 : RCK, 74HC595 (U6$CBB16/CBB4) : 12 : RCK, 74HC595 (U6$CBB16/CBB5) : 12 : RCK, 74HC595 (U6$CBB16/CBB6) : 12 : RCK
+ B15 | GPIOT_RXP21            | GPIOT_RXP21       | SCK_DAC1_W_34                    | output  | high   | 74HC595 (U6$CBB20/CBB1) : 11 : SCK
+ B16 | GPIOT_RXP20            | GPIOT_RXP20       | SCK_DAC5_W_34                    | output  | high   | 74HC595 (U6$CBB20/CBB5) : 11 : SCK
+ B17 | GPIOT_RXN19_CLKN1      | GPIOT_RXN19       | T120_LED2                        | unknown | low    | -
+ B18 | GPIOT_RXP18_EXTFB1     | GPIOT_RXP18       | SCK_DAC6_W_34                    | output  | high   | 74HC595 (U6$CBB20/CBB6) : 11 : SCK
+  B9 | GPIOT_RXP29_CLKP2      | GPIOT_RXP29       | SCLR_DAC_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB1) : 10 : SCLR#, 74HC595 (U6$CBB17/CBB2) : 10 : SCLR#, 74HC595 (U6$CBB17/CBB3) : 10 : SCLR#, 74HC595 (U6$CBB17/CBB4) : 10 : SCLR#, 74HC595 (U6$CBB17/CBB5) : 10 : SCLR#, 74HC595 (U6$CBB17/CBB6) : 10 : SCLR#, 74HC595 (U6$CBB17/CBB7) : 10 : SCLR#, 74HC595 (U6$CBB17/CBB8) : 10 : SCLR#
+ C10 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ C11 | GPIOT_RXN03            | GPIOT_RXN03       | SCK_DAC4_W_34                    | output  | high   | 74HC595 (U6$CBB20/CBB4) : 11 : SCK
+ C12 | -                      | -                 | GND                              | power   | high   | power/ground net
+ C13 | GPIOT_RXN01            | GPIOT_RXN01       | TX11_T20_N                       | output  | medium | T20F256C3 (U1$CBB23) : N8 : GPIOB_TXN11
+ C14 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ C15 | -                      | -                 | GND                              | power   | high   | power/ground net
+ C16 | GPIOT_RXP02            | GPIOT_RXP02       | TX12_T20_P                       | output  | medium | T20F256C3 (U1$CBB23) : R8 : GPIOB_TXP12
+ C17 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ C18 | GPIOT_RXN18_EXTFB1     | GPIOT_RXN18       | SCK_DAC2_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB2) : 11 : SCK
+  C2 | -                      | -                 | 1_2VA_MIPI_T1                    | unknown | low    | CL03A104KP3NNNC (C10) : 1 : 1, CL03A104KP3NNNC (C11) : 1 : 1, CL03A104KP3NNNC (C12) : 1 : 1, CL03A104KP3NNNC (C13) : 1 : 1, CL05A106MQ5NUNC (C142$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L10$CBB22/CBB4) : 2 : 2
+  C3 | -                      | -                 | GND                              | power   | high   | power/ground net
+  C4 | -                      | -                 | 2_5VA_MIPI_T1                    | unknown | low    | CL03A104KP3NNNC (C8) : 1 : 1, CL03A104KP3NNNC (C9) : 1 : 1, CL03A104KP3NNNC (C52) : 1 : 1, CL05A106MQ5NUNC (C138$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L9$CBB22/CBB4) : 2 : 2
+  C5 | -                      | -                 | 1_2VA_MIPI_T1                    | unknown | low    | CL03A104KP3NNNC (C10) : 1 : 1, CL03A104KP3NNNC (C11) : 1 : 1, CL03A104KP3NNNC (C12) : 1 : 1, CL03A104KP3NNNC (C13) : 1 : 1, CL05A106MQ5NUNC (C142$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L10$CBB22/CBB4) : 2 : 2
+  C6 | -                      | -                 | 1_2VA_MIPI_T1                    | unknown | low    | CL03A104KP3NNNC (C10) : 1 : 1, CL03A104KP3NNNC (C11) : 1 : 1, CL03A104KP3NNNC (C12) : 1 : 1, CL03A104KP3NNNC (C13) : 1 : 1, CL05A106MQ5NUNC (C142$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L10$CBB22/CBB4) : 2 : 2
+  C7 | -                      | -                 | GND                              | power   | high   | power/ground net
+  C8 | -                      | -                 | GND                              | power   | high   | power/ground net
+  C9 | GPIOR_166_PLLIN0       | GPIOR_166         | SCK_DAC2_W_34                    | output  | high   | 74HC595 (U6$CBB20/CBB2) : 11 : SCK
+ D10 | -                      | -                 | GND                              | power   | high   | power/ground net
+ D11 | GPIOT_RXP03            | GPIOT_RXP03       | SI_DAC4_W_34                     | output  | high   | 74HC595 (U6$CBB20/CBB4) : 14 : SER
+ D12 | GPIOT_RXN06            | GPIOT_RXN06       | SCK_DAC7_W_34                    | input   | high   | 74HC595 (U6$CBB20/CBB7) : 11 : SCK, PZ2.54-2*4 (U112$CBB22) : 3 : 3
+ D13 | GPIOT_RXP01            | GPIOT_RXP01       | TX11_T20_P                       | output  | medium | T20F256C3 (U1$CBB23) : M8 : GPIOB_TXP11
+ D14 | GPIOT_RXP05            | GPIOT_RXP05       | SCK_DAC6_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB6) : 11 : SCK
+ D15 | GPIOT_RXP04            | GPIOT_RXP04       | SCK_DAC4_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB4) : 11 : SCK
+ D16 | GPIOT_RXN02            | GPIOT_RXN02       | TX12_T20_N                       | output  | medium | T20F256C3 (U1$CBB23) : P8 : GPIOB_TXN12
+ D17 | GPIOT_RXP15            | GPIOT_RXP15       | SCK_DAC3_DAC_2                   | output  | high   | 74HC595 (U6$CBB16/CBB3) : 11 : SCK
+ D18 | GPIOT_RXP16            | GPIOT_RXP16       | SCK_DAC3_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB3) : 11 : SCK
+  D4 | -                      | -                 | CAM3_D0_P                        | unknown | low    | PESD1642U005 (D10) : 2 : 2, 522711579 (FPC1$CBB22/CBB1) : 3 : 3
+  D5 | -                      | -                 | CAM2_D1_N                        | unknown | low    | PESD1642U005 (D3) : 2 : 2, 522711579 (FPC3$CBB22/CBB1) : 5 : 5
+  D7 | -                      | -                 | 2_5VA_MIPI_T1                    | unknown | low    | CL03A104KP3NNNC (C8) : 1 : 1, CL03A104KP3NNNC (C9) : 1 : 1, CL03A104KP3NNNC (C52) : 1 : 1, CL05A106MQ5NUNC (C138$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L9$CBB22/CBB4) : 2 : 2
+  D8 | -                      | -                 | CAM2_D0_N                        | unknown | low    | PESD1642U005 (D5) : 2 : 2, 522711579 (FPC3$CBB22/CBB1) : 2 : 2
+  D9 | GPIOR_167_PLLIN1       | GPIOR_167         | SI_DAC2_W_34                     | output  | high   | 74HC595 (U6$CBB20/CBB2) : 14 : SER
+ E10 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ E11 | GPIOT_RXP08_EXTFB0     | GPIOT_RXP08       | SI_DAC8_W_34                     | input   | high   | 74HC595 (U6$CBB20/CBB8) : 14 : SER, PZ2.54-2*4 (U1$CBB22) : 1 : 1
+ E12 | GPIOT_RXP06            | GPIOT_RXP06       | RCK_DAC_W_34                     | input   | high   | 74HC595 (U6$CBB20/CBB1) : 12 : RCK, 74HC595 (U6$CBB20/CBB2) : 12 : RCK, 74HC595 (U6$CBB20/CBB3) : 12 : RCK, 74HC595 (U6$CBB20/CBB4) : 12 : RCK, 74HC595 (U6$CBB20/CBB5) : 12 : RCK, 74HC595 (U6$CBB20/CBB6) : 12 : RCK, 74HC595 (U6$CBB20/CBB7) : 12 : RCK, 74HC595 (U6$CBB20/CBB8) : 12 : RCK, ... (+1 more)
+ E13 | GPIOT_RXP07            | GPIOT_RXP07       | SCK_DAC8_W_34                    | input   | high   | 74HC595 (U6$CBB20/CBB8) : 11 : SCK, PZ2.54-2*4 (U112$CBB22) : 5 : 5
+ E14 | GPIOT_RXN05            | GPIOT_RXN05       | SCK_DAC7_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB7) : 11 : SCK
+ E15 | GPIOT_RXN04            | GPIOT_RXN04       | SCK_DAC5_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB5) : 11 : SCK
+ E16 | GPIOT_RXP09_CLKP0      | GPIOT_RXP09       | SCK_DAC8_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB8) : 11 : SCK
+ E17 | GPIOT_RXN15            | GPIOT_RXN15       | SCK_DAC2_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB2) : 11 : SCK
+ E18 | GPIOT_RXN16            | GPIOT_RXN16       | SCK_DAC6_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB6) : 11 : SCK
+  E4 | -                      | -                 | CAM3_D0_N                        | unknown | low    | PESD1642U005 (D11) : 2 : 2, 522711579 (FPC1$CBB22/CBB1) : 2 : 2
+  E5 | -                      | -                 | CAM2_D1_P                        | unknown | low    | PESD1642U005 (D4) : 2 : 2, 522711579 (FPC3$CBB22/CBB1) : 6 : 6
+  E8 | -                      | -                 | CAM2_D0_P                        | unknown | low    | PESD1642U005 (D6) : 2 : 2, 522711579 (FPC3$CBB22/CBB1) : 3 : 3
+  E9 | GPIOR_168_PLLIN2       | GPIOR_168         | SI_DAC1_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB1) : 14 : SER
+  F1 | -                      | -                 | CAM3_CLK_N                       | output  | medium | PESD1642U005 (D7) : 2 : 2, 522711579 (FPC1$CBB22/CBB1) : 8 : 8
+ F10 | GPIOR_169_MREFCLK      | GPIOR_169         | SI_DAC7_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB7) : 14 : SER
+ F11 | GPIOT_RXN08_EXTFB0     | GPIOT_RXN08       | SI_DAC2_DAC_2                    | input   | high   | 74HC595 (U6$CBB16/CBB2) : 14 : SER, PZ2.54-2*4 (U1$CBB22) : 3 : 3
+ F12 | -                      | -                 | 1_2VA_PLL_T1                     | unknown | low    | CL03A104KP3NNNC (C21) : 1 : 1, CL03A104KP3NNNC (C22) : 1 : 1, CL03A104KP3NNNC (C23) : 1 : 1, CL03A104KP3NNNC (C24) : 1 : 1, CL03A104KP3NNNC (C25) : 1 : 1, CL03A104KP3NNNC (C27) : 1 : 1, CL05A106MQ5NUNC (C147$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L11$CBB22/CBB4) : 2 : 2
+ F13 | GPIOT_RXN07            | GPIOT_RXN07       | SCLR_DAC_W_34                    | input   | high   | 74HC595 (U6$CBB20/CBB1) : 10 : SCLR#, 74HC595 (U6$CBB20/CBB2) : 10 : SCLR#, 74HC595 (U6$CBB20/CBB3) : 10 : SCLR#, 74HC595 (U6$CBB20/CBB4) : 10 : SCLR#, 74HC595 (U6$CBB20/CBB5) : 10 : SCLR#, 74HC595 (U6$CBB20/CBB6) : 10 : SCLR#, 74HC595 (U6$CBB20/CBB7) : 10 : SCLR#, 74HC595 (U6$CBB20/CBB8) : 10 : SCLR#, ... (+1 more)
+ F14 | GPIOT_RXN14            | GPIOT_RXN14       | SCK_DAC2_DAC_2                   | output  | high   | 74HC595 (U6$CBB16/CBB2) : 11 : SCK
+ F15 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ F16 | GPIOT_RXN09_CLKN0      | GPIOT_RXN09       | SCK_DAC4_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB4) : 11 : SCK
+ F17 | -                      | -                 | GND                              | power   | high   | power/ground net
+ F18 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+  F2 | -                      | -                 | GND                              | power   | high   | power/ground net
+  F3 | -                      | -                 | CAM3_D1_P                        | unknown | low    | PESD1642U005 (D9) : 2 : 2, 522711579 (FPC1$CBB22/CBB1) : 6 : 6
+  F4 | -                      | -                 | GND                              | power   | high   | power/ground net
+  F5 | -                      | -                 | CAM2_CLK_N                       | output  | medium | PESD1642U005 (D2) : 2 : 2, 522711579 (FPC3$CBB22/CBB1) : 8 : 8
+  F6 | -                      | -                 | CAM2_CLK_P                       | output  | medium | PESD1642U005 (D1) : 2 : 2, 522711579 (FPC3$CBB22/CBB1) : 9 : 9
+  F8 | -                      | -                 | 1_2VA_PLL_T1                     | unknown | low    | CL03A104KP3NNNC (C21) : 1 : 1, CL03A104KP3NNNC (C22) : 1 : 1, CL03A104KP3NNNC (C23) : 1 : 1, CL03A104KP3NNNC (C24) : 1 : 1, CL03A104KP3NNNC (C25) : 1 : 1, CL03A104KP3NNNC (C27) : 1 : 1, CL05A106MQ5NUNC (C147$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L11$CBB22/CBB4) : 2 : 2
+  F9 | -                      | -                 | 1_2VA_PLL_T1                     | unknown | low    | CL03A104KP3NNNC (C21) : 1 : 1, CL03A104KP3NNNC (C22) : 1 : 1, CL03A104KP3NNNC (C23) : 1 : 1, CL03A104KP3NNNC (C24) : 1 : 1, CL03A104KP3NNNC (C25) : 1 : 1, CL03A104KP3NNNC (C27) : 1 : 1, CL05A106MQ5NUNC (C147$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L11$CBB22/CBB4) : 2 : 2
+  G1 | -                      | -                 | CAM3_CLK_P                       | output  | medium | PESD1642U005 (D12) : 2 : 2, 522711579 (FPC1$CBB22/CBB1) : 9 : 9
+ G10 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ G11 | -                      | -                 | GND                              | power   | high   | power/ground net
+ G12 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ G13 | GPIOL_75_CTRL5         | GPIOL_75          | T120_LED1                        | unknown | low    | -
+ G14 | GPIOT_RXP14            | GPIOT_RXP14       | SCK_DAC1_DAC_2                   | output  | high   | 74HC595 (U6$CBB16/CBB1) : 11 : SCK
+ G15 | GPIOT_RXP13            | GPIOT_RXP13       | SI_DAC5_DAC_2                    | output  | high   | 74HC595 (U6$CBB16/CBB5) : 14 : SER
+ G16 | GPIOT_RXP12            | GPIOT_RXP12       | SI_DAC3_DAC_2                    | output  | high   | 74HC595 (U6$CBB16/CBB3) : 14 : SER
+ G17 | GPIOT_RXP11            | GPIOT_RXP11       | SCK_DAC5_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB5) : 11 : SCK
+ G18 | GPIOT_RXN17            | GPIOT_RXN17       | SCK_DAC1_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB1) : 11 : SCK
+  G3 | -                      | -                 | CAM3_D1_N                        | unknown | low    | PESD1642U005 (D8) : 2 : 2, 522711579 (FPC1$CBB22/CBB1) : 5 : 5
+  G5 | GPIOR_173_CTRL12       | GPIOR_173         | OUT1_ADC_45                      | input   | high   | XC2361A (U7$CBB7) : 5 : SDO
+  G6 | GPIOR_174_CLK15        | GPIOR_174         | OUT3_ADC_45                      | input   | high   | XC2361A (U3$CBB7) : 5 : SDO
+  G7 | -                      | -                 | GND                              | power   | high   | power/ground net
+  G8 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  G9 | -                      | -                 | GND                              | power   | high   | power/ground net
+  H1 | -                      | -                 | GND                              | power   | high   | power/ground net
+ H10 | -                      | -                 | GND                              | power   | high   | power/ground net
+ H11 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ H12 | -                      | -                 | GND                              | power   | high   | power/ground net
+ H13 | GPIOL_73_CLK7          | GPIOL_73          | F2_RXC                           | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 27 : PHYAD1/RXC
+ H14 | GPIOL_72_CLK6          | GPIOL_72          | T20_CLK9                         | output  | medium | T20F256C3 (U1$CBB23) : G16 : GPIOR_126_CLK9
+ H15 | GPIOT_RXN13            | GPIOT_RXN13       | SI_DAC6_DAC_2                    | output  | high   | 74HC595 (U6$CBB16/CBB6) : 14 : SER
+ H16 | GPIOT_RXN12            | GPIOT_RXN12       | SI_DAC4_DAC_2                    | output  | high   | 74HC595 (U6$CBB16/CBB4) : 14 : SER
+ H17 | GPIOT_RXN11            | GPIOT_RXN11       | SI_DAC3_W_34                     | output  | high   | 74HC595 (U6$CBB20/CBB3) : 14 : SER
+ H18 | GPIOT_RXP17            | GPIOT_RXP17       | SCK_DAC3_W_34                    | output  | high   | 74HC595 (U6$CBB20/CBB3) : 11 : SCK
+  H3 | -                      | -                 | 1_2VA_MIPI_T1                    | unknown | low    | CL03A104KP3NNNC (C10) : 1 : 1, CL03A104KP3NNNC (C11) : 1 : 1, CL03A104KP3NNNC (C12) : 1 : 1, CL03A104KP3NNNC (C13) : 1 : 1, CL05A106MQ5NUNC (C142$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L10$CBB22/CBB4) : 2 : 2
+  H6 | GPIOR_178_CLK11        | GPIOR_178         | OUT4_ADC_45                      | input   | high   | XC2361A (U2$CBB7) : 5 : SDO
+  H7 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  H8 | -                      | -                 | GND                              | power   | high   | power/ground net
+  H9 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ J10 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ J11 | -                      | -                 | GND                              | power   | high   | power/ground net
+ J12 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ J13 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ J14 | GPIOL_150_NSTATUS      | GPIOL_150         | T120_NSTATUS                     | unknown | low    | KT-0603R (LED5) : 1 : K
+ J15 | GPIOL_151_TEST_N       | GPIOL_151         | T120_TEST                        | unknown | low    | -
+ J16 | -                      | -                 | GND                              | power   | high   | power/ground net
+ J17 | GPIOL_156_CBSEL0       | GPIOL_156         | T120_CBSEL0                      | unknown | low    | -
+ J18 | GPIOL_157_CBSEL1       | GPIOL_157         | T120_CBSEL1                      | unknown | low    | -
+  J2 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  J6 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+  J7 | -                      | -                 | GND                              | power   | high   | power/ground net
+  J8 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  J9 | -                      | -                 | GND                              | power   | high   | power/ground net
+ K10 | -                      | -                 | GND                              | power   | high   | power/ground net
+ K11 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ K12 | -                      | -                 | GND                              | power   | high   | power/ground net
+ K13 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ K14 | GPIOL_14_CDI2          | GPIOL_14          | T120_CDI2                        | unknown | low    | -
+ K15 | GPIOL_63_CTRL1         | GPIOL_63          | RCK_DAC_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB1) : 12 : RCK, 74HC595 (U6$CBB18/CBB2) : 12 : RCK, 74HC595 (U6$CBB18/CBB3) : 12 : RCK, 74HC595 (U6$CBB18/CBB4) : 12 : RCK, 74HC595 (U6$CBB18/CBB5) : 12 : RCK, 74HC595 (U6$CBB18/CBB6) : 12 : RCK, 74HC595 (U6$CBB18/CBB7) : 12 : RCK, 74HC595 (U6$CBB18/CBB8) : 12 : RCK
+ K16 | GPIOL_62_CTRL0         | GPIOL_62          | SCLR_DAC_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB1) : 10 : SCLR#, 74HC595 (U6$CBB18/CBB2) : 10 : SCLR#, 74HC595 (U6$CBB18/CBB3) : 10 : SCLR#, 74HC595 (U6$CBB18/CBB4) : 10 : SCLR#, 74HC595 (U6$CBB18/CBB5) : 10 : SCLR#, 74HC595 (U6$CBB18/CBB6) : 10 : SCLR#, 74HC595 (U6$CBB18/CBB7) : 10 : SCLR#, 74HC595 (U6$CBB18/CBB8) : 10 : SCLR#
+ K17 | GPIOL_66_CLK0          | GPIOL_66          | T120_GCLK                        | output  | medium | OT322550MJBA4SL (X1) : 3 : OUTPUT
+ K18 | GPIOL_16_CDI3          | GPIOL_16          | T120_CDI3                        | unknown | low    | -
+  K4 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  K6 | GPIOR_183_CTRL10       | GPIOR_183         | OUT2_ADC_45                      | input   | high   | XC2361A (U1$CBB7) : 5 : SDO
+  K7 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  K8 | -                      | -                 | GND                              | power   | high   | power/ground net
+  K9 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ L10 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ L11 | -                      | -                 | GND                              | power   | high   | power/ground net
+ L12 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ L13 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ L14 | GPIOL_15_PLLIN0        | GPIOL_15          | F2_TXCTL                         | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 19 : TXCTL
+ L15 | GPIOL_17_EXTFB0        | GPIOL_17          | F2_TXC                           | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 20 : TXC
+ L16 | GPIOL_22_CDI6          | GPIOL_22          | F2_TXD2                          | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 16 : TXD2
+ L17 | GPIOL_24_CDI7          | GPIOL_24          | F2_TXD3                          | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 15 : TXD3
+ L18 | GPIOL_20_CDI5          | GPIOL_20          | F2_TXD1                          | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 17 : TXD1
+  L2 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  L6 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  L7 | -                      | -                 | GND                              | power   | high   | power/ground net
+  L8 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  L9 | -                      | -                 | GND                              | power   | high   | power/ground net
+  M1 | -                      | -                 | GND                              | power   | high   | power/ground net
+ M10 | -                      | -                 | GND                              | power   | high   | power/ground net
+ M11 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ M12 | -                      | -                 | GND                              | power   | high   | power/ground net
+ M13 | GPIOL_08_CDI0          | GPIOL_08          | T120_CDI0                        | unknown | low    | -
+ M14 | GPIOL_11_CBUS0         | GPIOL_11          | F2_RXD1                          | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 24 : TXDLY/RXD1
+ M15 | GPIOL_05_CSO           | GPIOL_05          | F2_RXD3                          | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 22 : PHYAD0/RXD3
+ M16 | GPIOL_12_CBUS1         | GPIOL_12          | F2_RXD0                          | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 25 : RXDLY/RXD0
+ M17 | GPIOL_13_CBUS2         | GPIOL_13          | F2_RXCTL                         | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 26 : PHYAD2/RXCTL
+ M18 | GPIOL_18_CDI4          | GPIOL_18          | F2_TXD0                          | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 18 : TXD0
+  M5 | -                      | -                 | GND                              | power   | high   | power/ground net
+  M7 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  M8 | -                      | -                 | GND                              | power   | high   | power/ground net
+  M9 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+ N10 | -                      | -                 | OUT6_ADC_49                      | input   | high   | XC2361A (U4$CBB21) : 5 : SDO
+ N11 | -                      | -                 | OUT4_ADC_49                      | input   | high   | XC2361A (U2$CBB21) : 5 : SDO
+ N12 | -                      | -                 | OUT5_ADC_45                      | input   | high   | XC2361A (U5$CBB7) : 5 : SDO
+ N13 | GPIOL_01_CCK           | GPIOL_01          | T120_CCK                         | unknown | low    | -
+ N14 | GPIOL_09_CDI1          | GPIOL_09          | T120_CDI1                        | unknown | low    | -
+ N15 | GPIOL_04_CSI           | GPIOL_04          | F2_RXD2                          | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 23 : PLLOFF/RXD2
+ N16 | -                      | -                 | GND                              | power   | high   | power/ground net
+ N17 | -                      | -                 | T120_CRESET_N                    | input   | high   | PZ2.54-2*4 (U111$CBB24) : 4 : 4
+ N18 | -                      | -                 | T120_CONDONE                     | input   | high   | PZ2.54-2*4 (U111$CBB24) : 2 : 2
+  N8 | -                      | -                 | 1_2VA_PLL_T1                     | unknown | low    | CL03A104KP3NNNC (C21) : 1 : 1, CL03A104KP3NNNC (C22) : 1 : 1, CL03A104KP3NNNC (C23) : 1 : 1, CL03A104KP3NNNC (C24) : 1 : 1, CL03A104KP3NNNC (C25) : 1 : 1, CL03A104KP3NNNC (C27) : 1 : 1, CL05A106MQ5NUNC (C147$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L11$CBB22/CBB4) : 2 : 2
+  N9 | -                      | -                 | ADC_45_SCK_5_6                   | output  | high   | XC2361A (U4$CBB7) : 4 : SCK, XC2361A (U5$CBB7) : 4 : SCK
+ P10 | -                      | -                 | OUT5_ADC_49                      | input   | high   | XC2361A (U5$CBB21) : 5 : SDO
+ P11 | -                      | -                 | OUT3_ADC_49                      | input   | high   | XC2361A (U3$CBB21) : 5 : SDO
+ P12 | -                      | -                 | OUT6_ADC_45                      | input   | high   | XC2361A (U4$CBB7) : 5 : SDO
+ P13 | -                      | -                 | SCK_DAC7_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB7) : 11 : SCK
+ P14 | -                      | -                 | SI_DAC8_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB8) : 14 : SER
+ P15 | GPIOL_00_SS_N          | GPIOL_00          | T120_SS                          | unknown | low    | -
+ P16 | -                      | -                 | T120_TMS                         | input   | high   | PZ2.54-2*4 (U110$CBB24) : 8 : 8
+ P17 | -                      | -                 | T120_TDO                         | input   | high   | PZ2.54-2*4 (U110$CBB24) : 6 : 6
+ P18 | -                      | -                 | RX02_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : T10 : GPIOB_RXN02
+  P2 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  P5 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  P7 | -                      | -                 | GND                              | power   | high   | power/ground net
+  P8 | -                      | -                 | 1_2VA_PLL_T1                     | unknown | low    | CL03A104KP3NNNC (C21) : 1 : 1, CL03A104KP3NNNC (C22) : 1 : 1, CL03A104KP3NNNC (C23) : 1 : 1, CL03A104KP3NNNC (C24) : 1 : 1, CL03A104KP3NNNC (C25) : 1 : 1, CL03A104KP3NNNC (C27) : 1 : 1, CL05A106MQ5NUNC (C147$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L11$CBB22/CBB4) : 2 : 2
+  P9 | -                      | -                 | ADC_45_SCK_3_4                   | output  | high   | XC2361A (U2$CBB7) : 4 : SCK, XC2361A (U3$CBB7) : 4 : SCK
+ R10 | -                      | -                 | GND                              | power   | high   | power/ground net
+ R11 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ R12 | -                      | -                 | F2_INTB                          | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 31 : INTB/PMEB
+ R13 | -                      | -                 | SCK_DAC8_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB8) : 11 : SCK
+ R14 | -                      | -                 | SI_DAC7_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB7) : 14 : SER
+ R15 | -                      | -                 | SI_DAC3_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB3) : 14 : SER
+ R16 | -                      | -                 | T120_TDI                         | input   | high   | PZ2.54-2*4 (U110$CBB24) : 4 : 4
+ R17 | -                      | -                 | RX00_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : R9 : GPIOB_RXN00
+ R18 | -                      | -                 | RX02_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : T9 : GPIOB_RXP02
+  R2 | -                      | -                 | GND                              | power   | high   | power/ground net
+  R4 | -                      | -                 | GND                              | power   | high   | power/ground net
+  R8 | GPIOR_188_PLLIN2       | GPIOR_188         | SI_DAC6_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB6) : 14 : SER
+  R9 | -                      | -                 | OUT1_ADC_49                      | input   | high   | XC2361A (U7$CBB21) : 5 : SDO
+ T10 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ T11 | -                      | -                 | ADC_49_SCK_3_4                   | output  | high   | XC2361A (U2$CBB21) : 4 : SCK, XC2361A (U3$CBB21) : 4 : SCK
+ T12 | -                      | -                 | F2_RSTB                          | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 12 : PHYRSTB
+ T13 | -                      | -                 | GND                              | power   | high   | power/ground net
+ T14 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ T15 | -                      | -                 | SI_DAC4_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB4) : 14 : SER
+ T16 | -                      | -                 | T120_TCK                         | input   | high   | PZ2.54-2*4 (U110$CBB24) : 2 : 2
+ T17 | -                      | -                 | RX00_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : P9 : GPIOB_RXP00
+ T18 | -                      | -                 | RX01_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : M9 : GPIOB_RXN01
+  T7 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  T8 | GPIOR_187_PLLIN1       | GPIOR_187         | SI_DAC4_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB4) : 14 : SER
+  T9 | -                      | -                 | OUT2_ADC_49                      | input   | high   | XC2361A (U1$CBB21) : 5 : SDO
+ U10 | -                      | -                 | ADC_45_SCK_1_2                   | output  | high   | XC2361A (U1$CBB7) : 4 : SCK, XC2361A (U7$CBB7) : 4 : SCK
+ U11 | -                      | -                 | ADC_49_SCK_5_6                   | output  | high   | XC2361A (U4$CBB21) : 4 : SCK, XC2361A (U5$CBB21) : 4 : SCK
+ U12 | -                      | -                 | F2_MDIO                          | inout   | high   | RTL8211F-CG (U98$CBB22/CBB2) : 14 : MDIO
+ U13 | -                      | -                 | SI_DAC8_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB8) : 14 : SER
+ U14 | -                      | -                 | SI_DAC5_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB5) : 14 : SER
+ U15 | -                      | -                 | SI_DAC2_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB2) : 14 : SER
+ U16 | -                      | -                 | RX03_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : P10 : GPIOB_RXP03
+ U17 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
+ U18 | -                      | -                 | RX01_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : N9 : GPIOB_RXP01
+  U2 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  U5 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
+  U8 | GPIOR_186_PLLIN0       | GPIOR_186         | SI_DAC2_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB2) : 14 : SER
+  U9 | -                      | -                 | ADC_49_CONV                      | output  | high   | XC2361A (U1$CBB21) : 6 : CONV, XC2361A (U2$CBB21) : 6 : CONV, XC2361A (U3$CBB21) : 6 : CONV, XC2361A (U4$CBB21) : 6 : CONV, XC2361A (U5$CBB21) : 6 : CONV, XC2361A (U7$CBB21) : 6 : CONV
+  V1 | -                      | -                 | GND                              | power   | high   | power/ground net
+ V10 | -                      | -                 | ADC_45_CONV                      | output  | high   | XC2361A (U1$CBB7) : 6 : CONV, XC2361A (U2$CBB7) : 6 : CONV, XC2361A (U3$CBB7) : 6 : CONV, XC2361A (U4$CBB7) : 6 : CONV, XC2361A (U5$CBB7) : 6 : CONV, XC2361A (U7$CBB7) : 6 : CONV
+ V11 | -                      | -                 | 1N148787                         | unknown | low    | -
+ V12 | -                      | -                 | F2_MDC                           | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 13 : MDC
+ V13 | -                      | -                 | SCK_DAC1_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB1) : 11 : SCK
+ V14 | -                      | -                 | SI_DAC6_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB6) : 14 : SER
+ V15 | -                      | -                 | SI_DAC1_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB1) : 14 : SER
+ V16 | -                      | -                 | RX03_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : N10 : GPIOB_RXN03
+ V17 | -                      | -                 | 1N240613                         | unknown | low    | -
+ V18 | -                      | -                 | GND                              | power   | high   | power/ground net
+  V4 | -                      | -                 | GND                              | power   | high   | power/ground net
+  V9 | -                      | -                 | ADC_49_SCK_1_2                   | output  | high   | XC2361A (U1$CBB21) : 4 : SCK, XC2361A (U7$CBB21) : 4 : SCK
+
+UNRESOLVED COUNT: 166
