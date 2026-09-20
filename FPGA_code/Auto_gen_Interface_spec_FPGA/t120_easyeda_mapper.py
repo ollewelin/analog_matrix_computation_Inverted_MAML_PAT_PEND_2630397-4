@@ -30,6 +30,7 @@ GPIO_DEF_PATTERN = re.compile(
     r"^(GPI(?:OL|OR)_\d+|GPIOT_(?:RXP|RXN|TXP|TXN)\d+|"
     r"GPIOB_(?:TXP|TXN|RXP|RXN)\d+)"
 )
+DIFFERENTIAL_NAME_PATTERN = re.compile(r".*_[PN]$")
 
 
 def is_skipped_external_type(device_type: str) -> bool:
@@ -42,6 +43,12 @@ def sanitize_name(value: str) -> str:
     value = value.replace("\\", "_")
     value = re.sub(r"[^A-Za-z0-9_]", "_", value)
     return re.sub(r"_+", "_", value).strip("_") or "UNNAMED"
+
+
+def interface_name(value: str) -> str:
+    """Avoid a terminal _P/_N being interpreted as a differential instance."""
+    name = sanitize_name(value)
+    return f"{name}1" if DIFFERENTIAL_NAME_PATTERN.fullmatch(name) else name
 
 
 def parse_epru(path: Path) -> tuple[
@@ -268,7 +275,7 @@ def build_intermediate(
                                     and connection["pin_number"] == other["pad"]
                                 ):
                                     connection["pin_name"] = pin_name
-        net_name = sanitize_name(item["raw_net"])
+        net_name = interface_name(item["raw_net"])
         external_types = {
             connection["type"]
             for connection in external_connections
@@ -338,7 +345,9 @@ def append_gpio_elements(xml_path: Path, output_path: Path, mapping: dict) -> No
             gpio_def=pin["gpio_def"],
             mode="input" if pin["mode"] == "inout" else pin["mode"],
             bus_name="",
-            is_lvds_gpio="false",
+            is_lvds_gpio=str(
+                pin["gpio_def"].startswith(("GPIOB_", "GPIOT_"))
+            ).lower(),
             io_standard="3.3 V LVTTL / LVCMOS",
         )
         if pin["mode"] == "output":

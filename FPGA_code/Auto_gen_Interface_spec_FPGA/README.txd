@@ -3,8 +3,6 @@ Generate T120 I/O from EasyEDA project information Example T120 FPGA
 1.1 Export project by do: File -> Files source -> Donwload
 1.2 Extract Inverted_MAML_IMC.epro2 zip file
 
-unzip Inverted_MAML_IMC.epro2 -d Inverted_MAML_IMC
-
 2. Create a minimum template I/O Interface description from Efinix GUI tool generated a 
 T120_MALM.peri.xml
 cope and rename to 
@@ -28,3 +26,14 @@ python3 t120_easyeda_mapper.py \
 T120_MALM.generated.peri.xml
 to Efinix project path and overwrite the orginal interface specification ther
 T120_MALM.peri.xml
+
+
+T20
+
+python3 T20_easyeda_mapper.py \
+  --source Inverted_MAML_IMC/Inverted_MAML_IMC.epru \
+  --pinout T20F256_pin_map.xlsx \
+  --json T20F256_connections.json \
+  --report T20F256_connection_report.txt \
+  --xml-template T20F256_template.peri.xml \
+  --xml-output T20F256.generated.peri.xml
