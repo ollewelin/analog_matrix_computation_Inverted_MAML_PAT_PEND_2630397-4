@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<efx:project name="T120_MALM" description="" last_change="1789918330" sw_version="2025.2.288.2.10" last_run_state="" last_run_flow="" config_result_in_sync="true" design_ood="" place_ood="change" route_ood="" xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
+<efx:project name="T120_MALM" description="" last_change="1789923273" sw_version="2025.2.288.2.10" last_run_state="pass" last_run_flow="bitstream" config_result_in_sync="true" design_ood="sync" place_ood="sync" route_ood="sync" xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
     <efx:device_info>
         <efx:family name="Trion"/>
         <efx:device name="T120F324"/>
         <efx:timing_model name="C3"/>
     </efx:device_info>
     <efx:design_info def_veri_version="verilog_2k" def_vhdl_version="vhdl_2008" unified_flow="false">
-        <efx:top_module name="T120_MALM"/>
+        <efx:top_module name="top_level"/>
+        <efx:design_file name="top_level.sv" version="default" library="default"/>
         <efx:top_vhdl_arch name=""/>
     </efx:design_info>
     <efx:constraint_info>
+        <efx:sdc_file name="const.sdc"/>
         <efx:inter_file name=""/>
     </efx:constraint_info>
     <efx:sim_info/>
