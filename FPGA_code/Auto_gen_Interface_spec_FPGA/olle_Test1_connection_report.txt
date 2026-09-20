@@ -175,9 +175,9 @@ Columns: package pin | Excel GPIO (before) | Efinix GPIO (after) | net | current
   M7 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
   M8 | -                      | -                 | GND                              | power   | high   | power/ground net
   M9 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
- N10 | -                      | -                 | OUT6_ADC_49                      | input   | high   | XC2361A (U4$CBB21) : 5 : SDO
- N11 | -                      | -                 | OUT4_ADC_49                      | input   | high   | XC2361A (U2$CBB21) : 5 : SDO
- N12 | -                      | -                 | OUT5_ADC_45                      | input   | high   | XC2361A (U5$CBB7) : 5 : SDO
+ N10 | GPIOB_TXP14_CDI17      | GPIOB_TXP14       | OUT6_ADC_49                      | input   | high   | XC2361A (U4$CBB21) : 5 : SDO
+ N11 | GPIOB_TXP13_CDI19      | GPIOB_TXP13       | OUT4_ADC_49                      | input   | high   | XC2361A (U2$CBB21) : 5 : SDO
+ N12 | GPIOB_TXN12            | GPIOB_TXN12       | OUT5_ADC_45                      | input   | high   | XC2361A (U5$CBB7) : 5 : SDO
  N13 | GPIOL_01_CCK           | GPIOL_01          | T120_CCK                         | unknown | low    | -
  N14 | GPIOL_09_CDI1          | GPIOL_09          | T120_CDI1                        | unknown | low    | -
  N15 | GPIOL_04_CSI           | GPIOL_04          | F2_RXD2                          | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 23 : PLLOFF/RXD2
@@ -185,70 +185,70 @@ Columns: package pin | Excel GPIO (before) | Efinix GPIO (after) | net | current
  N17 | -                      | -                 | T120_CRESET_N                    | input   | high   | PZ2.54-2*4 (U111$CBB24) : 4 : 4
  N18 | -                      | -                 | T120_CONDONE                     | input   | high   | PZ2.54-2*4 (U111$CBB24) : 2 : 2
   N8 | -                      | -                 | 1_2VA_PLL_T1                     | unknown | low    | CL03A104KP3NNNC (C21) : 1 : 1, CL03A104KP3NNNC (C22) : 1 : 1, CL03A104KP3NNNC (C23) : 1 : 1, CL03A104KP3NNNC (C24) : 1 : 1, CL03A104KP3NNNC (C25) : 1 : 1, CL03A104KP3NNNC (C27) : 1 : 1, CL05A106MQ5NUNC (C147$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L11$CBB22/CBB4) : 2 : 2
-  N9 | -                      | -                 | ADC_45_SCK_5_6                   | output  | high   | XC2361A (U4$CBB7) : 4 : SCK, XC2361A (U5$CBB7) : 4 : SCK
- P10 | -                      | -                 | OUT5_ADC_49                      | input   | high   | XC2361A (U5$CBB21) : 5 : SDO
- P11 | -                      | -                 | OUT3_ADC_49                      | input   | high   | XC2361A (U3$CBB21) : 5 : SDO
- P12 | -                      | -                 | OUT6_ADC_45                      | input   | high   | XC2361A (U4$CBB7) : 5 : SDO
- P13 | -                      | -                 | SCK_DAC7_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB7) : 11 : SCK
- P14 | -                      | -                 | SI_DAC8_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB8) : 14 : SER
+  N9 | GPIOB_TXP16_CDI13      | GPIOB_TXP16       | ADC_45_SCK_5_6                   | output  | high   | XC2361A (U4$CBB7) : 4 : SCK, XC2361A (U5$CBB7) : 4 : SCK
+ P10 | GPIOB_TXN14_CDI16      | GPIOB_TXN14       | OUT5_ADC_49                      | input   | high   | XC2361A (U5$CBB21) : 5 : SDO
+ P11 | GPIOB_TXN13_CDI18      | GPIOB_TXN13       | OUT3_ADC_49                      | input   | high   | XC2361A (U3$CBB21) : 5 : SDO
+ P12 | GPIOB_TXP12            | GPIOB_TXP12       | OUT6_ADC_45                      | input   | high   | XC2361A (U4$CBB7) : 5 : SDO
+ P13 | GPIOB_TXP09            | GPIOB_TXP09       | SCK_DAC7_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB7) : 11 : SCK
+ P14 | GPIOB_TXP07_CDI23      | GPIOB_TXP07       | SI_DAC8_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB8) : 14 : SER
  P15 | GPIOL_00_SS_N          | GPIOL_00          | T120_SS                          | unknown | low    | -
  P16 | -                      | -                 | T120_TMS                         | input   | high   | PZ2.54-2*4 (U110$CBB24) : 8 : 8
  P17 | -                      | -                 | T120_TDO                         | input   | high   | PZ2.54-2*4 (U110$CBB24) : 6 : 6
- P18 | -                      | -                 | RX02_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : T10 : GPIOB_RXN02
+ P18 | GPIOB_TXN02            | GPIOB_TXN02       | RX02_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : T10 : GPIOB_RXN02
   P2 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
   P5 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
   P7 | -                      | -                 | GND                              | power   | high   | power/ground net
   P8 | -                      | -                 | 1_2VA_PLL_T1                     | unknown | low    | CL03A104KP3NNNC (C21) : 1 : 1, CL03A104KP3NNNC (C22) : 1 : 1, CL03A104KP3NNNC (C23) : 1 : 1, CL03A104KP3NNNC (C24) : 1 : 1, CL03A104KP3NNNC (C25) : 1 : 1, CL03A104KP3NNNC (C27) : 1 : 1, CL05A106MQ5NUNC (C147$CBB22/CBB4) : 2 : 2, BLM15AX221SN1D (L11$CBB22/CBB4) : 2 : 2
-  P9 | -                      | -                 | ADC_45_SCK_3_4                   | output  | high   | XC2361A (U2$CBB7) : 4 : SCK, XC2361A (U3$CBB7) : 4 : SCK
+  P9 | GPIOB_TXN16_CDI12      | GPIOB_TXN16       | ADC_45_SCK_3_4                   | output  | high   | XC2361A (U2$CBB7) : 4 : SCK, XC2361A (U3$CBB7) : 4 : SCK
  R10 | -                      | -                 | GND                              | power   | high   | power/ground net
  R11 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
- R12 | -                      | -                 | F2_INTB                          | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 31 : INTB/PMEB
- R13 | -                      | -                 | SCK_DAC8_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB8) : 11 : SCK
- R14 | -                      | -                 | SI_DAC7_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB7) : 14 : SER
- R15 | -                      | -                 | SI_DAC3_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB3) : 14 : SER
+ R12 | GPIOB_TXP11            | GPIOB_TXP11       | F2_INTB                          | input   | medium | RTL8211F-CG (U98$CBB22/CBB2) : 31 : INTB/PMEB
+ R13 | GPIOB_TXN09            | GPIOB_TXN09       | SCK_DAC8_W_12                    | output  | high   | 74HC595 (U6$CBB18/CBB8) : 11 : SCK
+ R14 | GPIOB_TXN07_CDI22      | GPIOB_TXN07       | SI_DAC7_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB7) : 14 : SER
+ R15 | GPIOB_TXN05_CDI26      | GPIOB_TXN05       | SI_DAC3_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB3) : 14 : SER
  R16 | -                      | -                 | T120_TDI                         | input   | high   | PZ2.54-2*4 (U110$CBB24) : 4 : 4
- R17 | -                      | -                 | RX00_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : R9 : GPIOB_RXN00
- R18 | -                      | -                 | RX02_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : T9 : GPIOB_RXP02
+ R17 | GPIOB_TXN00            | GPIOB_TXN00       | RX00_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : R9 : GPIOB_RXN00
+ R18 | GPIOB_TXP02            | GPIOB_TXP02       | RX02_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : T9 : GPIOB_RXP02
   R2 | -                      | -                 | GND                              | power   | high   | power/ground net
   R4 | -                      | -                 | GND                              | power   | high   | power/ground net
   R8 | GPIOR_188_PLLIN2       | GPIOR_188         | SI_DAC6_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB6) : 14 : SER
-  R9 | -                      | -                 | OUT1_ADC_49                      | input   | high   | XC2361A (U7$CBB21) : 5 : SDO
+  R9 | GPIOB_TXN19            | GPIOB_TXN19       | OUT1_ADC_49                      | input   | high   | XC2361A (U7$CBB21) : 5 : SDO
  T10 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
- T11 | -                      | -                 | ADC_49_SCK_3_4                   | output  | high   | XC2361A (U2$CBB21) : 4 : SCK, XC2361A (U3$CBB21) : 4 : SCK
- T12 | -                      | -                 | F2_RSTB                          | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 12 : PHYRSTB
+ T11 | GPIOB_TXN18_CDI8       | GPIOB_TXN18       | ADC_49_SCK_3_4                   | output  | high   | XC2361A (U2$CBB21) : 4 : SCK, XC2361A (U3$CBB21) : 4 : SCK
+ T12 | GPIOB_TXN11            | GPIOB_TXN11       | F2_RSTB                          | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 12 : PHYRSTB
  T13 | -                      | -                 | GND                              | power   | high   | power/ground net
  T14 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
- T15 | -                      | -                 | SI_DAC4_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB4) : 14 : SER
+ T15 | GPIOB_TXP05_CDI27      | GPIOB_TXP05       | SI_DAC4_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB4) : 14 : SER
  T16 | -                      | -                 | T120_TCK                         | input   | high   | PZ2.54-2*4 (U110$CBB24) : 2 : 2
- T17 | -                      | -                 | RX00_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : P9 : GPIOB_RXP00
- T18 | -                      | -                 | RX01_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : M9 : GPIOB_RXN01
+ T17 | GPIOB_TXP00            | GPIOB_TXP00       | RX00_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : P9 : GPIOB_RXP00
+ T18 | GPIOB_TXN01            | GPIOB_TXN01       | RX01_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : M9 : GPIOB_RXN01
   T7 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
   T8 | GPIOR_187_PLLIN1       | GPIOR_187         | SI_DAC4_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB4) : 14 : SER
-  T9 | -                      | -                 | OUT2_ADC_49                      | input   | high   | XC2361A (U1$CBB21) : 5 : SDO
- U10 | -                      | -                 | ADC_45_SCK_1_2                   | output  | high   | XC2361A (U1$CBB7) : 4 : SCK, XC2361A (U7$CBB7) : 4 : SCK
- U11 | -                      | -                 | ADC_49_SCK_5_6                   | output  | high   | XC2361A (U4$CBB21) : 4 : SCK, XC2361A (U5$CBB21) : 4 : SCK
- U12 | -                      | -                 | F2_MDIO                          | inout   | high   | RTL8211F-CG (U98$CBB22/CBB2) : 14 : MDIO
- U13 | -                      | -                 | SI_DAC8_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB8) : 14 : SER
- U14 | -                      | -                 | SI_DAC5_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB5) : 14 : SER
- U15 | -                      | -                 | SI_DAC2_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB2) : 14 : SER
- U16 | -                      | -                 | RX03_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : P10 : GPIOB_RXP03
+  T9 | GPIOB_TXP19            | GPIOB_TXP19       | OUT2_ADC_49                      | input   | high   | XC2361A (U1$CBB21) : 5 : SDO
+ U10 | GPIOB_TXP15_CDI15      | GPIOB_TXP15       | ADC_45_SCK_1_2                   | output  | high   | XC2361A (U1$CBB7) : 4 : SCK, XC2361A (U7$CBB7) : 4 : SCK
+ U11 | GPIOB_TXP18_CDI9       | GPIOB_TXP18       | ADC_49_SCK_5_6                   | output  | high   | XC2361A (U4$CBB21) : 4 : SCK, XC2361A (U5$CBB21) : 4 : SCK
+ U12 | GPIOB_TXN10            | GPIOB_TXN10       | F2_MDIO                          | inout   | high   | RTL8211F-CG (U98$CBB22/CBB2) : 14 : MDIO
+ U13 | GPIOB_TXN08_CDI20      | GPIOB_TXN08       | SI_DAC8_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB8) : 14 : SER
+ U14 | GPIOB_TXN06_CDI24      | GPIOB_TXN06       | SI_DAC5_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB5) : 14 : SER
+ U15 | GPIOB_TXP04_CDI29      | GPIOB_TXP04       | SI_DAC2_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB2) : 14 : SER
+ U16 | GPIOB_TXP03_CDI31      | GPIOB_TXP03       | RX03_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : P10 : GPIOB_RXP03
  U17 | -                      | -                 | 3_3VD                            | power   | high   | power/ground net
- U18 | -                      | -                 | RX01_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : N9 : GPIOB_RXP01
+ U18 | GPIOB_TXP01            | GPIOB_TXP01       | RX01_T20_P                       | input   | medium | T20F256C3 (U1$CBB23) : N9 : GPIOB_RXP01
   U2 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
   U5 | -                      | -                 | 1_2V                             | power   | high   | power/ground net
   U8 | GPIOR_186_PLLIN0       | GPIOR_186         | SI_DAC2_W_15                     | output  | high   | 74HC595 (U6$CBB17/CBB2) : 14 : SER
-  U9 | -                      | -                 | ADC_49_CONV                      | output  | high   | XC2361A (U1$CBB21) : 6 : CONV, XC2361A (U2$CBB21) : 6 : CONV, XC2361A (U3$CBB21) : 6 : CONV, XC2361A (U4$CBB21) : 6 : CONV, XC2361A (U5$CBB21) : 6 : CONV, XC2361A (U7$CBB21) : 6 : CONV
+  U9 | GPIOB_TXN17_CDI10      | GPIOB_TXN17       | ADC_49_CONV                      | output  | high   | XC2361A (U1$CBB21) : 6 : CONV, XC2361A (U2$CBB21) : 6 : CONV, XC2361A (U3$CBB21) : 6 : CONV, XC2361A (U4$CBB21) : 6 : CONV, XC2361A (U5$CBB21) : 6 : CONV, XC2361A (U7$CBB21) : 6 : CONV
   V1 | -                      | -                 | GND                              | power   | high   | power/ground net
- V10 | -                      | -                 | ADC_45_CONV                      | output  | high   | XC2361A (U1$CBB7) : 6 : CONV, XC2361A (U2$CBB7) : 6 : CONV, XC2361A (U3$CBB7) : 6 : CONV, XC2361A (U4$CBB7) : 6 : CONV, XC2361A (U5$CBB7) : 6 : CONV, XC2361A (U7$CBB7) : 6 : CONV
+ V10 | GPIOB_TXN15_CDI14      | GPIOB_TXN15       | ADC_45_CONV                      | output  | high   | XC2361A (U1$CBB7) : 6 : CONV, XC2361A (U2$CBB7) : 6 : CONV, XC2361A (U3$CBB7) : 6 : CONV, XC2361A (U4$CBB7) : 6 : CONV, XC2361A (U5$CBB7) : 6 : CONV, XC2361A (U7$CBB7) : 6 : CONV
  V11 | -                      | -                 | 1N148787                         | unknown | low    | -
- V12 | -                      | -                 | F2_MDC                           | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 13 : MDC
- V13 | -                      | -                 | SCK_DAC1_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB1) : 11 : SCK
- V14 | -                      | -                 | SI_DAC6_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB6) : 14 : SER
- V15 | -                      | -                 | SI_DAC1_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB1) : 14 : SER
- V16 | -                      | -                 | RX03_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : N10 : GPIOB_RXN03
+ V12 | GPIOB_TXP10            | GPIOB_TXP10       | F2_MDC                           | output  | medium | RTL8211F-CG (U98$CBB22/CBB2) : 13 : MDC
+ V13 | GPIOB_TXP08_CDI21      | GPIOB_TXP08       | SCK_DAC1_W_15                    | output  | high   | 74HC595 (U6$CBB17/CBB1) : 11 : SCK
+ V14 | GPIOB_TXP06_CDI25      | GPIOB_TXP06       | SI_DAC6_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB6) : 14 : SER
+ V15 | GPIOB_TXN04_CDI28      | GPIOB_TXN04       | SI_DAC1_W_12                     | output  | high   | 74HC595 (U6$CBB18/CBB1) : 14 : SER
+ V16 | GPIOB_TXN03_CDI30      | GPIOB_TXN03       | RX03_T20_N                       | input   | medium | T20F256C3 (U1$CBB23) : N10 : GPIOB_RXN03
  V17 | -                      | -                 | 1N240613                         | unknown | low    | -
  V18 | -                      | -                 | GND                              | power   | high   | power/ground net
   V4 | -                      | -                 | GND                              | power   | high   | power/ground net
-  V9 | -                      | -                 | ADC_49_SCK_1_2                   | output  | high   | XC2361A (U1$CBB21) : 4 : SCK, XC2361A (U7$CBB21) : 4 : SCK
+  V9 | GPIOB_TXP17_CDI11      | GPIOB_TXP17       | ADC_49_SCK_1_2                   | output  | high   | XC2361A (U1$CBB21) : 4 : SCK, XC2361A (U7$CBB21) : 4 : SCK
 
-UNRESOLVED COUNT: 166
+UNRESOLVED COUNT: 126
