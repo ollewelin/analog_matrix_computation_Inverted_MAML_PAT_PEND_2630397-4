@@ -51,6 +51,7 @@ Is better and reflect this project more fair I think.
 ![](Simulation_Proof_of_concept_3x6x6_triad.png)
 
 ### JLCPCB manufacture placement 
+T12F324 3D step is not showed here but mounted
 ![](EasyEDA/Component_Top.png)
 ![](EasyEDA/Component_bottom.png)
 
