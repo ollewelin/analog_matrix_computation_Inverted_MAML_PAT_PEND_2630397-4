@@ -44,11 +44,15 @@ Is better and reflect this project more fair I think.
 ![](6x6_matrix.png)
 ### LTspice simulation sigmoid OP-amp
 ![](LTspice_sigmoid_sim.png)
-### The MATRIX ! The self aware MATRIX :) 
+### The MATRIX ! Imagination or vision what if... "The self aware MATRIX" is possible ? :) 
 ![](EasyEDA/matrix.png)
 ![](EasyEDA/Matrix_PCB_view.png)
 ### Claude Simulation 3x6x6 PCB (NO hadamard included):
 ![](Simulation_Proof_of_concept_3x6x6_triad.png)
+
+### JLCPCB manufacture placement 
+![](EasyEDA/Component_Top.png)
+![](EasyEDA/Component_bottom.png)
 
     
     
