@@ -55,5 +55,12 @@ T12F324 3D step is not showed here but mounted
 ![](EasyEDA/Component_Top.png)
 ![](EasyEDA/Component_bottom.png)
 
+### Bringup test 1
+IMPORTANT fix to get JTAG working.
+1. CSI pull down need to remove both T20 ant T120
+2. T120_CRESET_N patch wire between Reset circuit and T120 <--> FT2232 programmer to get auto start T120 from SIP flash
+![](LED_test1.png)
+
+
     
     
