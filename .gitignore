@@ -1,2 +1,33 @@
 .vscode/
 FPGA_code/docs/efinix_datasheets/
+
+# Efinity build & intermediate artifacts
+**/outflow/
+**/work_pnr/
+**/work_syn/
+**/work_pt/
+**/*.bin
+**/*.bak*
+FPGA_code/T120F324/RUNPNR_*
+FPGA_code/ref_staging/
+
+# Efinity IP Manager auto-generated devkits and testbenches
+**/ip/**/Testbench/
+**/ip/**/*_devkit/
+**/ip/**/source/
+**/ip/**/ipm/
+
+# Staging and temporary references
+**/ref_staging/
+
+# Software build artifacts and binaries
+**/build/
+**/*.o
+**/*.elf
+**/*.hex
+**/*.asm
+**/*.map
+
+# Simulation dumps and binaries
+**/sim/*.vvp
+**/*.vcd
