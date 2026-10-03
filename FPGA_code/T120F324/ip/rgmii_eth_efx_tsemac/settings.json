@@ -1,0 +1,101 @@
+{
+    "args": [
+        "-o",
+        "rgmii_eth_efx_tsemac",
+        "--base_path",
+        "/home/olle/efinity_p2/BRAM/T120F324_A/ip",
+        "--vlnv",
+        {
+            "vendor": "efinixinc.com",
+            "library": "ethernet",
+            "name": "efx_tsemac",
+            "version": "6.4"
+        }
+    ],
+    "conf": {
+        "VERSION": "16",
+        "TXFIFO_EN": "1'b1",
+        "RXFIFO_EN": "1'b1",
+        "TXFIFO_DTH": "2048",
+        "RXFIFO_DTH": "2048",
+        "PHY_INTF_MODE": "0",
+        "AXIS_DW": "8",
+        "RGMII_RXC_EDGE": "1'b1",
+        "RGMII_TXC_DLY": "1'b1"
+    },
+    "output": {
+        "external_testbench_modelsim": [
+            "rgmii_eth_efx_tsemac/Testbench/modelsim/rgmii_eth_efx_tsemac.sv"
+        ],
+        "external_source_source": [
+            "rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_tmpl.vhd",
+            "rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac.sv",
+            "rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_define.svh",
+            "rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_tmpl.sv"
+        ],
+        "external_testbench_testbench": [
+            "rgmii_eth_efx_tsemac/Testbench/tb_header.v",
+            "rgmii_eth_efx_tsemac/Testbench/tb_top.v",
+            "rgmii_eth_efx_tsemac/Testbench/ODDR.v",
+            "rgmii_eth_efx_tsemac/Testbench/glbl.v",
+            "rgmii_eth_efx_tsemac/Testbench/apb3_2_axi4_lite.v",
+            "rgmii_eth_efx_tsemac/Testbench/axi4_st_mux.v",
+            "rgmii_eth_efx_tsemac/Testbench/mac_pat_gen.v",
+            "rgmii_eth_efx_tsemac/Testbench/mac_rx2tx.v",
+            "rgmii_eth_efx_tsemac/Testbench/reg_apb3.v",
+            "rgmii_eth_efx_tsemac/Testbench/rgmii_2_rmii.v",
+            "rgmii_eth_efx_tsemac/Testbench/udp_pat_gen.v",
+            "rgmii_eth_efx_tsemac/Testbench/DaulClkFifo.v",
+            "rgmii_eth_efx_tsemac/Testbench/temac_ex.v",
+            "rgmii_eth_efx_tsemac/Testbench/modelsim.do",
+            "rgmii_eth_efx_tsemac/Testbench/rgmii_eth_efx_tsemac.sv",
+            "rgmii_eth_efx_tsemac/Testbench/rgmii_eth_efx_tsemac_define.svh"
+        ],
+        "external_testbench_ncsim": [
+            "rgmii_eth_efx_tsemac/Testbench/ncsim/rgmii_eth_efx_tsemac.sv"
+        ],
+        "external_testbench_synopsys": [
+            "rgmii_eth_efx_tsemac/Testbench/synopsys/rgmii_eth_efx_tsemac.sv"
+        ],
+        "external_testbench_aldec": [
+            "rgmii_eth_efx_tsemac/Testbench/aldec/rgmii_eth_efx_tsemac.sv"
+        ],
+        "external_example_example": [
+            "rgmii_eth_efx_tsemac/T120F324_devkit/temac_ex.peri.xml",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/temac_ex.xml",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/timing.sdc",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/apb3_2_axi4_lite.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/axi4_st_mux.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/header.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/mac_pat_gen.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/mac_rx2tx.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/reg_apb3.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/rgmii_2_rmii.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/temac_ex.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/udp_pat_gen.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/DaulClkFifo.v",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/rgmii_eth_efx_tsemac.sv",
+            "rgmii_eth_efx_tsemac/T120F324_devkit/rgmii_eth_efx_tsemac_define.svh"
+        ],
+        "external_example_2": [
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/temac_ex.peri.xml",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/temac_ex.xml",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/timing_Ti60.sdc",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/apb3_2_axi4_lite.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/axi4_st_mux.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/header.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/mac_pat_gen.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/mac_rx2tx.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/reg_apb3.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/rgmii_2_rmii.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/temac_ex.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/udp_pat_gen.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/DaulClkFifo.v",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/rgmii_eth_efx_tsemac.sv",
+            "rgmii_eth_efx_tsemac/Ti60F225_devkit/rgmii_eth_efx_tsemac_define.svh"
+        ]
+    },
+    "ooc_synthesis": {},
+    "sw_version": "2025.1.110.2.15",
+    "generated_date": "2026-02-17T19:42:12.381798+00:00"
+}

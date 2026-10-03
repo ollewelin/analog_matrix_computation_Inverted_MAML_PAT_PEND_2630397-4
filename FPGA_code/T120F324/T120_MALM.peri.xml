@@ -51,8 +51,10 @@
         <efxpt:gpio name="F2_MDC" gpio_def="GPIOB_TXP10" mode="output" bus_name="" is_lvds_gpio="true" io_standard="3.3 V LVTTL / LVCMOS">
             <efxpt:output_config name="F2_MDC" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
         </efxpt:gpio>
-        <efxpt:gpio name="F2_MDIO" gpio_def="GPIOB_TXN10" mode="input" bus_name="" is_lvds_gpio="true" io_standard="3.3 V LVTTL / LVCMOS">
-            <efxpt:input_config name="F2_MDIO" name_ddio_lo="" conn_type="normal" is_register="false" clock_name="" is_clock_inverted="false" pull_option="none" is_schmitt_trigger="false" ddio_type="none"/>
+        <efxpt:gpio name="F2_MDIO" gpio_def="GPIOB_TXN10" mode="inout" bus_name="" is_lvds_gpio="true" io_standard="3.3 V LVTTL / LVCMOS">
+            <efxpt:input_config name="F2_MDIO_IN" name_ddio_lo="" conn_type="normal" is_register="false" clock_name="" is_clock_inverted="false" pull_option="weak pullup" is_schmitt_trigger="true" ddio_type="none"/>
+            <efxpt:output_config name="F2_MDIO_OUT" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="true" tied_option="none" ddio_type="none" drive_strength="1"/>
+            <efxpt:output_enable_config name="F2_MDIO_OE" is_register="false" clock_name="" is_clock_inverted="false"/>
         </efxpt:gpio>
         <efxpt:gpio name="F2_RSTB" gpio_def="GPIOB_TXN11" mode="output" bus_name="" is_lvds_gpio="true" io_standard="3.3 V LVTTL / LVCMOS">
             <efxpt:output_config name="F2_RSTB" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
@@ -264,8 +266,8 @@
         <efxpt:gpio name="SCLR_DAC_W_15" gpio_def="GPIOT_RXP29" mode="output" bus_name="" is_lvds_gpio="true" io_standard="3.3 V LVTTL / LVCMOS">
             <efxpt:output_config name="SCLR_DAC_W_15" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
         </efxpt:gpio>
-        <efxpt:gpio name="SCLR_DAC_W_34" gpio_def="GPIOT_RXN07" mode="input" bus_name="" is_lvds_gpio="true" io_standard="3.3 V LVTTL / LVCMOS">
-            <efxpt:input_config name="SCLR_DAC_W_34" name_ddio_lo="" conn_type="normal" is_register="false" clock_name="" is_clock_inverted="false" pull_option="none" is_schmitt_trigger="false" ddio_type="none"/>
+        <efxpt:gpio name="SCLR_DAC_W_34" gpio_def="GPIOT_RXN07" mode="output" bus_name="" is_lvds_gpio="true" io_standard="3.3 V LVTTL / LVCMOS">
+            <efxpt:output_config name="SCLR_DAC_W_34" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
         </efxpt:gpio>
         <efxpt:gpio name="SI_DAC1_DAC_2" gpio_def="GPIOT_RXP27" mode="output" bus_name="" is_lvds_gpio="true" io_standard="3.3 V LVTTL / LVCMOS">
             <efxpt:output_config name="SI_DAC1_DAC_2" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
@@ -383,9 +385,37 @@
         </efxpt:gpio>
         <efxpt:global_unused_config state="input with weak pullup"/>
     </efxpt:gpio_info>
-    <efxpt:pll_info/>
+        <efxpt:pll_info>
+        <efxpt:pll name="pll_inst1" pll_def="PLL_BR0" ref_clock_name="T120_GCLK" ref_clock_freq="50.0000" multiplier="32" pre_divider="1" post_divider="2" reset_name="" locked_name="pll_inst1_LOCKED" is_ipfrz="false" is_bypass_lock="true">
+            <efxpt:output_clock name="pll_clk_50Mhz" number="0" out_divider="16" adv_out_phase_shift="0" conn_type="gclk"/>
+            <efxpt:output_clock name="pll_clk_100Mhz" number="1" out_divider="8" adv_out_phase_shift="0" conn_type="gclk"/>
+            <efxpt:output_clock name="pll_clk_80Mhz" number="2" out_divider="10" adv_out_phase_shift="0" conn_type="gclk"/>
+            <efxpt:adv_prop ref_clock_mode="core" ref_clock1_name="" ext_ref_clock_id="2" clksel_name="" feedback_clock_name="" feedback_mode="internal"/>
+        </efxpt:pll>
+        <efxpt:pll name="pll_inst2" pll_def="PLL_BR1" ref_clock_name="T120_GCLK" ref_clock_freq="50.0000" multiplier="30" pre_divider="1" post_divider="2" reset_name="" locked_name="" is_ipfrz="false" is_bypass_lock="true">
+            <efxpt:output_clock name="PLL_25MHZ" number="0" out_divider="30" adv_out_phase_shift="0" conn_type="gclk"/>
+            <efxpt:output_clock name="pll_clk_75Mhz" number="1" out_divider="10" adv_out_phase_shift="0" conn_type="gclk"/>
+            <efxpt:adv_prop ref_clock_mode="core" ref_clock1_name="" ext_ref_clock_id="2" clksel_name="" feedback_clock_name="" feedback_mode="internal"/>
+        </efxpt:pll>
+    </efxpt:pll_info>
     <efxpt:lvds_info/>
     <efxpt:mipi_info/>
-    <efxpt:jtag_info/>
+        <efxpt:jtag_info>
+        <efxpt:jtag name="jtag_inst1" jtag_def="JTAG_USER1">
+            <efxpt:gen_pin>
+                <efxpt:pin name="jtag_inst1_CAPTURE" type_name="CAPTURE" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_DRCK" type_name="DRCK" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_RESET" type_name="RESET" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_RUNTEST" type_name="RUNTEST" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_SEL" type_name="SEL" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_SHIFT" type_name="SHIFT" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_TCK" type_name="TCK" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_TDI" type_name="TDI" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_TMS" type_name="TMS" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_UPDATE" type_name="UPDATE" is_bus="false"/>
+                <efxpt:pin name="jtag_inst1_TDO" type_name="TDO" is_bus="false"/>
+            </efxpt:gen_pin>
+        </efxpt:jtag>
+    </efxpt:jtag_info>
     <efxpt:ddr_info/>
 </efxpt:design_db>
