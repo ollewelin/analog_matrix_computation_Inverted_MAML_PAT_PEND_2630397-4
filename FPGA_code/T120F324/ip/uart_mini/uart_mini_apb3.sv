@@ -85,7 +85,7 @@ module uart_mini_apb3 #(
         .rst_n(presetn),
         .uart_txd(uart_txd),
         .uart_rxd(uart_rxd),
-        .tx_data(tx_data_val),
+        .tx_data(pwdata[7:0]),
         .tx_write(tx_write_strobe),
         .tx_empty(tx_empty),
         .tx_full(tx_full),

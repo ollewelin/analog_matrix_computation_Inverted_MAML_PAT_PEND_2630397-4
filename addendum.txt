@@ -1,0 +1,115 @@
+T E C H N I CA L S P E C I F I CAT I O N A D D E N D U M • P U B L I C B U I L D
+
+Inverted MAML Hardware Architecture
+Discretized Time-Slice Stratification & Asymmetric Proprioceptive Clocking
+
+Document Reference: INVERTED-MAML-AIMC-SPEC-V4 • Status: Patent Pending (SE 2630397-4)
+
+1. Executive Summary & Core Paradigm
+In analog In-Memory Computing (AIMC) systems, non-deterministic charge leakage (voltage degradation
+governed by time-variant RC curves) constitutes the absolute physical barrier to digital-grade determinism.
+Conventional approaches implement complex, energy-expensive peripheral circuitry to actively fight this
+degradation, attempting to anchor analog nodes to static digital states.
+This architecture flips the problem entirely. Instead of combating thermodynamic decay, the Inverted
+Model-Agnostic Meta-Learning (Inverted MAML) framework treats the entire non-linear leakage
+trajectory as a predictable, multi-dimensional computational feature. By shifting the objective from state
+enforcement to geometric adaptation, the system updates a single static initialization vector capable of
+navigating the continuous physical decay of the hardware substrate.
+
+2. The Hidden Offset Bottleneck & Spatial Resolution
+A primary architectural constraint of analog memory arrays is the asymmetry between digital processing
+speeds and analog programming intervals. The digital controller can only write **one and only one** static
+set of weights during a global refresh pulse. Once programmed, these analog values immediately begin
+drifting. Toward the asymptotic tail of the discharge window, all physical states drop significantly, generating
+a profound, state-dependent unknown offset relative to the intended digital model.
+If the system executes standard Stochastic Gradient Descent (SGD) with Momentum using point-in-time
+derivatives, it incurs extreme phase lag. Sampling a single window near the beginning of the cycle ignores
+the tail-end collapse; sampling exclusively near the end overcompensates for the offset, destabilizing the
+next fresh state. This partial observability causes severe harmonic oscillations, model vibration, and
+tracking failure around the optimal parameter space.
+
+3. Stratified Time-Slice Batching Topology
+To systematically integrate out the non-linear nature of this physical leakage within the constraints of a
+single weight-update pulse, the continuous discharge window is decomposed into a structured Stratified
+Batching framework. The discharge cycle is partitioned into ten uniform temporal/voltage regions (Strata):
+
+Strata 1-3 (Peak)
+
+Strata 4-7 (Linear Domain)
+
+Strata 8-10 (Tail)
+
+Normal / Compensation Matrix (Slow Leakage - Concave RC Decay)
+
+Conductance / Voltage
+
+Asymmetric Reference Clock (Fast Dynamic Swing - Rapid RC Decay)
+
+t₀
+
+t₁
+
+t₃
+
+t₇
+
+t₁₀
+
+Discharge Time (t) → Between Refresh Pulses
+
+Figure 1: 10-Strata temporal partitioning mapping the rapid reference clock swing against slow concave compensation
+matrix degradation.
+
+• Stratum 1–3 (High Energy Domain): Extracts gradients immediately following the digital refresh pulse,
+capturing sub-threshold initialization anomalies and peak parasitic leakage.
+• Stratum 4–7 (Linearized Decay Domain): Evaluates the quasi-linear region of the RC curve where
+steady-state computational payloads spend the highest operational duration.
+• Stratum 8–10 (Asymptotic Tail Domain): Captures the highly compressed, low-energy end of the
+discharge curve where cumulative offsets peak and approach the thermal noise floor boundaries.
+During a single operational discharge cycle, the digital controller captures local differential derivatives
+∇L(t_i) across all ten slices without modifying the analog state. Before the next refresh pulse, these
+snapshots are combined into a single stratified mini-batch update:
+
+∇W = &frac11;© ∑i=110 ∇L(ti)
+By averaging derivatives across the entire physical curve, the algorithm executes a discrete integration
+over the time domain. The calculated update resolves the unknown offset by establishing a mathematically
+sound meta-learned tyngdpunkt (center of mass), yielding a starting parameter configuration optimized to
+minimize total error across the entire lifecycle of the subsequent pulse.
+
+4. The Asymmetric Reference Clock & Symmetry Breaking
+The core challenge in optimizing a completely analog neural matrix is total covariance: every component
+within the hybrid atomar triad (payload, compensation, and reference) is leaking simultaneously. If all
+components discharged at identical rates, the internal state transitions would become mathematically
+unobservable from external outputs. The local gradients would lose directional sign integrity, resulting in
+immediate model collapse.
+
+This limitation is overridden by introducing deliberate Asymmetric Discharge Rates. The dedicated
+Reference cells are engineered with highly reduced RC constants, forcing them to discharge at an
+accelerated velocity relative to the payload and compensation weights (see Figure 1).
+
+Mechanisms of the Asymmetric Proprioceptive Anchor:
+1. Full Dynamic Swing as an Internal Clock: The aggressive decay of the reference cells sweeps
+across a massive voltage spectrum in a short time, effectively converting a parasitic leakage behavior
+into an explicit, high-resolution analog clock pulse.
+2. Physical Symmetry Breaking: Because the reference signal drops fast, it drives a dominant, sharp
+gradient during the differential evaluation windows. This high signal-to-noise ratio completely drowns out
+the micro-fluctuations and minor drift occurring in the slower compensation weights.
+3. Embedding into Layer 1 Input Space: By routing these fast-decaying reference outputs directly as
+an explicit input feature into the first layer of the network, the model gains proprioception (self-awareness
+of its physical state). The Inverted MAML framework maps the instantaneous coordinate of this
+reference clock signal directly to the optimal compensation response required at that exact epoch of the
+discharge trajectory.
+
+5. Architectural Conclusion
+By structurally coupling Stratified Time-Slice Batching with an Asymmetric Reference Clock, the
+architecture achieves a stable, self-correcting equilibrium. 1-sample methods with momentum can
+establish a noisy, historical tracking center over many global cycles, but they are vulnerable to abrupt
+structural shifts (such as thermal spikes). The stratified batch architecture neutralizes the unknown offset
+natively within a single operational window, delivering digital determinism directly over an unshielded,
+dynamically blithed analog substrate.
+
+Project: Inverted MAML Hardware Architecture • GitHub Open-Source Release
+
+Patent Pending: SE 2630397-4
+
+

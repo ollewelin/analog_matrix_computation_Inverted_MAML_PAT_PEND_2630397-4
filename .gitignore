@@ -31,3 +31,4 @@ FPGA_code/ref_staging/
 # Simulation dumps and binaries
 **/sim/*.vvp
 **/*.vcd
+.gemini/

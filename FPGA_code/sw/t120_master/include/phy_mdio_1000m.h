@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define RTL8211F_PHY_ADDR       0x01
+#define RTL8211F_PHY_ADDR       0x00
 
 /* Standard MII / Clause-22 Registers */
 #define PHY_REG_BMCR            0x00

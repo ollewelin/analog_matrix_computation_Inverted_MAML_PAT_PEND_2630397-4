@@ -1,0 +1,21 @@
+ tail -f /home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324/outflow/T120_MALM.log
+
+ olle@olle-SSD-256:~/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4$ python3 FPGA_code/scripts/program_t120.py
+[*] Programming Target: /home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324/outflow/T120_MALM.bit
+[*] Mode: jtag
+[*] Executing: /home/olle/efinix2/efinity-2025.2.288.2.10-linux-x64/efinity/2025.2/bin/python3 /home/olle/efinix2/efinity-2025.2.288.2.10-linux-x64/efinity/2025.2/pgm/bin/efx_pgm/ftdi_program.py /home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324/outflow/T120_MALM.bit -m jtag --jtag_clock_freq 6000000
+jtag programming started!
+JTAG Programming on ftdi://0x0403:0x6010:1:4/2
+Programming '/home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324/outflow/T120_MALM.bit' via JTAG at freq 6.0 MHz
+Device ID read from JTAG: 0x00220A79
+... finished with JTAG programming
+
+[+] Programming SUCCESSFUL!
+olle@olle-SSD-256:~/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4$ 
+
+python3 FPGA_code/scripts/program_t120.py
+
+ping 192.168.1.10
+
+picocom -b 9600 /dev/ttyACM0
+

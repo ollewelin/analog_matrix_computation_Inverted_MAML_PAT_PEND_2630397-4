@@ -1,0 +1,1416 @@
+System and method for analog matrix computation
+using inverted meta-learning.
+Technical Field
+The invention relates to the field of computing hardware for artificial
+intelligence, more specifically to a hybrid architecture for analog in-memory
+computing ("In-Memory Computing"). The invention combines two analog
+correction matrices and one analog primary computation matrix with a
+digital control unit to form a joint hybrid atomic triad. These physical
+substrates, consisting of multiple hybrid atomic matrix triads, execute metalearning algorithms to achieve digital determinism in a non-deterministic
+analog medium.
+
+Background of the Invention
+Conventional digital systems for neural networks are strictly deterministic
+but suffer from high power consumption due to the so-called "memory wall"
+(data transfer between memory and processor). Analog computing systems
+offer high energy efficiency but are limited by physical non-idealities such as
+thermal drift, voltage leakage, and component variations.
+Existing meta-learning (such as "MAML" Model-Agnostic Meta-Learning) is
+primarily used to adapt digital models to new external tasks (referred to as
+"few-shot learning"). There is currently a lack of systems that use intrinsic
+("inward") meta-learning to compensate for internal variations in analog
+computing hardware in real-time during operation.
+One of the most limiting factors in today's digital AI systems is the so-called
+Von Neumann bottleneck, often referred to as the 'memory wall'. In matrixvector multiplication, which constitutes the majority of computations in an
+LLM, large amounts of data (weights) must constantly be moved between
+the memory and the processor. The energy consumption for moving this
+data is often several orders of magnitude higher than for the computation
+itself. This makes large-scale AI energy-intensive and difficult to implement
+in resource-constrained edge systems.
+
+A pervasive problem for today's leading actors in analog in-memory
+computing (IMC)—whether based on resistive elements (e.g., memristors) or
+the charge domain (e.g., switched capacitors)—is the difficulty of
+maintaining deterministic precision over time. To make analog cell
+intersections function consistently, manufacturers are forced to rely on
+tight, complex, and costly manufacturing tolerances in the fabrication
+process for ASIC circuits. Furthermore, current IMC technology relies
+primarily on static, pre-calibration (offline calibration) and hardware-aware
+training (Hardware-Aware Training). This means attempting to fix the
+system so that the analog cells remain deterministic throughout their entire
+operating lifetime. However, this static approach fails to handle dynamic
+fluctuations that occur during operation, such as thermal drift, temporary
+voltage drops, or long-term component aging. Thus, there is a significant
+and unfulfilled need for an architecture that breaks free from the
+requirement of perfect physical manufacturing precision and static
+determinism. There is a lack of a solution that instead allows the analog
+hardware to be naturally imperfect, but which can dynamically and
+autonomously adjust and compensate for these internal variations in realtime, without losing either the energy efficiency of the analog computation
+or the reliability of digital systems.
+
+Summary of the Invention
+The core of the invention is an inverted MAML architecture. In conventional
+MAML, a model is adapted to a changing environment, but here, a digital
+reference model (a deterministic truth) is used instead to adapt an analog
+computing core—a so-called "atomic triad" (3, 8, 33) representing a nondeterministic reality. The analog correction matrices (3, 8) and the
+activation functions (4, 10) together constitute the inverted MAML
+structure. The system thereby learns to continuously adjust, during
+operation, the errors in the third analog matrix (33) using short windows for
+correction measurements.
+Through this architecture, a form of technical proprioception is introduced,
+wherein the atomic computing cores are allowed to become aware of their
+own local "body" and its physical state. In this context, proprioception is
+defined as the system's ability to register and compensate for internal
+physical parameters, such as thermal drift and voltage leakage, in real-time
+via the reference nodes (29) and the meta-learning algorithm, without
+external calibration data.
+By leveraging the MAML algorithm's capacity for rapid adaptation via few
+measurement points (few-shot learning), each computing core is arranged to
+autonomously perform calibration during short temporal windows (20, 24).
+This internal correction cycle operates at a lower frequency than the
+primary computing path (payload), allowing local hardware deviations to be
+compensated for in real-time without affecting the system's throughput or
+latency during the inference phase.
+Through an atomic triad structure, complex non-linearities are eliminated by
+letting the primary matrix (33) perform the main computation while the
+cascaded layers, the correction matrices (3, 8), add an inverted MAML
+deviation correction at the summing point (35). The resulting output signal
+(11) is controlled via feedback (13) to deterministically correspond to the
+digital reference model (39).
+To maintain precision in gradient extraction and avoid temporal blur
+(integration losses) during the discharge phase (31), short temporal
+windows (20, 24) are used. Instead of long measurement periods, the
+measured values are downsampled by placing snapshot windows at exactly
+the same phase position across multiple refresh cycles (18). This enables
+high instantaneous precision even for large matrices without the information
+being averaged over time within the measurement window.
+
+The system is trained into a robust base model (40, 41) through an
+emulation process corresponding to a changing hardware state during
+operational inference (42). Instead of physical relocation of different
+substrates, emulated operating variations for the power supply of the analog
+matrices are injected via a controllable DAC (trim-DAC) (38). During base
+model training (40, 41), small unknown offset values are also added for the
+MAML training (40, 41) to weights, the DAC (2), and the ADCs (45, 49) to
+emulate the physical deviations of the analog medium. By varying these
+emulated errors during training, the base model is exposed to the total
+statistical variations of the hardware population. The inverted MAML model
+thus becomes proficient at rapidly re-trimming itself against variations
+during operation. Upon transition to normal operational inference drift (42),
+all emulated offset values are removed and said trim-DAC (38) is reset. This
+creates a base model that, with a minimal number of samples and via an
+inner calibration loop (41), can be fine-tuned to the natural state of the
+specific physical core, even during ongoing inference (19) to the system's
+output signal (11).
+This adaptability is enabled by the deviation correction in the components
+(3, 4, 8, 10) being specifically designed as a multi-layer non-linear
+architecture. The purpose is to streamline the system's modeling capability
+to exclusively map and invert underlying physical hardware errors, rather
+than burdening the meta-learning algorithm with learning the primary
+logical computation, which remains fixed in the primary matrix (33). By
+separating the primary inference computation (payload computation)—
+whose applied matrix weights are deterministic and fixed, but whose analog
+output signal inevitably varies—from the adaptive non-linear error
+correction, sufficiently accurate compensation is made possible (for
+example, 6-bit determinism on the outgoing vector computation compared to
+the computation of the ideal digital model). When the output signal of the
+error correction is linearly summed with the fluctuating output from the
+primary matrix at the summing point (35), the computational deviations are
+neutralized, whereby the system achieves digital precision despite the
+inherent variations of the analog medium.
+By utilizing the proposed hybrid architecture (Fig. 1), the need to move
+weights during the inference phase itself (19) is eliminated, as the weights
+are physically stored in the analog matrix (3, 8, 33). A crucial aspect of the
+invention is the asymmetry in memory bandwidth between computation and
+control (Fig. 1).
+
+While the analog matrices (3, 8, 33) perform numerous parallel
+computations with high throughput, the digital control unit (9) operates with
+a memory bandwidth that is orders of magnitude lower. This is possible
+because the digital control unit (9) only needs to communicate the finetuned correction values (via the MAML algorithm) in a slow loop (12, 13, 14,
+15, 16, 17) to maintain sufficiently high determinism. By separating the
+high-frequency data throughput (analog) from the low-frequency calibration
+(digital), a significant reduction in total system power is obtained without
+losing precision.
+An important decisive technical advantage of the invention is the functional
+synergy between the rapid convergence of the MAML algorithm and the
+analog hardware architecture's need for calibration during operation. The
+system is arranged to operate with an optimized duty cycle (Fig. 5), where
+the majority of the operation is dedicated to uninterrupted inference (19),
+while a minimal fraction of the time—preferably on the order of a few
+percent—is reserved for automatic fine-calibration. Since the inverted
+MAML algorithm is specifically trained to achieve adaptive adjustment with
+a minimal number of snapshot measurement readings (samples) (referred to
+as 'few-shot learning'), a complete fine-tuning of the analog weights is made
+possible within the short time windows (20, 24) available between the
+matrix's refresh pulses (18). This symbiosis between algorithm and
+hardware architecture means that the system can maintain maximum data
+throughput while digital determinism is ensured through rapid, periodic
+correction. This ability to interpolate and transition between different analog
+states with few measurement points makes the combination of MAML and
+the proposed hybrid matrix structure (Fig. 1, 2, 3, 4) uniquely suited for
+demanding real-time AI applications.
+As an integrated part of this resource efficiency optimization, the system
+applies a time-distributed acquisition strategy for gradient extraction.
+Instead of requiring an extensive and energy-consuming measurement
+window in each individual cycle, the collection of measurement data from
+the specific points in time (21, 22, 23) is spread out over multiple
+subsequent refresh cycles (18).
+
+Through this downsampled method, the digital control unit (9) can
+successively build up a complete picture of the state of the matrix by
+sampling different parts of the weight matrix at exactly the same relative
+points in time during the process, but in different chronological cycles. This
+allows for an asymmetric update where large amounts of analog weights can
+be fine-tuned with a minimal digital bandwidth. This capability to perform
+high-precision calibration via a distributed measurement series ensures that
+the system maintains its determinism over time, without encroaching on the
+real-time performance required for continuous inference (19).
+To further optimize this calibration process and maximize the signal-to-noise
+ratio (SNR), the system implements a parallel encoding unit (6) (excitation
+device) based on orthogonal encoding, preferably Hadamard encoding (43)
+(Fig. 9). By exciting all rows in the matrix simultaneously with unique,
+orthogonal patterns (Fig. 9), the digital control unit (9) can isolate individual
+cell deviations via a Fast Hadamard Transform (FHT). In contrast to a serial
+sequence, where each row is analyzed in isolation (conventional sequential
+row scanning), this parallel method allows the perturbation energy to be
+distributed across all rows during the measurement cycle. This results in a
+significant lowering of the noise floor and thus a higher precision in the
+estimated gradients, without requiring an extension of the temporal
+measurement window's duration. The method maintains the system's critical
+charge neutrality across the weight capacitors (44), while adding a
+statistical robustness that is necessary to ensure determinism in large-scale
+matrices where thermal noise would otherwise limit calibration accuracy.
+To ensure maximum correlation between reference measurements and
+actual computational processes, the matrix is arranged such that the
+dedicated reference cells (29) (according to claim 2) are physically
+interleaved with the active computing cells (27) for both the first (3) and
+second (8) layers. This complete interdigitation (30) means that the
+reference cells (29) are exposed to identical local thermal fluctuations and
+process variations as the active cells, which eliminates measurement errors
+caused by spatial distances on the semiconductor substrate.
+Through the proposed hybrid architecture (Fig. 1), the need for complex and
+time-consuming simulations of the analog hardware is eliminated. Since the
+system, via the digital control unit (9), adapts to the actual physical
+variations in real-time, the requirement to create precise deterministic
+models of the analog medium is bypassed.
+
+Figurförteckning
+
+Fig 1
+
+Fig 2
+
+Fig 3
+
+Fig 4
+
+Fig 5
+
+Fig 6
+
+Fig 7
+
+Fig 8
+
+Fig 9 (43).
+
+Fig 10
+
+Fig 11
+
+Fig 12
+
+Detailed Description of the Invention
+(Fig. 1) illustrates the asymmetry in the system, where the dashed lines (12)
+to (17) and (34) represent an intermittent control signal path for metalearning-based calibration, which operates at a significantly lower
+bandwidth than the analog computation path marked with solid lines.
+The digital control unit (9) communicates correction values via the control
+paths (12, 15, 34). It should be understood that these paths include, or are
+connected to, a digital-to-analog conversion unit (DAC) and a buffer array
+(46) for the purpose of updating the charge in the analog memory cells (47)
+and their storage capacitors (44).
+(Fig. 10) illustrates a possible weight charging matrix with 2T1C cells (2
+Transistor, 1 Capacitor). There, a buffer DAC array (46) charges the weight
+rows of the matrix with an analog weight voltage, while a digital column
+control driver (48) controls gate 'G' (the gate of the transistor that charges
+the weight) of an entire column of charging transistors for selective
+programming. The control paths (16, 36) are coupled to rows in the matrix
+(3) via a digital-to-analog converter (2) for input data.
+System Architecture and Signal Flow.
+To realize the inverted MAML architecture, the hardware is arranged in a
+specific sequential chain that enables both high-performance inference (19)
+and precise gradient extraction. A digital input signal (1) is converted in the
+DAC (2) and fed into the first analog correction matrix (3) (Layer 1), the
+output signal of which passes through a first activation function (4) (analog
+or digital). This signal is then fed into the second analog correction matrix
+(8) (Layer 2), followed by an activation function (10), creating an internal
+deviation correction signal up to the summer (35). In parallel, the main
+computation is performed from the input signal (2) into the analog matrix
+(33). The output signal from the primary matrix (33) is summed with the
+output signal from the activation function (10), which is then converted at
+full speed in an ADC (49) to create the digital output signal (11).
+
+This atomic triad of matrices (Fig. 1) is arranged for continuous state
+monitoring via a digital control unit (9). To enable differential perturbation
+analysis with a high signal-to-noise ratio (SNR) without affecting the
+integrity of the stored analog weights, the system includes a modulated
+perturbation source (5). (VPTU). The perturbation source is controlled by the
+control unit (9) and is connected to an encoding unit (6) (Hadamard
+encoder). Unlike a conventional selector, the encoding unit (6) is arranged
+to simultaneously inject controlled perturbation signals onto all row
+conductors (PL) in matrix (3) or (8). This injection takes place in accordance
+with an orthogonal coding scheme (Fig. 9) (43), where each individual row is
+assigned a unique pattern of phase positions (positive or negative polarity)
+over a measurement cycle. The injection occurs via dedicated perturbation
+capacitances CPTU (7) whose capacitance values are chosen to be orders of
+magnitude lower than the actual storage capacitance of the weights CW (44).
+This relationship, where CPTU (7) < CW (44), ensures that the encoded
+perturbation signals can modulate the row signals sufficiently for digital
+detection at the output, while the remaining charge (the weight) in the
+matrix remains unaffected. By utilizing orthogonal encoding, the control unit
+(9) can mathematically separate the summed output signal into individual
+partial derivatives
+
+(∂)
+
+for each cell, even though all rows are excited simultaneously during the
+measurement window.
+To maintain the charge of the weights over time and enable the iterative,
+inverted meta-learning adjustment, the system includes an addressing
+device (12, 15, 34). This configuration allows the control unit (9) to update
+weight values (27, 29) in the matrices based on the perturbation analysis
+extracted during the short measurement window (20), without interrupting
+the majority of the time during the discharge phase or disturbing the main
+high-frequency signal flow (payload) during inference (19). It should be
+noted that the primary computation matrix (33) does not include said
+perturbation signal mechanism, since the weights in the matrix (33) are
+exclusively redistributed (reallocated) but never adjusted in substance.
+Thereby, the need for perturbation analysis for this specific primary matrix
+(33) is eliminated.
+
+The activation circuits (4, 10) and the summer (35) preferably consist of
+analog circuits to minimize energy consumption and complexity, but may
+alternatively be digital.
+By utilizing analog operational amplifiers for the activation functions (4) and
+(10), a natural, smooth S-curve is obtained completely without the need for
+complex digital computational logic. Since the inverted MAML architecture
+provides continuous self-calibration, the inherent problems of component
+drift and unstable curve shapes are eliminated, which allows the analog
+saturation curve to be used as a stable and precise mathematical operator.
+The control unit (9) is arranged to continuously compare the system's digital
+output signal (11, 13) with a digital reference model, which represents the
+deterministic truth. Hereby, the system is calibrated against the actual
+physical reality rather than against a theoretical simulation model, ensuring
+determinism even under changing environmental conditions such as
+fluctuating temperature.
+In a preferred embodiment of the invention, the matrix unit (3) comprises at
+least one temporal reference cell (29). In contrast to the computing cells
+(27) of the matrix, which are optimized to maintain an electrical charge (31)
+over time, the temporal reference cell (29) is configured with a dedicated
+and accelerated discharge path (28). In one embodiment, this discharge
+path (28) may consist of a resistive element arranged in parallel with the
+storage capacitance of the cell, or in an alternative embodiment, of an
+actively biased transistor functioning as a constant-current source for
+controlled leakage.
+The purpose of the discharge path (28) is to generate a discharge curve (32)
+with a steepness that substantially exceeds the natural voltage leakage (31)
+of the computing cells (27). By dimensioning the discharge path (28) such
+that the voltage drop (32) of the temporal reference cell covers a substantial
+part of, and preferably the entirety of, the available analog signal range (Full
+Swing) between two consecutive measurement windows (18), a physical
+normalization of the time axis is achieved.
+This configuration maximizes the signal-to-noise ratio (SNR) during the
+digital control unit's reading, as the time information is correlated (mapped)
+against the full dynamic range of the matrix. The digital control unit can
+thereby, with high precision, use the curve (32) as an analog timestamp to
+interpolate and compensate for the significantly slower drift in the
+computing cells of the matrix via the inverted meta-learning algorithm.
+
+The analog computing cores (30, 37) (Fig. 2), (Fig. 3) are constructed as a
+crossbar matrix where the input signals are injected via a set of input
+buffers (26). These buffers, preferably implemented as high-impedance
+operational amplifiers, ensure that the voltage signal $V_{in}$ is driven
+stably across the rows of the matrix regardless of the combined resistive
+load from the programmable weights. By utilizing these precision buffers
+(26), initial signal errors are minimized already at the input stage, which
+provides the MAML algorithm with a more linear base to work from.
+The system's matrix architecture is defined by two internal configurations: a
+reference structure (30) (Fig. 2) comprising discharge cells (29), and a
+computing structure (37) (Fig. 3) without discharge cells. The first matrix (3)
+is implemented as a hybrid structure where an upper part comprises the
+reference structure (30) and a lower part comprises the computing structure
+(37). The second matrix (8) and the third matrix (33) are, in their entirety,
+uniformly constructed according to the computing structure (37). Because
+the matrices (3, 8, 33) are arranged in thermal cooperation, the discharge
+cells (29) in the first matrix (3) are utilized as a common reference for the
+calibration of all matrices, allowing matrix (8) and (33) to be optimized for
+maximum computational area without internal reference cells.
+A trimable DAC (38) for the supply voltage (36) V DD ffor the triad of matrices
+(3, 8, 33) is available to emulate voltage variations during base model
+training.
+
+Descriptions.
+
+I. Gradient Extraction during the Measurement Window
+II. Calibration Cycle, Meta-Adaptation.
+
+I. The system's procedure for gradient extraction is performed in a
+sequential order as follows:
+
+A digital input signal (1) is fed via the DAC (2) through the first matrix (3)
+and the second matrix (8) for "inverted" MAML. The input signal (1) via the
+DAC (2) is also fed through the primary computation matrix (33), which has
+been loaded with fixed, deterministic weights (34) represented from the
+digital ideal original model (39). The output signals from the activation
+function (10) are summed with the output signals from the primary matrix
+(33). The control unit (9) reads (samples) a reference value at the
+intermediate ADC (45) as well as the resulting error at the final output (11,
+13).
+The perturbation analysis takes place in two separate steps for the weights
+in matrix (3) and matrix (8) respectively. The measurement is done
+internally with the ADC (45) between Layer 1 and Layer 2. This is necessary
+to correctly calculate the chain rule digitally, and to avoid "spaghetti" mixed
+columns and rows between matrix (3) and matrix (8) in the perturbation
+analysis.
+Analysis of the Chain Rule and Total Loss for Matrix (8):
+To extract the local derivative for an individual cell (weight) in matrix (8) in
+relation to the total loss function (Total Loss), the control unit (9) applies a
+hardware-assisted calculation of the chain rule.
+When the encoding unit (6) is active, a known perturbation VPTU(5) is created
+on (PL-LINE). A momentary dynamic change (AC delta) then occurs, which
+propagates to the output. The control unit measures this AC delta at each
+column after the activation function (10).
+
+The calibration process is executed in three distinct steps to maximize
+precision and system utilization:
+1. Data Collection (Excitation Phase): During a defined temporal
+measurement window (20), the Hadamard-encoded (Fig. 10) perturbation
+signals are injected simultaneously onto the rows via the encoding unit (6).
+The resulting summed analog output signal is sampled by the ADC (49) or at
+the internal ADC (45). Once the measurement series for the orthogonal
+sequence is complete, the measurement window (20) closes.
+2. Digital Extraction (FHT Phase): Immediately after the measurement
+window closes, the digital control unit (9) processes the stored measurement
+values with a Fast Hadamard Transform (FHT). This mathematical decoding
+separates the summed signal into individual partial derivatives
+
+(∂)
+
+for each specific cell.
+3. Adaptation (Chain Rule Calculation): The isolated derivatives
+
+(∂)
+
+are subsequently used in the chain rule calculations to determine the
+necessary weight adjustments. It should be noted that while step 1 requires
+physical access to the matrix's signal path, steps 2 and 3 take place entirely
+in the digital domain in parallel with the system's ordinary inference (19)
+continuing. This asymmetric flow enables continuous calibration without
+compromising the system's real-time performance or latency.
+
+The partial derivative for each individual cell intersection (weight) in matrix
+(8) is calculated in three cooperating steps that utilize the parallelly
+extracted data:
+1. Global Error Determination: The digital system evaluates the derivative of
+the global loss
+
+∂ Loss
+∂ Out
+
+at the final output (11). This constitutes the starting point for the chain rule.
+2. Local Error Propagation and Analog Weighting (Fig. 11):
+Instead of using a raw measurement value, the partial derivatives isolated
+via the Fast Hadamard Transform (FHT) after the measurement window (20)
+are utilized to obtain a unique error gradient for each specific cell
+intersection. As illustrated in (Fig. 11), the subsequent weighting against
+
+x (8)
+i
+
+input data
+
+occurs completely natively and automatically through the
+
+matrix's analog multiplication. By combining the Hadamard-decoded
+derivatives with this automatic analog multiplication and the global error,
+the system can execute a complete backward propagation calculation
+("Backpropagation") directly in the hardware.
+Equations for Gradient Extraction during the Measurement Window.
+
+i=matrix row
+j=matrix column
+Gradient Extraction for Matrix (8):
+Equation 1
+n
+
+L total =∑ ( Er j
+
+(49)
+
+j=1
+also represented as:
+
+)²
+2
+
+L total =(Z target −Z out )
+
+Equation 2
+Extraction of weight derivatives (delta) for matrix (8):
+
+∂ L total
+∂W
+
+(8)
+i, j
+
+=
+
+⟨
+
+∂ z(49)
+j
+∂V
+
+⟩
+
+(49)
+
+⋅Er j
+
+PTU (5)
+i
+Hadamard
+
+It is noted that Equation 2 excludes the explicit multiplication with the row's
+input signal
+
+x (8)
+, which is characteristic of conventional digital
+i
+
+backpropagation. This unique mathematical simplification is a direct
+technical effect of the system's analog transistor dynamics at the crossbar
+
+(i , j) . Because the transient perturbation — hereinafter
+PTU (5)
+referred to as the weight perturbation (weight shaking) ∂ V i
+— is
+intersection
+
+physically applied via the row line, the propagation of the shaking to the
+column line is momentarily modulated by the cell's prevailing conductance
+and the row's analog voltage level. If, for example, the input signal on a row
+is zero
+
+x (8)
+i =0 ,the weight perturbation (weight shaking) is completely
+
+attenuated in the physical cell intersection and generates no contribution to
+the column's analog summation line.
+The measurement value extracted via the Hadamard decoding
+
+⟨
+
+∂ z (49)
+j
+
+⟩
+
+(5)
+∂ V PTU
+Hadamard
+i
+
+is thus not an isolated partial derivative for the weight
+
+alone, but already carries an implicit, hardware-embedded multiplication
+with the row's input signal.
+Because the multiplication occurs natively, automatically, and "for free" in
+the analog medium, the complete and correct gradient for matrix (8) is
+obtained by the control unit (9) digitally multiplying the Hadamarddeciphered measurement value directly by the global column error
+To digitally perform an additional multiplication with
+
+Er(j49) .
+
+x (8)
+at this stage
+i
+
+would constitute a mathematical double-counting (squaring of the input
+signal) and destroy the algorithm's convergence.
+
+Where:
+(8)
+i, j
+represents the derivative of an individual cell's weight in matrix (8).
+
+∂W
+
+PTU (5)
+
+∂V i
+
+representerar den injicerade störningen från kodningsenheten (6) som
+genererar VPTU (5) the input signal on a row i into matrix (8).
+
+Er (49)
+j
+
+represents the static global column error obtained from the output ADC (49)
+compared against an ideal digital target vector.
+
+∂ z(49)
+j
+represents the AC variation of an entire column measured from the ADC
+(49), corresponding to columns in matrix (8) that have propagated through
+the activation function (10) and summation unit (35).
+
+Optimization Objectives and Error Correction
+To enable the inverted meta-learning algorithm to minimize the deviation
+from the analog output
+
+Z OUT
+
+and the digital reference
+
+Z TARGET , a loss
+
+function is defined. The control unit (9) uses the Mean Squared Error (MSE)
+method to define this error. The squaring ensures that large deviations are
+prioritized in the calibration and that the error value is always positive,
+which is a prerequisite for the algorithm's convergence.
+2
+total
+target
+out
+
+L
+
+=(Z
+
+−Z )
+
+Equation 3 Matrix (8) (theoretical). For backpropagating the derivative
+(delta) to matrix (3). Row-wise incoming derivative (delta) from matrix (8)
+(on the input side):
+n
+(8)analog
+(8)analog
+(8)
+(49)
+total
+i
+i
+,
+j
+j
+j
+(8)
+j=1
+i
+represents the ideal, but in practice unknown, analog sensitivity of row $i$
+in the physical medium.
+Where:
+
+∂x
+
+=
+
+∂L
+
+∂x
+
+=∑ W
+
+⋅σ ' ( y )⋅Er
+
+∂ Ltotal
+(8)
+
+∂ xi
+
+represents the derivative (delta) from matrix (8) (on the input side of matrix
+(8)) when the control unit (9) performs a perturbation on matrix (8).
+Where:
+(8)
+j
+represents the output signal of columns from the matrix multiplications in
+matrix (8) before these columns enter the activation function (10).
+
+y
+
+Equation 4 Matrix (8) (practical implementation). Row-wise incoming
+derivative (delta) from matrix (8) (on the input side):
+n
+(8)
+(8)digital
+(8)
+(49)
+i
+i, j
+j
+j
+j=1
+
+∂ x =∑ W
+
+⋅σ ' ( y )⋅Er
+
+∂ x (8i ) represents the digitally stored or calculated sensitivity parameter for
+
+i
+
+row
+into said second matrix (8), which constitutes a digital value
+"receipt" of how a differential transient change on the input row propagates
+to the output.
+
+W (8)digital
+i, j
+
+represents the digital target value for the weight (conductance value) in the
+cell junction of row
+
+i and column j of said second matrix (8).
+
+σ ' ( y(8)
+j )
+
+represents the extracted instantaneous, non-linear analog slope (derivative)
+of the activation function (10) for column j.
+
+To determine said analog slope,
+
+σ ' ( y(j8))
+
+without physical perturbation
+
+injection on all row lines, and to eliminate noise amplification due to input
+signals close to zero, the digital control unit (9) is arranged to execute a
+selective carrier wave search. The control unit (9) evaluates the stored
+(8)
+digital values for the input signal vector
+, which have been sampled
+by the intermediate ADC unit (45) during a forward calculation pass
+(Forward Pass).
+
+X
+
+k
+
+The control unit (9) identifies a specific row index
+(also referred to as
+(8)
+the maximum carrier wave row
+imax ) which exhibits the highest
+instantaneous signal amplitude. The hidden analog column derivative is then
+extracted entirely digitally by multiplying the differential AC response,
+
+x
+
+k
+
+isolated via the Hadamard decoding for the selected row
+, with the
+inverse of its known static carrier wave amplitude according to:
+Equation 5: (theoretical)
+
+⟨ ⟩
+(49)
+
+1 ∂zj
+σ ' ( y )= (8)⋅
+(8)
+x k ∂ W k , j Hadamard
+(8)
+j
+
+Because said activation function (10) and its associated analog summation
+
+j
+
+line are common to all memory cells in column
+, the digitally extracted
+analog slope is identical for the entire column. The control unit (9) is
+arranged to mirror the calculated value for
+
+i
+
+σ ' ( y (8)
+j ) as a constant
+
+multiplier for all rows
+during the execution of Equation 3, thereby
+eliminating the need for physical transient injectors on the intermediate row
+lines.
+
+To clarify the physical mechanism in the matrix junction, where the
+deciphered measurement carries an implicit input signal component from
+the carrier wave row, the Hadamard-decoded measurement value is
+decomposed according to:
+Explanatory auxiliary equation (Equation 5a):
+
+⟨ ⟩
+(49)
+
+∂zj
+
+(8)
+
+(8)
+
+∂ W k , j Hadamard
+
+(8)
+
+=σ ' ( y j )⋅x k
+
+By substituting Equation 5a into Equation 5, the exact mathematical
+elimination (canceling out) of the row signal is achieved:
+Explanatory auxiliary equation (Equation 5b):
+(8)
+1
+(8)
+(8)
+(8) x k
+σ ' ( y )= (8)⋅[ σ ' ( y j )⋅x k ]= σ ' ( y j )⋅ (8) = σ ' ( y (8)
+j )
+xk
+xk
+(8)
+j
+
+Description of the Virtual Row Perturbation via Implicit Hardware
+Elimination:
+The physical significance of Equation 5 and Auxiliary Equation 5a is
+fundamental to bridging the asymmetry between the network's forward
+signaling and its adaptive backpropagation. Since the system utilizes a
+physical forward perturbation (Forward Perturbation) via AC injection on
+the selected carrier wave row
+point in cell
+
+(k , j)
+
+k , the transistor dynamics of the cross-
+
+will automatically multiply the applied voltage
+(8)
+
+variation by the prevailing stationary row signal x k . The measured value
+read out via the differential measurement window and the Hadamard
+transform is thus not a pure partial derivative with respect to the weight
+alone, but instead contains the hidden composite product
+
+σ ' ( y(j8))⋅x(k8)
+
+as
+
+shown in Equation 5a. To isolate the pure, stripped down "naked" analog
+slope σ ' of the activation function (10) — which is unique to the column
+but universal for all its connected rows — the control unit (9) executes the
+digital correction step in Equation 5. By multiplying the composite measured
+value by the inverse of the carrier wave's known digital value
+
+1
+, the
+( 8)
+xk
+
+hardware-based multiplication is mathematically canceled out. Since said
+activation function (10) and its associated analog summation line are
+common to all memory cells in column
+
+j , the analog slope digitally
+
+isolated in this manner is identical for the entire column.
+The control unit (9) is arranged to reflect the pure value thus calculated for
+
+σ ' as a constant multiplier for all rows during the execution of
+Equation 4.
+By multiplying this isolated column slope with the stored digital matrix
+weights in a subsequent digital stage,
+
+W (i,8)digital
+, is the effect of a row
+j
+
+perturbation (row shaking) virtually reconstructed at
+
+∂ x (8)
+. This unique
+k
+
+interaction between physical weight perturbation (weight shaking) and
+digital inverse scaling completely eliminates the need to integrate physical,
+transient injector circuits or dedicated AC coupling capacitors on the
+intermediate analog row lines between matrix (3) and matrix (8), which
+radically reduces the silicon area and lowers the system's total parasitic
+capacitance.
+
+Equation 6: (practical implementation, replaces equation 5 in practice)
+
+σ ' ( y (8)
+j )
+
+⟨ ⟩
+
+(8)
+
+(49)
+
+xk
+
+∂ zj
+
+⋅
+(8) 2
+(8)
+( x k ) + α ∂W k , j Hadamard
+
+α
+
+The parametric regularization factor
+constitutes a static, strictly
+positive digital constant stored in the memory of the control unit (9), The
+factor
+is dimensioned to function as a numerical floor protection
+(threshold value) to prevent digital overflow and system crashes resulting
+from division by zero. The value of
+is chosen to be small enough not to
+affect the computational accuracy during normal operation (when the
+carrier amplitude is strong), but large enough to dominate the denominator
+and attenuate the expression during zero-crossings or extreme noise
+situations. In a preferred embodiment, is
+configured within the order
+
+α
+
+α
+
+of magnitude of
+where
+
+−6
+
+10
+
+x (8)
+k →0 , forces
+
+to
+
+−4
+
+10
+
+α
+
+, preferably
+
+10−5 . At a zero-crossing
+
+α the denominator to stabilize at a finite,
+
+deterministic value instead of collapsing toward zero. The entire fractional
+expression thus safely assumes the value of zero, which effectively blocks
+unrestricted noise amplification and guarantees that the iterative metalearning algorithm remains stable during real-time execution.
+
+Later, the saved
+
+∂ x (8)
+is used when the control unit (9) turns off the
+i
+
+Hadamard-coded perturbation on matrix (8) and the control unit (9) instead
+isolates the Hadamard-coded perturbation on matrix (3). The control unit (9)
+then uses thisa
+
+∂ x (8)
+as a sensitivity value for this row on matrix (8)
+i
+∂ Ltotal
+
+instead of reading the output total loss
+
+(3)
+
+∂ xi
+
+when the control unit (9)
+
+has the perturbation analysis enabled against matrix (3).
+It should be noted that the calculation of
+digital target matrix
+
+∂ x (8)
+i
+
+is based on the known
+
+W (i,8)digital
+, which implies that any deviations in the
+j
+
+actual gain (gain error) of the individual analog cell in relation to the digital
+value in practice only manifest as a local, cell-specific variation in learning
+rate. Thanks to the system's closed feedback loop against the global static
+error
+
+Er(j49)
+
+the architecture is inherently robust against such individual
+
+gain deviations, and the system's total convergence is achieved without the
+exact, prevailing gain of the subsequent analog layer needing to be
+measured or known.
+This method of splitting the perturbation analysis into two separate parts,
+matrix (8) followed by matrix (3), reduces rounding errors and noise (SNR)
+compared to running the entire chain simultaneously in a single, joint
+perturbation analysis measurement.
+
+Isolation and analysis of the first layer (Matrix 3)
+The analysis of the first layer (matrix 3) is performed in parallel and
+asymmetrically to maximize the signal-to-noise ratio (SNR) and avoid error
+propagation. Instead of sequential scanning, the Hadamard encoder (6),
+which generates the VPTU (5) signal, injects a known differential perturbation
+simultaneously on all rows in matrix (3) using orthogonal patterns. The
+resulting variations in the matrix's output signal are measured immediately
+at the intermediate ADC (45) as local column-specific AC deltas
+
+∂ z (45)
+.
+j
+
+By applying a Fast Hadamard Transform (43) (FHT) in the control unit (9),
+the individual derivatives for each specific row/column intersection can be
+isolated from the aggregated signal. This measured value captures
+asymmetries and nonlinearities in both the analog crosspoint and the
+associated activation function (4). To extract the specific derivative for an
+individual cell in matrix (3) with respect to the final loss function (Total
+Loss), the control unit (9) applies a digital-to-analog chain rule based on
+saved sensitivity data:
+1. Retrieval of saved sensitivity: The control unit (9) retrieves the digitally
+stored sensitivity parameter
+
+∂ x (8)
+for matrix (8). This value constitutes a
+j
+
+static "receipt" of how sensitive the subsequent layer is to changes on its
+inputs.
+2. Local gradient extraction: The physically measured AC delta for each
+column at the ADC (45) is deciphered via FHT to obtain the local derivative
+
+⟨
+
+∂ z (45)
+j
+
+⟩
+
+(5)
+∂ V PTU
+Hadamard
+i
+
+.
+
+3. Analog input modulation and gradient determination (Fig 11):
+The modulation with the input signal from the DAC (2) occurs inherently and
+automatically through the analog multiplication of the matrix (3), as
+illustrated in (Fig 11). Through this integrated interaction between the input
+signal, the deciphered internal derivative, and the system's sensitivity, the
+exact derivative for each specific crosspoint in matrix (3) is obtained. The
+method ensures that the training of the first layer remains strictly
+deterministic and immune to instantaneous drift or noise in subsequent
+layers.
+
+For matrix (3), the output columns switch to rows in matrix (8), thus:
+(45)
+
+(8)
+
+z j =xi
+
+thus the indexing also switches over from i to j even for
+(8)
+∂ x(8)
+→∂
+x
+i
+j
+
+Note that this
+
+∂ x (8)
+is retrieved from a saved measurement when the
+i
+
+perturbation measurement was performed in isolation on matrix (8), i.e., not
+when the perturbation measurement is occurring on matrix (3) in the
+equation below.
+Equation 7
+Extraction of weight derivatives (delta) for matrix (3):
+
+∂ Ltotal
+
+=
+(3)
+
+∂W i , j
+
+⟨
+
+∂ z(45)
+j
+PTU (5)
+
+∂Vi
+
+⟩
+
+(8)
+
+⋅∂ x j
+
+Hadamard
+
+Where:
+(45)
+j
+represents the entire column's AC variation measured from the internal ADC
+(45) between layer 1 and layer 2, which corresponds to columns in matrix
+(3) that have propagated through the activation function (4).
+
+∂z
+
+Where:
+PTU (5)
+i
+represents the injected perturbation from the encoder unit (6) generating
+the VPTU (5) signal into a row i of matrix (3).
+
+∂V
+
+Where:
+(3)
+i, j
+represents the derivative of an individual cell's weight in matrix (3).
+
+∂W
+
+II. Calibration cycle, Meta-adaptation:
+
+With the stored derivatives from both correction matrices (3, 8), the control
+unit (9) performs a meta-learning-based update (40, 41) of the system's
+control parameters to minimize the global error at the output (11).
+Detailed description: hybrid architecture with triple matrices and non-linear
+deviation correction The present invention utilizes an architecture that
+separates the logical computation from the physical hardware compensation
+through three interacting matrix units: The primary computation matrix
+(33):
+This analog matrix is loaded with frozen, deterministic weights (34) from a
+digital source model (39) (e.g., an LLM). This unit performs the main
+mathematical operation but is subject to chip-specific physical non-idealities.
+
+The dual MAML correction branch, the correction matrices (3, 8):
+To handle complex, non-linear errors (such as XOR-like dependencies and Sshaped saturation curves), the correction branch comprises at least two
+serial matrix layers with intermediate non-linear activation functions. First
+stage (3): Projects the input signal (2) to a hidden space via a first correction
+matrix (3) and activation function (4). Second stage (8): Transforms the
+hidden representation via the correction matrix (8) and activation function
+(10) to generate a higher-order correction vector.
+The output from the correction branch (from matrix 8) is routed to an analog
+activation function (10). Thereafter, the output signal from the analog
+activation function (10) is linearly summed with the output from the primary
+computation matrix (33) via an adder (35). Said adder (35) is preferably an
+analog summing circuit configured to maintain the signal processing entirely
+in the analog domain up to the summation point. This combined analog
+signal vector then undergoes a final analog-to-digital conversion (ADC),
+which ensures that the entire computation block delivers a digital result that
+corresponds to an ideal digital multiplication matrix.
+
+Base model training via isolated hardware emulation (Fig 7).
+According to one embodiment, the system is trained into a robust base
+model through a method based on controlled hardware emulation, wherein
+the physical hardware substrates (the atomic cores) are kept completely
+isolated from each other during the entire process. In contrast to methods
+based on spatial permutation or relocation of logical weights across separate
+substrates, each individual inverted MAML atom is arranged to exclusively
+operate with its own dedicated hybrid atomic triad consisting of the analog
+matrices (3, 8, 33).
+To expose the base model to a sufficient search space during training, a
+dynamic emulation of thermal drift, voltage deviations, and altered
+discharge characteristics is introduced. In the outer loop (40) of the base
+model training, it is emulated that the three analog matrices (3, 8, 33)
+rapidly change their physical state. This emulates environmental effects
+such as heating or cooling of the hardware, accelerated or retarded
+discharge rates, or that the supply voltage VDD (36) has drifted from its
+nominal value.
+To emulate voltage drift, the hardware architecture comprises a dedicated
+trim-DAC (38), which is arranged to be able to shift the supply voltage V DD
+(36) within a predetermined interval, preferably in the order of magnitude of
+±5%. The remaining part of the state emulation is realized programmatically
+via the digital control unit (9) by intentionally adding hidden offset values to
+the matrix weights
+
+W (3,8,33) ​i , j
+
+, as well as hidden, static digital offset
+
+values on the input signal's DAC (2) and the signal paths' ADC (45) and ADC
+(49). These offsets are applied without the inverted MAML algorithm having
+knowledge of or direct access to the actual offset values.
+The digital control unit (9) is arranged to apply these hidden state shifts
+according to the following specific mechanisms:
+1. Column-wise gain deviation: A joint offset is applied across an entire
+column of matrix weights, which for the inverted MAML algorithm emulates
+that the analog gain for the column in question has increased or decreased.
+2. Time-based discharge deviation: An unknown offset is applied to the
+discharge time of the bias cells (29), which misleads the inverted MAML
+algorithm into interpreting the hardware state as though the discharge
+phase has progressed faster or slower than normal.
+
+3. Input deviation (offset) and leakage emulation (DAC 2): A hidden static
+offset addition is applied to the digital input vector before it is converted by
+the DAC (2), which emulates a physical input offset voltage in the driver
+stages or constant electrical current leakage on the input lines.
+4. Converter deviation and non-linear distortion (ADC 45 and ADC 49): By
+adding or subtracting fixed digital values after the analog-to-digital
+conversion in ADC (45) and ADC (49), DC offsets, thermal zero-point errors,
+or dark currents in the signal path's amplifier stages are emulated. This
+intentionally shifts the operating point of the signal in relation to the nonlinear activation functions (4, 10), forcing the inverted MAML algorithm to
+develop a proprioceptive ability to handle and calibrate away complex nonlinear hardware skewness.
+These artificial variations are generated by the digital control unit (9)
+secretly adding the hidden offset pattern across selected weights and
+converter registers. This unique pattern is then kept strictly fixed during the
+execution of the MAML algorithm's inner loop (41) in order to emulate a
+stable but shifted hardware state.
+To ensure that the base model becomes robust and is not overfitted to static
+input signals during this fixed operating state, the system is arranged to
+permute and vary a multiplicity of different incoming digital vectors via the
+DAC (2) during the inner loop (41). Through this procedure, the underlying
+characteristic pattern for a specific hardware individual is maintained, while
+its virtual state location is displaced during the base model training to
+correspond to normal field variations, thereby establishing an optimal
+search space for the algorithm.
+Upon transitioning to operational proprioception and normal operation in
+the inner loop (42), the digital control unit (9) is arranged and configured to
+completely remove all emulated and hidden offset additions from weights
+
+W (3,8,33) ​i , j ,DAC (2), ADC (45), and ADC (49). Simultaneously, the trimDAC (38) is reset to its nominal center position. The system thereafter
+operates under its natural hardware conditions, whereby the real-time
+operating inner calibration loop fine-tunes the correction matrices (3, 8)
+against the actual physical substrate to counteract instantaneous physical
+drift. Fig 12 illustrates a differential implementation of the analog matrix
+comprising dual 2T1C cells for a differential multiplier. To establish a virtual
+zero point, a differential mirror structure according to industry standard is
+utilized, where the synaptic weight is represented by a positive weight
+component (W+) and a negative weight component (W-).
+
+Fig 12 specifically illustrates how the system's row perturbation (for
+example, a Hadamard perturbation) is integrated into this environment. To
+optimize the perturbation response, the system is arranged to apply the
+perturbation signal in a differential and inverted manner across this
+structure. More specifically, the perturbation injection comprises two
+separate perturbation rows; a first positive perturbation row applied to the
+positive weight component (W+) and a corresponding inverted (negative)
+perturbation row applied to the negative weight component (W-). This
+configuration of differential and inverted perturbation rows ensures that the
+resulting transient signal can be isolated and evaluated with high precision
+across the differential structure, with minimized impact from common-mode
+noise. It should be noted that the use of the weight components (W+, W-)
+and the mirrored structure constitutes an industry standard for establishing
+said virtual zero point. Since individual multiplier transistors can only
+conduct current in one direction, the virtual zero point is intentionally raised
+from absolute zero current in the column. Through the implementation of a
+mirrored dual column, a differential output signal is thus generated that is
+essentially insensitive to offsets from the virtual midpoint.
+
+Patent Claims
+Claim 1.
+A system for analog computation of neural networks, comprising a matrix
+structure which comprises an analog primary computation matrix (33) and a
+pair of analog correction matrices (3, 8), which together form an atomic
+triad, and which comprise a plurality of analog memory cells (27) where
+weights are stored as electrical charge on capacitances (27), and a digital
+control unit (9) coupled to said matrices, characterized in that the digital
+control unit is arranged to execute a meta-learning algorithm (MAML)
+configured for internal hardware adaptation of said atomic triad, wherein
+said algorithm is arranged to identify and compensate for internal stochastic
+and temporal variations of the matrices by iteratively adjusting the weights
+in the correction matrices (3, 8) to minimize the deviation from a digital
+reference model (39), wherein the primary computation matrix (33)
+constitutes an analog representation of the weights of said reference model.
+Claim 2.
+The system according to claim 1, characterized in that said matrix structure
+(3, 8, 33) comprises a plurality of reference nodes (29) distributed in a
+regular network (30) across the total area (30, 37) of the matrices, wherein
+said nodes (29) provide local measured values of spatial and temporal
+variations to the digital control unit (9), enabling a spatially resolved
+mapping of thermal and process-related gradients to guide the metalearning algorithm's adjustment of the correction matrices (3, 8).
+Claim 3.
+The system according to any of the preceding claims, characterized in that
+the system comprises a perturbation source (5) arranged to generate an
+oscillating voltage amplitude and an encoding unit (6) arranged to modulate
+said amplitude to inject controlled perturbation signals simultaneously into a
+plurality of rows in said correction matrices (3, 8) via perturbation
+capacitances CPTU (7), wherein said encoding unit (6) is configured to control
+the phase or amplitude of the perturbation signals according to an
+orthogonal pattern, preferably Hadamard encoding (43), and wherein said
+perturbation capacitance (7) has a value substantially lower than the storage
+capacitance CW (44) (44) for the weights of the memory cells, for the
+purpose of enabling parallel gradient extraction without affecting the
+integrity of the charge stored in the memory cells.
+
+Claim 4
+The system according to any of the preceding claims, characterized in that
+an analog-to-digital converter, ADC (45), is arranged between the first
+correction matrix (3) and the second correction matrix (8), wherein the
+control unit (9) is arranged to read (sample) the orthogonally encoded
+perturbation response from each respective matrix in parallel, wherein the
+control unit (9) is configured to, through digital deciphering, preferably Fast
+Hadamard Transform (FHT), isolate individual row- and column-wise
+gradients to digitally compute weight adjustments according to the chain
+rule, and wherein the computation for the first correction matrix (3) is
+performed by combining a local deciphered response at the ADC (45) with a
+digitally stored sensitivity parameter
+correction matrix (8).
+
+(3 , 8)
+
+∂ xi
+
+representing the second
+
+Claim 5.
+A method for training a system according to claim 1, characterized in that
+the digital control unit (9), during a training phase, establishes a robust base
+model (40, 41) for the meta-learning algorithm through controlled physical
+hardware emulation of voltage variations and thermal variations, wherein
+the system, via a dedicated controllable digital-to-analog converter (trimDAC) (38), is capable of shifting the supply voltage (36) within a
+predetermined interval during the outer loop (40) of the meta-learning
+algorithm, wherein said voltage shift is kept fixed during the inner loop (41)
+of the algorithm, in order to expose each isolated atomic triad exclusively to
+the physical variations of its own substrate.
+Claim 6.
+The system according to claim 1, characterized in that it comprises an
+addressing device (12, 15, 34, 46, 48) coupled to a central digital-to-analog
+converter (DAC) (46), wherein the control unit (9) is arranged to, through
+time-division multiplexing, sequentially address and load individual analog
+memory cells (47) in said matrices, wherein each memory cell comprises a
+storage capacitance (44) arranged to hold a weight value as an analog
+voltage, and wherein said control unit (9) is configured to perform periodic
+updates of the weight values to compensate for voltage leakage without
+interrupting the ongoing computation flow of the system.
+
+Claim 7.
+The system according to claim 6, characterized in that the digital control
+unit (9) is arranged to perform a calibration cycle during synchronized
+measurement windows (20, 24), comprising that the control unit (9)
+measures the system's current response during the differential perturbation
+analysis and compares it with the digital reference model (39), wherein the
+control unit (9) computes and applies meta-learned correction values to the
+memory cells (47) in the correction matrices (3, 8) via the addressing device
+(12, 15, 34, 46, 48) to dynamically compensate for voltage decay and
+hardware deviations without manipulating the external input signal (1).
+Claim 8.
+The system according to any of the preceding system claims, characterized
+in that the system comprises a discharge circuit with an impedance element
+arranged at said reference nodes (29), wherein said impedance element is
+configured to allow a higher discharge rate than the natural leakage of the
+memory cells (27), wherein the digital control unit (9) is arranged to, at each
+regeneration cycle (18), initiate a normalized reference signal (32) whose
+decay is accelerated by said impedance element to form a time-coded
+reference curve, wherein the meta-learning algorithm uses the
+instantaneous amplitude of the reference signal (32) as a temporal
+coordinate to determine an exact position in the natural discharge curve
+(31) of the memory cells (27).
+Claim 9.
+The system according to any of the preceding system claims, characterized
+in that the atomic triad comprises a cascade-coupled signal path wherein the
+first correction matrix (3) is arranged to perform a pre-conditioning of an
+input signal before the primary computation matrix (33), and the second
+correction matrix (8) is arranged to perform a correction of an output signal
+after the primary computation matrix (33), wherein the correction matrices
+(3, 8) and associated non-linear activation stages (4, 10) form a cooperating
+correction engine arranged to, via the meta-learning algorithm, dynamically
+isolate and compensate for physical non-linearities and variance in the
+primary computation matrix (33).
+
+Claim 10.
+The system according to any of the preceding system claims, characterized
+in that the digital control unit (9) is arranged to perform sampling of output
+signals (45, 49, 11) and differential perturbation analysis at arbitrary and
+selectable times by dynamically varying the temporal displacement (25) of
+the time window (24, 20) in relation to the regeneration cycle (18), for the
+purpose of extracting time-dependent gradients and calibrating the metalearning algorithm for all dynamic states of the atomic triad (3, 8, 33) during
+the discharge process (31).
+Claim 11.
+The system according to any of the preceding system claims, characterized
+in that the analog matrices (3, 8, 33) constitute an atomic triad arranged on
+a common semiconductor substrate, wherein the first matrix (3) comprises a
+first cell structure (30) with interleaved computation cells (27) and reference
+cells (29), and that the second matrix (8) and the third matrix (33)
+preferably are configured to utilize the reference cells (29) in the first matrix
+(3) as a common reference, wherein said matrices (3, 8, 33) are arranged in
+immediate spatial proximity to each other in a thermally coupled layout for
+the purpose of minimizing differential drift within the triad through shared
+utilization of said reference cells (29).
+Claim 12.
+The system according to claim 1 or 5, characterized in that the digital
+control unit (9) for emulation of deviating physical states is configured to
+programmatically apply hidden digital offset values to at least one of matrix
+weights, the discharge time of the reference cells (29), a digital-to-analog
+converter (DAC) (2) for input signals, and analog-to-digital converters (ADC)
+(45, 49), wherein the control unit, during the inner loop (41) of the
+algorithm, fixes this digital offset pattern and varies the input signals to said
+DAC (2) to prevent overfitting, and that the system, upon transitioning to
+normal operational inference operation, is arranged to remove all emulated
+offset values and reset said trim-DAC (38), wherein a real-time operating
+inner calibration loop exclusively fine-tunes the correction matrices (3, 8),
+the analog output signal of which, after an activation function (10), is
+linearly summed with the output from the primary matrix (33) via an analog
+adder (35).
+
+Claim 13.
+The system according to any of the preceding claims, characterized in that
+the digital control unit (9) is arranged to digitally extract an analog column
+derivative for the second correction matrix (8) by using a search method to
+identify a specific row index ($k$) constituting a maximum carrier row which
+exhibits the highest instantaneous signal amplitude, wherein the control unit
+(9) is configured to multiply a differential oscillating voltage amplitude
+response, isolated for said selected row ($k$), by the inverse of its known
+static carrier amplitude, whereby the system is arranged to virtually
+recreate the effect of a row perturbation and calculate an intermediate
+sensitivity without applying additional physical transient injector circuits to
+the connections between the first correction matrix (3) and the second
+correction matrix (8).
+Claim 14.
+The system according to any of the preceding claims, characterized in that
+the system is arranged to apply said row perturbation via two separate
+perturbation rows, comprising a first perturbation row configured to apply a
+positive perturbation signal to a positive weight component (W+) and a
+second perturbation row configured to apply a corresponding inverted
+perturbation signal to a negative weight component (W-), whereby the
+system is arranged to generate a differential and inverted perturbation for
+evaluation of said differential perturbation response.
+
+Abstract
+The invention relates to a hybrid computation architecture for neural
+networks comprising analog matrices and a digital control unit. The
+architecture utilizes an inverted meta-learning algorithm configured for
+internal parametric adaptation, wherein the algorithm is arranged to
+estimate and compensate for internal hardware variations rather than
+external input characteristics.
+Through atomic triads of interleaved analog matrices and the use of short
+temporal measurement windows for differential perturbation analysis, the
+architecture achieves a deterministic stability independent of thermal drift
+or component aging. The system is arranged to asymmetrically separate a
+primary high-frequency computation path (payload) from a low-frequency
+calibration cycle, enabling analog computation with digital precision at a
+reduced energy consumption. The architecture is scalable for both cloudbased computing systems and low-power edge computing systems.
+
+

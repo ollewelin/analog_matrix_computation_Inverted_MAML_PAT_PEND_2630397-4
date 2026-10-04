@@ -145,7 +145,9 @@ module top_level
     // =========================================================================
     // System Clocks and Resets
     // =========================================================================
-    wire sys_clk   = pll_clk_50Mhz;
+    // SoC-klocka direkt från extern 50 MHz-oscillator (som i fungerande referens).
+    // pll_clk_50Mhz saknar SDC-constraint -> SoC:ens timing var helt okontrollerad.
+    wire sys_clk   = T120_GCLK;
     wire rgmii_clk = PLL_25MHZ; // 25 MHz clock for MII/RGMII 100M/SDR, 125MHz from PHY for 1000M
 
     // Hardware Heartbeat for LED1 (2 Hz toggle from 50 MHz clock)
@@ -162,6 +164,13 @@ module top_level
 
     wire sys_rst_n;
     wire sys_rst_n_inv = ~sys_rst_n;
+
+    // Power-on reset till SoC (som i referensen): håll io_asyncReset aktiv ~84 ms efter konfiguration.
+    logic [22:0] por_cnt = '0;
+    always_ff @(posedge T120_GCLK) begin
+        if (!por_cnt[22]) por_cnt <= por_cnt + 1'b1;
+    end
+    wire soc_async_reset = ~por_cnt[22];
 
     // =========================================================================
     // APB3 Interconnect Signals from Sapphire SoC
@@ -197,7 +206,7 @@ module top_level
     RISC_mini u_sapphire_soc (
         .io_systemClk               (sys_clk),
         .io_systemReset             (sys_rst_n),
-        .io_asyncReset              (1'b0),
+        .io_asyncReset              (soc_async_reset),
 
         .io_apbSlave_0_PADDR        (apb_paddr),
         .io_apbSlave_0_PSEL         (apb_psel),
