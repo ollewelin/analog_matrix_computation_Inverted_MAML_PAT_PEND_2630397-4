@@ -10,3 +10,5 @@ Critical LED1 resistor to CSI pin to T20 if set pull down set JTAG in Daisy chai
 Bug fix 2026-09-30:
 missing input net
 T120_CRESET_N
+
+4. 2026-10-07: Bug at Centertap 0-ohm to GND there should be 10nF to GND Eth Phy magnetics
