@@ -278,9 +278,11 @@ module top_level
     // =========================================================================
     // APB3 Address Decoder
     // Base 0xF810_0000..0xF810_0FFF -> TSE MAC Configuration & MDIO Registers
+    // Base 0xF810_2000..0xF810_2FFF -> TSE MAC Packet Buffer FIFO (TX/RX RAM)
     // Base 0xF810_3000..0xF810_3FFF -> T120 <-> T20 Custom Bus
     // =========================================================================
-    wire mac_selected     = (apb_paddr[15:12] == 4'h0) || (apb_paddr[15:12] == 4'h2);
+    wire mac_selected     = (apb_paddr[15:12] == 4'h0);
+    wire pkt_fifo_selected= (apb_paddr[15:12] == 4'h2);
     wire t20_bus_selected = (apb_paddr[15:12] == 4'h3);
 
     // =========================================================================
@@ -448,15 +450,40 @@ module top_level
     );
 
     // =========================================================================
-    // Standard Line-Rate Packet Loopback (Direct wire-speed loopback)
-    // Both rx_axis_clk and tx_axis_clk are synchronous sys_clk (50 MHz).
-    // Internal 2048-depth FIFOs in TSE MAC IP handle CDC and line-rate buffering.
+    // TSE MAC Packet Buffer FIFO (APB3 Base 0xF810_2000)
+    // Connects TSE MAC AXI4-Stream to Sapphire SoC APB3 bus
     // =========================================================================
-    assign tx_axis_mac_tdata  = rx_axis_mac_tdata;
-    assign tx_axis_mac_tvalid = rx_axis_mac_tvalid;
-    assign tx_axis_mac_tlast  = rx_axis_mac_tlast;
-    assign tx_axis_mac_tuser  = rx_axis_mac_tuser;
-    assign rx_axis_mac_tready = tx_axis_mac_tready;
+    wire [31:0] pkt_fifo_prdata;
+    wire        pkt_fifo_pready;
+
+    tsemac_axis_packet_fifo u_pkt_fifo (
+        .clk           (sys_clk),
+        .rstn          (sys_rst_n_inv),
+
+        // APB3 Slave Interface
+        .apb_paddr     (apb_paddr[11:0]),
+        .apb_psel      (apb_psel & pkt_fifo_selected),
+        .apb_penable   (apb_penable),
+        .apb_pwrite    (apb_pwrite),
+        .apb_pwdata    (apb_pwdata),
+        .apb_prdata    (pkt_fifo_prdata),
+        .apb_pready    (pkt_fifo_pready),
+        .apb_pslverr   (),
+
+        // RX from TSE MAC
+        .rx_axis_tdata (rx_axis_mac_tdata),
+        .rx_axis_tvalid(rx_axis_mac_tvalid),
+        .rx_axis_tlast (rx_axis_mac_tlast),
+        .rx_axis_tuser (rx_axis_mac_tuser),
+        .rx_axis_tready(rx_axis_mac_tready),
+
+        // TX to TSE MAC
+        .tx_axis_tdata (tx_axis_mac_tdata),
+        .tx_axis_tvalid(tx_axis_mac_tvalid),
+        .tx_axis_tlast (tx_axis_mac_tlast),
+        .tx_axis_tuser (tx_axis_mac_tuser),
+        .tx_axis_tready(tx_axis_mac_tready)
+    );
 
     // =========================================================================
     // T120 <-> T20 Custom Inter-FPGA Bus APB3 Slave (0xF810_3000)
@@ -491,12 +518,15 @@ module top_level
     );
 
     // =========================================================================
-    // APB3 Read Multiplexing (Clean 2-slave mux between TSE MAC & T20 Bus)
+    // APB3 Read Multiplexing
     // =========================================================================
     always_comb begin
         if (mac_selected) begin
             apb_prdata = mac_apb_prdata;
             apb_pready = mac_apb_pready;
+        end else if (pkt_fifo_selected) begin
+            apb_prdata = pkt_fifo_prdata;
+            apb_pready = pkt_fifo_pready;
         end else if (t20_bus_selected) begin
             apb_prdata = t20_bus_prdata;
             apb_pready = t20_bus_pready;

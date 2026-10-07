@@ -1,4 +1,4 @@
-<efx:project xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="T120_MALM" description="" last_change="1791315727" sw_version="2025.2.288.2.10" last_run_state="pass" last_run_flow="bitstream" config_result_in_sync="sync" design_ood="sync" place_ood="sync" route_ood="sync" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
+<efx:project xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="T120_MALM" description="" last_change="1791405048" sw_version="2025.2.288.2.10" last_run_state="pass" last_run_flow="bitstream" config_result_in_sync="sync" design_ood="sync" place_ood="sync" route_ood="sync" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
     <efx:device_info>
         <efx:family name="Trion" />
         <efx:device name="T120F324" />
@@ -8,6 +8,7 @@
         <efx:top_module name="top_level" />
         <efx:design_file name="apb3_2_axi4_lite.v" version="default" library="default" />
         <efx:design_file name="t120_t20_bus_apb3.sv" version="default" library="default" />
+        <efx:design_file name="tsemac_axis_packet_fifo.sv" version="default" library="default" />
         <efx:design_file name="top_level.sv" version="default" library="default" />
         <efx:top_vhdl_arch name="" />
     </efx:design_info>

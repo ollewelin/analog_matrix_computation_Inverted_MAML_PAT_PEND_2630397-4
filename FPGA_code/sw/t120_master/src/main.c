@@ -6,7 +6,7 @@
 #include "mdio_driver.h"
 
 // =============================================================================
-// Ethernet MAC Peripheral Registers (APB3 Base: 0xf8102000)
+// Ethernet MAC Peripheral Registers (APB3 Base: 0xf8100000)
 // =============================================================================
 #define TSE_BASE            0xf8100000
 #define TSE_VERSION_REG     (*(volatile uint32_t *)(TSE_BASE + 0x00))
@@ -14,6 +14,25 @@
 #define TSE_MAC_ADDR0_REG   (*(volatile uint32_t *)(TSE_BASE + 0x0C))
 #define TSE_MAC_ADDR1_REG   (*(volatile uint32_t *)(TSE_BASE + 0x10))
 #define TSE_FRM_LENGTH_REG  (*(volatile uint32_t *)(TSE_BASE + 0x14))
+
+// =============================================================================
+// Ethernet Packet FIFO Peripheral Registers (APB3 Base: 0xf8102000)
+// =============================================================================
+#define PKT_FIFO_BASE       0xf8102000
+#define PKT_CTRL_REG        (*(volatile uint32_t *)(PKT_FIFO_BASE + 0x00))
+#define PKT_STATUS_REG      (*(volatile uint32_t *)(PKT_FIFO_BASE + 0x04))
+#define PKT_TX_LEN_REG      (*(volatile uint32_t *)(PKT_FIFO_BASE + 0x08))
+#define PKT_RX_LEN_REG      (*(volatile uint32_t *)(PKT_FIFO_BASE + 0x0C))
+
+#define PKT_TX_RAM          ((volatile uint32_t *)(PKT_FIFO_BASE + 0x080))
+#define PKT_RX_RAM          ((volatile uint32_t *)(PKT_FIFO_BASE + 0x800))
+
+#define PKT_CTRL_TX_START   (1 << 0)
+#define PKT_CTRL_RX_ACK     (1 << 1)
+
+#define PKT_STATUS_TX_BUSY  (1 << 0)
+#define PKT_STATUS_RX_READY (1 << 1)
+#define PKT_STATUS_RX_ERR   (1 << 2)
 
 // Network Configuration
 static const uint8_t MY_MAC[6] = {0x00, 0x12, 0x34, 0x56, 0x78, 0x9A};
@@ -48,18 +67,6 @@ static void print_hex8_s(uint8_t v) {
 static void print_hex16_s(uint16_t v) {
     print_hex8_s((uint8_t)(v >> 8));
     print_hex8_s((uint8_t)(v & 0xFF));
-}
-
-static void print_dump(const char *tag, const uint8_t *buf, uint16_t len) {
-    print_s(tag); print_s("["); print_hex16_s(len); print_s("]: ");
-    uint16_t show_len = (len > 32) ? 32 : len;
-    for (int i = 0; i < show_len; i++) {
-        print_hex8_s(buf[i]);
-        if ((i % 4) == 3) {
-            uart_write(BSP_UART_TERMINAL, ' ');
-        }
-    }
-    println_s("");
 }
 
 // GPIO Controls:
@@ -104,7 +111,7 @@ static uint8_t active_phy = 0x05;
 // RTL8211F-CG PHY Initialization via MDIO (100M Full Duplex Mode)
 // =============================================================================
 static void phy_init_100m(void) {
-    println_s("=PHY INIT (100M)=");
+    println_s("=PHY INIT (100M CABLE MODE)=");
 
     // Hardware reset: assert for 50 ms, release, wait 300 ms for PHY ready
     print_s("PHY HW RST...");
@@ -133,8 +140,6 @@ static void phy_init_100m(void) {
 
     // -----------------------------------------------------------------
     // RGMII internal delay: page 0xd08, register 0x11
-    //   bit 8 = TXDLY (2 ns TX delay in PHY)
-    //   bit 3 = RXDLY (2 ns RX delay in PHY)
     // -----------------------------------------------------------------
     print_s("RGMII DLY...");
     mdio_write(phy, 0x1F, 0x0d08);
@@ -146,72 +151,21 @@ static void phy_init_100m(void) {
     mdio_write(phy, 0x1F, 0x0000);
     println_s("OK");
 
-    // -----------------------------------------------------------------
-    // Disable Green Ethernet / EEE (datasheet 7.10.2: page 0, Reg 27/28)
-    // -----------------------------------------------------------------
-    print_s("Dis GreenEth...");
-    mdio_write(phy, 0x1F, 0x0000);
-    mdio_write(phy, 0x1B, 0x8011);
-    mdio_write(phy, 0x1C, 0x573F);
-    println_s("OK");
-
     // =========================================================================
-    // LOOPBACK TESTS (Exact sequence from Test v5)
+    // TVINGA FAST 100M FULL DUPLEX
     // =========================================================================
-    println_s("=LOOPBACK TEST=");
-    // 10M LB
-    mdio_write(phy, PHY_REG_BMCR, 0x4100);
-    bsp_uDelay(500000);
-    uint16_t bmsr = bmsr_read(phy);
-    print_s("10M  LB: BMSR=0x"); print_hex16_s(bmsr);
-    println_s((bmsr & 0x0004) ? " UP" : " DN");
+    println_s("=FORCING FAST 100M FULL DUPLEX=");
+    mdio_write(phy, PHY_REG_BMCR, 0x2100);
 
-    // SW reset
-    mdio_write(phy, PHY_REG_BMCR, 0x8000);
-    bsp_uDelay(200000);
-
-    // 100M LB
-    mdio_write(phy, PHY_REG_BMCR, 0x6100);
-    bsp_uDelay(500000);
-    bmsr = bmsr_read(phy);
-    print_s("100M LB: BMSR=0x"); print_hex16_s(bmsr);
-    println_s((bmsr & 0x0004) ? " UP" : " DN");
-
-    // SW reset
-    mdio_write(phy, PHY_REG_BMCR, 0x8000);
-    bsp_uDelay(200000);
-
-    // 1G LB
-    mdio_write(phy, PHY_REG_BMCR, 0x4140);
-    bsp_uDelay(500000);
-    bmsr = bmsr_read(phy);
-    print_s("1G   LB: BMSR=0x"); print_hex16_s(bmsr);
-    println_s((bmsr & 0x0004) ? " UP" : " DN");
-
-    // Exit LB via SW reset
-    mdio_write(phy, PHY_REG_BMCR, 0x8000);
-    bsp_uDelay(200000);
-
-    // Re-apply Green Ethernet disable
-    mdio_write(phy, 0x1F, 0x0000);
-    mdio_write(phy, 0x1B, 0x8011);
-    mdio_write(phy, 0x1C, 0x573F);
-
-    // =========================================================================
-    // AUTO-NEGOTIATION (Exact sequence from Test v5)
-    // =========================================================================
-    println_s("=AUTO-NEG=");
-    mdio_write(phy, PHY_REG_GBCR, 0x0200); // 1000M FD
-    mdio_write(phy, PHY_REG_ANAR, 0x01E1); // 100M/10M
-    mdio_write(phy, PHY_REG_BMCR, 0x1200); // AN enable + restart
-    print_s("Wait");
+    print_s("Waiting for link..");
     uart_drain();
 
     int linked = 0;
-    for (int i = 0; i < 15; i++) {
-        bsp_uDelay(1000000); // 1 second
+    uint16_t bmsr = 0;
+    for (int i = 0; i < 10; i++) {
+        bsp_uDelay(500000);
         bmsr = bmsr_read(phy);
-        if ((bmsr & 0x0004) && (bmsr & 0x0020)) {
+        if (bmsr & 0x0004) {
             linked = 1;
             break;
         }
@@ -220,8 +174,7 @@ static void phy_init_100m(void) {
     }
     println_s("");
 
-    // Report final status
-    bmsr   = bmsr_read(phy);
+    bmsr            = bmsr_read(phy);
     uint16_t gbsr   = mdio_read(phy, PHY_REG_GBSR);
     uint16_t anlpar = mdio_read(phy, PHY_REG_ANLPAR);
     uint16_t physr  = rtl_physr(phy);
@@ -249,7 +202,163 @@ static void phy_init_100m(void) {
 }
 
 // =============================================================================
-// Wire-speed line-rate packet loopback is handled directly in hardware via TSE MAC.
+// Packet FIFO Send / Receive Routines
+// =============================================================================
+static void pkt_fifo_send(const uint8_t *frame, uint16_t len) {
+    if (len == 0 || len > 1514) return;
+
+    // Pad to minimum Ethernet frame size (60 bytes without FCS)
+    uint16_t send_len = (len < 60) ? 60 : len;
+
+    // Wait if transmitter is busy
+    uint32_t timeout = 100000;
+    while ((PKT_STATUS_REG & PKT_STATUS_TX_BUSY) && --timeout);
+
+    // Copy to TX RAM (32-bit words, little endian)
+    uint32_t words = (send_len + 3) / 4;
+    for (uint32_t i = 0; i < words; i++) {
+        uint32_t word = 0;
+        uint32_t b_offset = i * 4;
+        for (int b = 0; b < 4; b++) {
+            if (b_offset + b < len) {
+                word |= ((uint32_t)frame[b_offset + b]) << (b * 8);
+            }
+        }
+        PKT_TX_RAM[i] = word;
+    }
+
+    // Set TX length and trigger start
+    PKT_TX_LEN_REG = send_len;
+    PKT_CTRL_REG   = PKT_CTRL_TX_START;
+}
+
+static uint16_t pkt_fifo_recv(uint8_t *buf, uint16_t max_len) {
+    uint32_t status = PKT_STATUS_REG;
+    if (!(status & PKT_STATUS_RX_READY)) {
+        return 0;
+    }
+
+    uint16_t len = (uint16_t)(PKT_RX_LEN_REG & 0xFFFF);
+    if (len == 0 || len > 1514) {
+        PKT_CTRL_REG = PKT_CTRL_RX_ACK;
+        return 0;
+    }
+
+    uint16_t copy_len = (len < max_len) ? len : max_len;
+    uint32_t words = (copy_len + 3) / 4;
+
+    for (uint32_t i = 0; i < words; i++) {
+        uint32_t word = PKT_RX_RAM[i];
+        uint32_t b_offset = i * 4;
+        for (int b = 0; b < 4; b++) {
+            if (b_offset + b < copy_len) {
+                buf[b_offset + b] = (uint8_t)((word >> (b * 8)) & 0xFF);
+            }
+        }
+    }
+
+    // Release RX buffer
+    PKT_CTRL_REG = PKT_CTRL_RX_ACK;
+    return copy_len;
+}
+
+// =============================================================================
+// ARP and ICMP Echo (Ping) Protocol Handler
+// =============================================================================
+static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
+    if (len < 14) return;
+
+    uint16_t ether_type = ((uint16_t)frame[12] << 8) | frame[13];
+
+    // -------------------------------------------------------------------------
+    // ARP (EtherType 0x0806)
+    // -------------------------------------------------------------------------
+    if (ether_type == 0x0806 && len >= 42) {
+        uint16_t hw_type = ((uint16_t)frame[14] << 8) | frame[15];
+        uint16_t proto_type = ((uint16_t)frame[16] << 8) | frame[17];
+        uint16_t opcode = ((uint16_t)frame[20] << 8) | frame[21];
+
+        // Check if ARP Request for 192.168.1.50
+        if (hw_type == 0x0001 && proto_type == 0x0800 && opcode == 0x0001) {
+            if (memcmp(&frame[38], MY_IP, 4) == 0) {
+                // Construct ARP Reply
+                memcpy(tx_frame, &frame[6], 6);       // Dest MAC = sender MAC
+                memcpy(&tx_frame[6], MY_MAC, 6);       // Src MAC  = MY_MAC
+                tx_frame[12] = 0x08; tx_frame[13] = 0x06; // ARP
+
+                tx_frame[14] = 0x00; tx_frame[15] = 0x01; // Ethernet
+                tx_frame[16] = 0x08; tx_frame[17] = 0x00; // IPv4
+                tx_frame[18] = 0x06; tx_frame[19] = 0x04; // HW len 6, Proto len 4
+                tx_frame[20] = 0x00; tx_frame[21] = 0x02; // Opcode: Reply (2)
+
+                memcpy(&tx_frame[22], MY_MAC, 6);      // Sender HW = MY_MAC
+                memcpy(&tx_frame[28], MY_IP, 4);       // Sender IP = MY_IP
+                memcpy(&tx_frame[32], &frame[22], 6);  // Target HW = sender MAC
+                memcpy(&tx_frame[38], &frame[28], 4);  // Target IP = sender IP
+
+                pkt_fifo_send(tx_frame, 42);
+                println_s("[ARP] Replied to ARP Request!");
+            }
+        }
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // IPv4 (EtherType 0x0800)
+    // -------------------------------------------------------------------------
+    if (ether_type == 0x0800 && len >= 34) {
+        uint8_t ip_ver_ihl = frame[14];
+        if ((ip_ver_ihl >> 4) != 4) return;
+        uint8_t ihl = (ip_ver_ihl & 0x0F) * 4;
+        uint8_t proto = frame[23];
+
+        // Debug print for any incoming IPv4 packet
+        print_s("[IP] Proto="); print_hex8_s(proto);
+        print_s(" Dst="); 
+        for (int i=0; i<4; i++) { print_hex8_s(frame[30+i]); if(i<3) print_s("."); }
+        println_s("");
+
+        // Check if packet destination is MY_IP
+        if (memcmp(&frame[30], MY_IP, 4) != 0) return;
+
+        // ICMP (Protocol 1)
+        if (proto == 0x01 && len >= (14 + ihl + 8)) {
+            uint32_t icmp_offset = 14 + ihl;
+            uint8_t icmp_type = frame[icmp_offset];
+            uint8_t icmp_code = frame[icmp_offset + 1];
+
+            // ICMP Echo Request (Type 8)
+            if (icmp_type == 8 && icmp_code == 0) {
+                // Copy entire packet to TX buffer
+                memcpy(tx_frame, frame, len);
+
+                // Swap Ethernet MACs
+                memcpy(tx_frame, &frame[6], 6);
+                memcpy(&tx_frame[6], MY_MAC, 6);
+
+                // Swap IPv4 Addresses
+                memcpy(&tx_frame[26], &frame[30], 4); // Src IP = MY_IP
+                memcpy(&tx_frame[30], &frame[26], 4); // Dst IP = sender IP
+
+                // Set ICMP Type to 0 (Echo Reply)
+                tx_frame[icmp_offset] = 0;
+
+                // Adjust ICMP Checksum (+0x0800 because type went 8 -> 0)
+                uint32_t csum = ((uint32_t)frame[icmp_offset + 2] << 8) | frame[icmp_offset + 3];
+                csum += 0x0800;
+                while (csum >> 16) csum = (csum & 0xFFFF) + (csum >> 16);
+                tx_frame[icmp_offset + 2] = (uint8_t)(csum >> 8);
+                tx_frame[icmp_offset + 3] = (uint8_t)(csum & 0xFF);
+
+                pkt_fifo_send(tx_frame, len);
+                uint32_t pst = PKT_STATUS_REG;
+                uint16_t tok = (uint16_t)(*(volatile uint32_t *)(TSE_BASE + 0x68) & 0xFFFF);
+                print_s("[ICMP] Ping Reply triggered! ST="); print_hex16_s((uint16_t)pst);
+                print_s(" MAC_TX="); print_hex16_s(tok); println_s("");
+            }
+        }
+    }
+}
 
 // =============================================================================
 // Main
@@ -257,7 +366,7 @@ static void phy_init_100m(void) {
 void main(void) {
     bsp_init();
 
-    // GPIO output enable for LED2 (bit 0) and F2_RSTB (bit 1)
+    // GPIO output enable för LED2 (bit 0) och F2_RSTB (bit 1)
     gpio_setOutputEnable(SYSTEM_GPIO_0_IO_CTRL, 0x3);
     current_gpio = 0x2; // F2_RSTB high
     gpio_setOutput(SYSTEM_GPIO_0_IO_CTRL, current_gpio);
@@ -269,62 +378,70 @@ void main(void) {
     println_s("= IP:  192.168.1.50            =");
     println_s("= MAC: 00:12:34:56:78:9A       =");
     println_s("================================");
+    println_s("Test 4: Sapphire SoC Packet Handling (ARP + Ping Responder)");
 
-    // Initialize TSE MAC internal registers via AXI-Lite
-    // Set MAC source address: 00:12:34:56:78:9A
-    // 0x0C = lower 32 bits (0x3456789A), 0x10 = upper 16 bits (0x00000012)
+    // Initiera TSE MAC
     TSE_MAC_ADDR0_REG = 0x3456789A;
     TSE_MAC_ADDR1_REG = 0x00000012;
     TSE_FRM_LENGTH_REG = 1518;
+    *(volatile uint32_t *)(TSE_BASE + 0x5C) = 0x0C; // TX_IPG_LEN = 12
 
-    // Command_Config:
-    // bit 0: tx_ena = 1
-    // bit 1: rx_ena = 1
-    // bit 4: promis_en = 1 (promiscuous mode)
-    // bit 16..18: eth_speed = 3'b010 (100 Mbps) -> (2 << 16) = 0x00020000
-    // Total = 0x00020013
-    TSE_CMD_CONFIG_REG = (2 << 16) | (1 << 4) | (1 << 1) | (1 << 0);
+    // eth_speed = 3'b010 (100 Mbps), promiscuous = 1, pad_en = 1, rx_ena = 1, tx_ena = 1
+    // bit 0 = tx_en, bit 1 = rx_en, bit 4 = promisc, bit 5 = pad_en, bit [18:16] = speed (2)
+    TSE_CMD_CONFIG_REG = (2 << 16) | (1 << 5) | (1 << 4) | (1 << 1) | (1 << 0);
 
     print_s("TSE Version: 0x");
     print_hex16_s((uint16_t)TSE_VERSION_REG);
     println_s("");
 
-    // Initialize RTL8211F PHY via TSE integrated MDIO
+    // Initiera RTL8211F PHY via MDIO
     mdio_init();
     phy_init_100m();
 
-    println_s("Standard TSE MAC Active. Direct Wire-Speed Loopback Running.");
+    println_s("TSE MAC + Sapphire Packet FIFO Active. Listening for ARP / Ping...");
 
     uint32_t loop_cnt = 0;
+    uint16_t last_bmsr = 0;
+
     while (1) {
-        // Slow heartbeat on LED2 and periodic link check
         loop_cnt++;
-        if ((loop_cnt % 5000000) == 0) {
+
+        // Poll incoming Ethernet frames
+        uint16_t rx_len = pkt_fifo_recv(rx_frame, sizeof(rx_frame));
+        if (rx_len > 0) {
+            handle_ethernet_packet(rx_frame, rx_len);
+        }
+
+        // Periodic Status Telemetry (~every 1 second)
+        if ((loop_cnt % 500000) == 0) {
             led_on();
             uint16_t bmsr = bmsr_read(active_phy);
-            uint16_t physr = rtl_physr(active_phy);
 
             uint16_t tx_ok = (uint16_t)(*(volatile uint32_t *)(TSE_BASE + 0x68) & 0xFFFF);
             uint16_t rx_ok = (uint16_t)(*(volatile uint32_t *)(TSE_BASE + 0x6C) & 0xFFFF);
             uint16_t rx_crc = (uint16_t)(*(volatile uint32_t *)(TSE_BASE + 0x70) & 0xFFFF);
-            uint16_t bmcr = mdio_read(active_phy, PHY_REG_BMCR);
-            uint16_t anar = mdio_read(active_phy, PHY_REG_ANAR);
-            uint16_t gbcr = mdio_read(active_phy, PHY_REG_GBCR);
+            uint16_t if_out_err = (uint16_t)(*(volatile uint32_t *)(TSE_BASE + 0x8C) & 0xFFFF);
+            uint32_t pkt_st = PKT_STATUS_REG;
+
+            if ((bmsr & 0x0004) && !(last_bmsr & 0x0004)) {
+                println_s(">>> ETHERNET LINK UP! (Cable connected) <<<");
+            } else if (!(bmsr & 0x0004) && (last_bmsr & 0x0004)) {
+                println_s(">>> ETHERNET LINK DOWN! (Cable disconnected) <<<");
+            }
+            last_bmsr = bmsr;
 
             print_s("[TSE] BMSR=");
             print_hex16_s(bmsr);
-            print_s(" BMCR=");
-            print_hex16_s(bmcr);
-            print_s(" ANAR=");
-            print_hex16_s(anar);
-            print_s(" GBCR=");
-            print_hex16_s(gbcr);
             print_s(" RX=");
             print_hex16_s(rx_ok);
             print_s(" TX=");
             print_hex16_s(tx_ok);
+            print_s(" OUT_ERR=");
+            print_hex16_s(if_out_err);
+            print_s(" FIFO_ST=");
+            print_hex16_s((uint16_t)pkt_st);
             println_s("");
-        } else if ((loop_cnt % 5000000) == 2500000) {
+        } else if ((loop_cnt % 500000) == 250000) {
             led_off();
         }
     }
