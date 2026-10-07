@@ -1,0 +1,14 @@
+1.
+Bug fix 2026-09-30:
+Critical RDX2 gow to CSI pin to T120 if set pull down set JTAG in Daisy chain mode. Set pull up instead for single mode JTAG
+
+2.
+Bug fix 2026-09-30:
+Critical LED1 resistor to CSI pin to T20 if set pull down set JTAG in Daisy chain mode. Set pull up instead for single mode JTAG
+
+3. 
+Bug fix 2026-09-30:
+missing input net
+T120_CRESET_N
+
+4. 2026-10-07: Bug at Centertap 0-ohm to GND there should be 10nF to GND Eth Phy magnetics
