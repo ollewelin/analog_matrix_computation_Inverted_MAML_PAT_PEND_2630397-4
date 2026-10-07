@@ -147,40 +147,71 @@ static void phy_init_100m(void) {
     println_s("OK");
 
     // -----------------------------------------------------------------
-    // Disable Green Ethernet / EEE (prevents PHY from shutting off link)
+    // Disable Green Ethernet / EEE (datasheet 7.10.2: page 0, Reg 27/28)
     // -----------------------------------------------------------------
     print_s("Dis GreenEth...");
-    mdio_write(phy, 0x1F, 0x0a43);
+    mdio_write(phy, 0x1F, 0x0000);
     mdio_write(phy, 0x1B, 0x8011);
     mdio_write(phy, 0x1C, 0x573F);
-    mdio_write(phy, 0x1F, 0x0000);
     println_s("OK");
 
-    print_s("Configuring PHY...");
-    // Return to standard page 0
+    // =========================================================================
+    // LOOPBACK TESTS (Exact sequence from Test v5)
+    // =========================================================================
+    println_s("=LOOPBACK TEST=");
+    // 10M LB
+    mdio_write(phy, PHY_REG_BMCR, 0x4100);
+    bsp_uDelay(500000);
+    uint16_t bmsr = bmsr_read(phy);
+    print_s("10M  LB: BMSR=0x"); print_hex16_s(bmsr);
+    println_s((bmsr & 0x0004) ? " UP" : " DN");
+
+    // SW reset
+    mdio_write(phy, PHY_REG_BMCR, 0x8000);
+    bsp_uDelay(200000);
+
+    // 100M LB
+    mdio_write(phy, PHY_REG_BMCR, 0x6100);
+    bsp_uDelay(500000);
+    bmsr = bmsr_read(phy);
+    print_s("100M LB: BMSR=0x"); print_hex16_s(bmsr);
+    println_s((bmsr & 0x0004) ? " UP" : " DN");
+
+    // SW reset
+    mdio_write(phy, PHY_REG_BMCR, 0x8000);
+    bsp_uDelay(200000);
+
+    // 1G LB
+    mdio_write(phy, PHY_REG_BMCR, 0x4140);
+    bsp_uDelay(500000);
+    bmsr = bmsr_read(phy);
+    print_s("1G   LB: BMSR=0x"); print_hex16_s(bmsr);
+    println_s((bmsr & 0x0004) ? " UP" : " DN");
+
+    // Exit LB via SW reset
+    mdio_write(phy, PHY_REG_BMCR, 0x8000);
+    bsp_uDelay(200000);
+
+    // Re-apply Green Ethernet disable
     mdio_write(phy, 0x1F, 0x0000);
-    bsp_uDelay(1000);
+    mdio_write(phy, 0x1B, 0x8011);
+    mdio_write(phy, 0x1C, 0x573F);
 
-    // Configure Advertisement: 1000M FD, 100M FD/HD, 10M FD/HD
-    mdio_write(phy, PHY_REG_GBCR, 0x0200); // Advertise 1000M FD
-    mdio_write(phy, PHY_REG_ANAR, 0x01E1); // 100M/10M FD/HD
-    // Restart Auto-Negotiation (bit 12: AN Enable, bit 9: Restart AN -> 0x1200)
-    mdio_write(phy, PHY_REG_BMCR, 0x1200);
-    bsp_uDelay(1000);
-
-    uint16_t bmcr_rb = mdio_read(phy, PHY_REG_BMCR);
-    uint16_t anar_rb = mdio_read(phy, PHY_REG_ANAR);
-    uint16_t gbcr_rb = mdio_read(phy, PHY_REG_GBCR);
-    print_s("BMCR=0x"); print_hex16_s(bmcr_rb); 
-    print_s(" ANAR=0x"); print_hex16_s(anar_rb);
-    print_s(" GBCR=0x"); print_hex16_s(gbcr_rb);
-    println_s("");
+    // =========================================================================
+    // AUTO-NEGOTIATION (Exact sequence from Test v5)
+    // =========================================================================
+    println_s("=AUTO-NEG=");
+    mdio_write(phy, PHY_REG_GBCR, 0x0200); // 1000M FD
+    mdio_write(phy, PHY_REG_ANAR, 0x01E1); // 100M/10M
+    mdio_write(phy, PHY_REG_BMCR, 0x1200); // AN enable + restart
+    print_s("Wait");
+    uart_drain();
 
     int linked = 0;
-    for (int i = 0; i < 40; i++) {
-        bsp_uDelay(100000); // 100 ms
-        uint16_t bmsr = bmsr_read(phy);
-        if (bmsr & 0x0004) {
+    for (int i = 0; i < 15; i++) {
+        bsp_uDelay(1000000); // 1 second
+        bmsr = bmsr_read(phy);
+        if ((bmsr & 0x0004) && (bmsr & 0x0020)) {
             linked = 1;
             break;
         }
@@ -190,7 +221,7 @@ static void phy_init_100m(void) {
     println_s("");
 
     // Report final status
-    uint16_t bmsr   = bmsr_read(phy);
+    bmsr   = bmsr_read(phy);
     uint16_t gbsr   = mdio_read(phy, PHY_REG_GBSR);
     uint16_t anlpar = mdio_read(phy, PHY_REG_ANLPAR);
     uint16_t physr  = rtl_physr(phy);
