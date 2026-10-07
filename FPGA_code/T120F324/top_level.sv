@@ -37,8 +37,8 @@ module top_level
   (* syn_peri_port = 0 *) input T120_GCLK,
   (* syn_peri_port = 0 *) input F2_RXC,
   (* syn_peri_port = 0 *) input PLL_25MHZ,
+  (* syn_peri_port = 0 *) input pll_clk_25Mhz_ext,
   (* syn_peri_port = 0 *) input pll_clk_75Mhz,
-  (* syn_peri_port = 0 *) input pll_clk_100Mhz,
   (* syn_peri_port = 0 *) input pll_clk_80Mhz,
   (* syn_peri_port = 0 *) input pll_clk_50Mhz,
   (* syn_peri_port = 0 *) input jtag_inst1_CAPTURE,
@@ -51,7 +51,8 @@ module top_level
   (* syn_peri_port = 0 *) input jtag_inst1_TDI,
   (* syn_peri_port = 0 *) input jtag_inst1_TMS,
   (* syn_peri_port = 0 *) input jtag_inst1_UPDATE,
-  (* syn_peri_port = 0 *) output F2_TXC,
+  (* syn_peri_port = 0 *) output F2_TXC_HI,
+  (* syn_peri_port = 0 *) output F2_TXC_LO,
   (* syn_peri_port = 0 *) output F2_TXCTL,
   (* syn_peri_port = 0 *) output F2_TXD0,
   (* syn_peri_port = 0 *) output F2_TXD1,
@@ -271,112 +272,191 @@ module top_level
         .jtagCtrl_tdo               (jtag_inst1_TDO)
     );
 
-    // =========================================================================
-    // UART Mini APB3 (0xF810_0000) - TEMPORARY DEBUG ON SCLR_DAC_W_34 (Pin F13)
-    // =========================================================================
-    wire [31:0] uart_prdata;
-    wire        uart_pready;
-    wire        uart_txd;
-
-    uart_mini_apb3 u_uart_mini (
-        .pclk       (sys_clk),
-        .presetn    (sys_rst_n_inv),
-        .psel       (apb_psel & uart_mini_selected),
-        .penable    (apb_penable),
-        .pwrite     (apb_pwrite),
-        .paddr      (apb_paddr[7:0]),
-        .pwdata     (apb_pwdata),
-        .prdata     (uart_prdata),
-        .pready     (uart_pready),
-        .pslverr    (),
-        .uart_txd   (uart_txd),
-        .uart_rxd   (1'b1),
-        .debug_tx_activity(),
-        .debug_any_write(),
-        .debug_bus_state(),
-        .debug_psel_in(),
-        .debug_penable_in(),
-        .debug_pwrite_in(),
-        .debug_act_write(),
-        .debug_act_read(),
-        .debug_slave_ready(),
-        .debug_reg_addr()
-    );
-
-    // Assign temporary debug UART TX to SCLR_DAC_W_34
-    assign SCLR_DAC_W_34 = uart_txd;
+    // Hardware UART on dedicated board pin SCLR_DAC_W_34
+    assign SCLR_DAC_W_34 = sapphire_uart_txd;
 
     // =========================================================================
-    // MDIO Master (0xF810_1000)
+    // APB3 Address Decoder
+    // Base 0xF810_0000..0xF810_0FFF -> TSE MAC Configuration & MDIO Registers
+    // Base 0xF810_3000..0xF810_3FFF -> T120 <-> T20 Custom Bus
     // =========================================================================
-    wire [31:0] mdio_prdata;
-    wire        mdio_pready;
-    wire        mdio_o;
-    wire        mdio_oe;
+    wire mac_selected     = (apb_paddr[15:12] == 4'h0) || (apb_paddr[15:12] == 4'h2);
+    wire t20_bus_selected = (apb_paddr[15:12] == 4'h3);
 
-    assign F2_MDIO_OUT = mdio_o;
-    assign F2_MDIO_OE  = mdio_oe;
+    // =========================================================================
+    // APB3 to AXI4-Lite Bridge (for standard Efinix TSE MAC core)
+    // =========================================================================
+    wire [9:0]  axi_awaddr;
+    wire        axi_awvalid, axi_awready;
+    wire [31:0] axi_wdata;
+    wire        axi_wvalid,  axi_wready;
+    wire [1:0]  axi_bresp;
+    wire        axi_bvalid,  axi_bready;
+    wire [9:0]  axi_araddr;
+    wire        axi_arvalid, axi_arready;
+    wire [1:0]  axi_rresp;
+    wire [31:0] axi_rdata;
+    wire        axi_rvalid,  axi_rready;
 
-    mdio_master #(
-        .SYS_CLK_HZ(50_000_000),
-        .MDC_HZ    (1_000_000)
-    ) u_mdio_master (
-        .clk        (sys_clk),
-        .rst_n      (sys_rst_n_inv),
-        .psel       (apb_psel & mdio_selected),
-        .penable    (apb_penable),
-        .pwrite     (apb_pwrite),
-        .paddr      ({2'b00, apb_paddr[3:2]}),
-        .pwdata     (apb_pwdata),
-        .prdata     (mdio_prdata),
-        .pready     (mdio_pready),
-        .pslverr    (),
+    wire [31:0] mac_apb_prdata;
+    wire        mac_apb_pready;
+    wire        mac_apb_pslverr;
 
-        .mdc        (F2_MDC),
-        .mdio_i     (F2_MDIO_IN),
-        .mdio_o     (mdio_o),
-        .mdio_oe    (mdio_oe),
-        .phy_rst_n  (F2_RSTB),
-        .irq        ()
+    apb3_2_axi4_lite #(
+        .ADDR_WTH (10)
+    ) u_apb3_2_axi4_lite (
+        .clk              (sys_clk),
+        .rstn             (sys_rst_n_inv),
+        .s_apb3_paddr     (apb_paddr[9:0]),
+        .s_apb3_psel      (apb_psel & mac_selected),
+        .s_apb3_penable   (apb_penable),
+        .s_apb3_pready    (mac_apb_pready),
+        .s_apb3_pwrite    (apb_pwrite),
+        .s_apb3_pwdata    (apb_pwdata),
+        .s_apb3_prdata    (mac_apb_prdata),
+        .s_apb3_pslverror (mac_apb_pslverr),
+
+        .m_axi_awaddr     (axi_awaddr),
+        .m_axi_awvalid    (axi_awvalid),
+        .m_axi_awready    (axi_awready),
+        .m_axi_wdata      (axi_wdata),
+        .m_axi_wvalid     (axi_wvalid),
+        .m_axi_wready     (axi_wready),
+        .m_axi_bresp      (axi_bresp),
+        .m_axi_bvalid     (axi_bvalid),
+        .m_axi_bready     (axi_bready),
+        .m_axi_araddr     (axi_araddr),
+        .m_axi_arvalid    (axi_arvalid),
+        .m_axi_arready    (axi_arready),
+        .m_axi_rresp      (axi_rresp),
+        .m_axi_rdata      (axi_rdata),
+        .m_axi_rvalid     (axi_rvalid),
+        .m_axi_rready     (axi_rready)
     );
 
     // =========================================================================
-    // Ethernet MAC Core (0xF810_2000)
+    // Standard Efinix Triple-Speed Ethernet MAC (RGMII + Hardware MDIO)
     // =========================================================================
-    wire [31:0] eth_prdata;
-    wire        eth_pready;
-    wire [3:0]  eth_txd;
-    wire        eth_activity;
+    wire [3:0] rgmii_txd_HI, rgmii_txd_LO;
+    wire       rgmii_tx_ctl_HI, rgmii_tx_ctl_LO;
+    wire       rgmii_txc_HI, rgmii_txc_LO;
+    wire [3:0] rgmii_rxd_HI, rgmii_rxd_LO;
+    wire       rgmii_rx_ctl_HI, rgmii_rx_ctl_LO;
 
-    assign F2_TXD0 = eth_txd[0];
-    assign F2_TXD1 = eth_txd[1];
-    assign F2_TXD2 = eth_txd[2];
-    assign F2_TXD3 = eth_txd[3];
+    // Trion T120 Board RGMII Control Workaround (Efinix User Guide page 26 & temac_ex.v)
+    assign F2_TXCTL       = rgmii_tx_ctl_HI | rgmii_tx_ctl_LO;
+    assign rgmii_rx_ctl_HI = F2_RXCTL;
+    assign rgmii_rx_ctl_LO = F2_RXCTL;
 
-    eth_mac_100m u_eth_mac (
-        .sys_clk        (sys_clk),
-        .sys_rst_n      (sys_rst_n_inv),
-        .apb_paddr      (apb_paddr[11:0]),
-        .apb_psel       (apb_psel & eth_selected),
-        .apb_penable    (apb_penable),
-        .apb_pwrite     (apb_pwrite),
-        .apb_pwdata     (apb_pwdata),
-        .apb_prdata         (eth_prdata),
-        .apb_pready         (eth_pready),
-        .apb_pslverr        (),
+    // RGMII Clock forward to PHY: Driven by dedicated PLL1 output (pll_clk_25Mhz_ext) via hardware DDIO pad
+    // HI=1, LO=0 generates an exact 50% duty cycle clock out on physical pin F2_TXC
+    assign F2_TXC_HI      = 1'b1;
+    assign F2_TXC_LO      = 1'b0;
 
-        .rgmii_tx_clk   (rgmii_clk),
-        .rgmii_txc      (F2_TXC),
-        .rgmii_txctl    (F2_TXCTL),
-        .rgmii_txd      (eth_txd),
+    // RGMII Data bus to/from physical pins
+    assign F2_TXD0        = rgmii_txd_HI[0];
+    assign F2_TXD1        = rgmii_txd_HI[1];
+    assign F2_TXD2        = rgmii_txd_HI[2];
+    assign F2_TXD3        = rgmii_txd_HI[3];
 
-        .rgmii_rxc      (F2_RXC),
-        .rgmii_rxctl    (F2_RXCTL),
-        .rgmii_rxd      ({F2_RXD3, F2_RXD2, F2_RXD1, F2_RXD0}),
+    assign rgmii_rxd_HI   = {F2_RXD3, F2_RXD2, F2_RXD1, F2_RXD0};
+    assign rgmii_rxd_LO   = {F2_RXD3, F2_RXD2, F2_RXD1, F2_RXD0};
 
-        .phy_link_up    (1'b1),
-        .activity_led   (eth_activity)
+    // Hardware MDIO Pins
+    wire phy_mdo, phy_mdo_en;
+    assign F2_MDIO_OUT = phy_mdo;
+    assign F2_MDIO_OE  = phy_mdo_en;
+
+    // Dedicated Hardware Power-On-Reset for RTL8211F PHY (100 ms active-low pulse after config)
+    // PLUS software controllable reset via SoC GPIO bit 1 (0 = reset asserted, 1 = normal operation).
+    logic [23:0] phy_por_cnt = '0;
+    always_ff @(posedge sys_clk) begin
+        if (!phy_por_cnt[23]) phy_por_cnt <= phy_por_cnt + 1'b1;
+    end
+    wire phy_hw_rstn = phy_por_cnt[23] & gpio_out[1];
+    assign F2_RSTB   = phy_hw_rstn;
+
+    // AXI-Stream Packet Interface
+    wire [7:0] rx_axis_mac_tdata, tx_axis_mac_tdata;
+    wire       rx_axis_mac_tvalid, tx_axis_mac_tvalid;
+    wire       rx_axis_mac_tlast,  tx_axis_mac_tlast;
+    wire       rx_axis_mac_tuser,  tx_axis_mac_tuser;
+    wire       rx_axis_mac_tready, tx_axis_mac_tready;
+
+    rgmii_eth_efx_tsemac u_tsemac (
+        .mac_reset          (~sys_rst_n_inv),
+        .proto_reset        (1'b0),
+        .tx_mac_aclk        (PLL_25MHZ),      // 25 MHz reference clock for 100M mode
+        .rx_mac_aclk        (),
+        .eth_speed          (),
+
+        // AXI4-Stream RX Interface
+        .rx_axis_clk        (sys_clk),
+        .rx_axis_mac_tdata  (rx_axis_mac_tdata),
+        .rx_axis_mac_tvalid (rx_axis_mac_tvalid),
+        .rx_axis_mac_tlast  (rx_axis_mac_tlast),
+        .rx_axis_mac_tstrb  (),
+        .rx_axis_mac_tuser  (rx_axis_mac_tuser),
+        .rx_axis_mac_tready (rx_axis_mac_tready),
+
+        // AXI4-Stream TX Interface
+        .tx_axis_clk        (sys_clk),
+        .tx_axis_mac_tdata  (tx_axis_mac_tdata),
+        .tx_axis_mac_tvalid (tx_axis_mac_tvalid),
+        .tx_axis_mac_tlast  (tx_axis_mac_tlast),
+        .tx_axis_mac_tstrb  (1'b1),
+        .tx_axis_mac_tuser  (tx_axis_mac_tuser),
+        .tx_axis_mac_tready (tx_axis_mac_tready),
+
+        // RGMII PHY Interface
+        .rgmii_txd_HI       (rgmii_txd_HI),
+        .rgmii_txd_LO       (rgmii_txd_LO),
+        .rgmii_tx_ctl_HI    (rgmii_tx_ctl_HI),
+        .rgmii_tx_ctl_LO    (rgmii_tx_ctl_LO),
+        .rgmii_txc_HI       (rgmii_txc_HI),
+        .rgmii_txc_LO       (rgmii_txc_LO),
+        .rgmii_rxd_HI       (rgmii_rxd_HI),
+        .rgmii_rxd_LO       (rgmii_rxd_LO),
+        .rgmii_rx_ctl_HI    (rgmii_rx_ctl_HI),
+        .rgmii_rx_ctl_LO    (rgmii_rx_ctl_LO),
+        .rgmii_rxc          (F2_RXC),
+
+        // AXI4-Lite Register Interface
+        .s_axi_aclk         (sys_clk),
+        .s_axi_awaddr       (axi_awaddr),
+        .s_axi_awvalid      (axi_awvalid),
+        .s_axi_awready      (axi_awready),
+        .s_axi_wdata        (axi_wdata),
+        .s_axi_wvalid       (axi_wvalid),
+        .s_axi_wready       (axi_wready),
+        .s_axi_bresp        (axi_bresp),
+        .s_axi_bvalid       (axi_bvalid),
+        .s_axi_bready       (axi_bready),
+        .s_axi_araddr       (axi_araddr),
+        .s_axi_arvalid      (axi_arvalid),
+        .s_axi_arready      (axi_arready),
+        .s_axi_rresp        (axi_rresp),
+        .s_axi_rdata        (axi_rdata),
+        .s_axi_rvalid       (axi_rvalid),
+        .s_axi_rready       (axi_rready),
+
+        // Integrated Hardware MDIO Interface
+        .Mdo                (phy_mdo),
+        .MdoEn              (phy_mdo_en),
+        .Mdi                (F2_MDIO_IN),
+        .Mdc                (F2_MDC)
     );
+
+    // =========================================================================
+    // Standard Line-Rate Packet Loopback (Direct wire-speed loopback)
+    // Both rx_axis_clk and tx_axis_clk are synchronous sys_clk (50 MHz).
+    // Internal 2048-depth FIFOs in TSE MAC IP handle CDC and line-rate buffering.
+    // =========================================================================
+    assign tx_axis_mac_tdata  = rx_axis_mac_tdata;
+    assign tx_axis_mac_tvalid = rx_axis_mac_tvalid;
+    assign tx_axis_mac_tlast  = rx_axis_mac_tlast;
+    assign tx_axis_mac_tuser  = rx_axis_mac_tuser;
+    assign rx_axis_mac_tready = tx_axis_mac_tready;
 
     // =========================================================================
     // T120 <-> T20 Custom Inter-FPGA Bus APB3 Slave (0xF810_3000)
@@ -407,22 +487,16 @@ module top_level
         .t20_clk9       (T20_CLK9),
         .t20_tx         (t20_tx_wires),
         .t20_rx         (t20_rx_wires),
-        .t20_creset_n   () // Ready for patch wire to T20 CRESET_N
+        .t20_creset_n   ()
     );
 
     // =========================================================================
-    // APB3 Read Multiplexing
+    // APB3 Read Multiplexing (Clean 2-slave mux between TSE MAC & T20 Bus)
     // =========================================================================
     always_comb begin
-        if (uart_mini_selected) begin
-            apb_prdata = uart_prdata;
-            apb_pready = uart_pready;
-        end else if (mdio_selected) begin
-            apb_prdata = mdio_prdata;
-            apb_pready = mdio_pready;
-        end else if (eth_selected) begin
-            apb_prdata = eth_prdata;
-            apb_pready = eth_pready;
+        if (mac_selected) begin
+            apb_prdata = mac_apb_prdata;
+            apb_pready = mac_apb_pready;
         end else if (t20_bus_selected) begin
             apb_prdata = t20_bus_prdata;
             apb_pready = t20_bus_pready;

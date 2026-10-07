@@ -46,19 +46,37 @@ def check_timing(report_path):
                 clocks_found[clk_name] = {"fmax": fmax, "period": period}
                 print(f"  * {clk_name}: Fmax = {fmax:.2f} MHz (Mål period {period:.3f} ns)")
 
-    # Slack
+    # Slack (Setup / Max)
     setup_slack = re.findall(r"Setup \(Max\) Clock Relationship.*?Slack \(ns\).*?\n(.*?)(?:\n\n|\n-|$)", content, re.DOTALL)
     if setup_slack:
         for line in setup_slack[0].strip().splitlines():
             parts = line.split()
-            if len(parts) >= 6:
+            if len(parts) >= 5:
                 try:
-                    slack = float(parts[4])
+                    slack = float(parts[3])
                     clk = parts[0]
+                    capt = parts[1]
                     if slack < 0:
-                        errors.append(f"TIMING VIOLATION: Setup slack negativ ({slack:.3f} ns) på {clk}!")
+                        errors.append(f"TIMING VIOLATION: Setup slack negativ ({slack:.3f} ns) på {clk} -> {capt}!")
                     else:
-                        print(f"  [OK] Slack: {slack:.3f} ns ({clk})")
+                        print(f"  [OK] Setup Slack: {slack:.3f} ns ({clk} -> {capt})")
+                except ValueError:
+                    pass
+
+    # Slack (Hold / Min)
+    hold_slack = re.findall(r"Hold \(Min\) Clock Relationship.*?Slack \(ns\).*?\n(.*?)(?:\n\n|\n-|$)", content, re.DOTALL)
+    if hold_slack:
+        for line in hold_slack[0].strip().splitlines():
+            parts = line.split()
+            if len(parts) >= 5:
+                try:
+                    slack = float(parts[3])
+                    clk = parts[0]
+                    capt = parts[1]
+                    if slack < 0:
+                        errors.append(f"TIMING VIOLATION: Hold slack negativ ({slack:.3f} ns) på {clk} -> {capt}!")
+                    else:
+                        print(f"  [OK] Hold Slack: {slack:.3f} ns ({clk} -> {capt})")
                 except ValueError:
                     pass
 

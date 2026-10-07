@@ -1,4 +1,4 @@
-<efx:project xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="T120_MALM" description="" last_change="1791141942" sw_version="2025.2.288.2.10" last_run_state="pass" last_run_flow="bitstream" config_result_in_sync="sync" design_ood="sync" place_ood="sync" route_ood="sync" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
+<efx:project xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="T120_MALM" description="" last_change="1791315727" sw_version="2025.2.288.2.10" last_run_state="pass" last_run_flow="bitstream" config_result_in_sync="sync" design_ood="sync" place_ood="sync" route_ood="sync" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
     <efx:device_info>
         <efx:family name="Trion" />
         <efx:device name="T120F324" />
@@ -6,10 +6,7 @@
     </efx:device_info>
     <efx:design_info def_veri_version="verilog_2k" def_vhdl_version="vhdl_2008" unified_flow="false">
         <efx:top_module name="top_level" />
-        <efx:design_file name="ip/mdio_master/mdio_master.sv" version="default" library="default" />
-        <efx:design_file name="ip/uart_mini/uart_mini.sv" version="default" library="default" />
-        <efx:design_file name="ip/uart_mini/uart_mini_apb3.sv" version="default" library="default" />
-        <efx:design_file name="eth_mac_100m.sv" version="default" library="default" />
+        <efx:design_file name="apb3_2_axi4_lite.v" version="default" library="default" />
         <efx:design_file name="t120_t20_bus_apb3.sv" version="default" library="default" />
         <efx:design_file name="top_level.sv" version="default" library="default" />
         <efx:top_vhdl_arch name="" />
@@ -24,6 +21,9 @@
     <efx:ip_info>
         <efx:ip instance_name="RISC_mini" path="ip/RISC_mini/settings.json" ooc="false">
             <efx:ip_src_file name="RISC_mini.v" />
+        </efx:ip>
+        <efx:ip instance_name="rgmii_eth_efx_tsemac" path="ip/rgmii_eth_efx_tsemac/settings.json" ooc="false">
+            <efx:ip_src_file name="rgmii_eth_efx_tsemac.sv" />
         </efx:ip>
     </efx:ip_info>
     <efx:synthesis tool_name="efx_map">

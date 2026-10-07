@@ -18,21 +18,22 @@
 
 #include <stdint.h>
 
-// MDIO master base address (second 4KB block in APB slave 0)
-#define MDIO_BASE_ADDR       0xf8101000
+// TSE MAC register base in APB3 space
+#define TSE_MAC_BASE_ADDR    0xf8100000
 
-// Register byte offsets
-#define MDIO_CTRL_REG        0x00
-#define MDIO_STATUS_REG      0x04
-#define MDIO_CONFIG_REG      0x08
-#define MDIO_VERSION_REG     0x0C
+// TSE MAC MDIO Register byte offsets (from TSE MAC Core UG Table 17)
+#define TSE_MDIO_DIV_REG     0x100  // [7:0]=Divider (s_axi_aclk / Mdc), [8]=NoPre
+#define TSE_MDIO_CMD_REG     0x104  // [0]=RdEn, [1]=WrEn
+#define TSE_MDIO_ADDR_REG    0x108  // [4:0]=RegAddr, [12:8]=PhyAddr
+#define TSE_MDIO_WDATA_REG   0x10C  // [15:0]=WrData
+#define TSE_MDIO_RDATA_REG   0x110  // [15:0]=RdData
+#define TSE_MDIO_STATUS_REG  0x114  // [0]=LinkFailStatus, [1]=BusyStatus, [2]=NvalidStatus
 
 // Status bits
-#define MDIO_STATUS_BUSY     (1 << 0)
-#define MDIO_STATUS_DONE     (1 << 1)
+#define TSE_MDIO_BUSY        (1 << 1)
 
-// RTL8211F standard PHY address (depends on PHYAD pins - typically 0x01)
-#define PHY_ADDR_DEFAULT     0x01
+// RTL8211F standard PHY address
+#define PHY_ADDR_DEFAULT     0x00
 
 // IEEE 802.3 Standard PHY Registers (Clause 22)
 #define PHY_REG_BMCR         0x00   // Basic Mode Control
@@ -74,13 +75,13 @@
 
 static inline void mdio_write_reg(uint32_t offset, uint32_t val)
 {
-    volatile uint32_t *reg = (volatile uint32_t *)(MDIO_BASE_ADDR + offset);
+    volatile uint32_t *reg = (volatile uint32_t *)(TSE_MAC_BASE_ADDR + offset);
     *reg = val;
 }
 
 static inline uint32_t mdio_read_reg(uint32_t offset)
 {
-    volatile uint32_t *reg = (volatile uint32_t *)(MDIO_BASE_ADDR + offset);
+    volatile uint32_t *reg = (volatile uint32_t *)(TSE_MAC_BASE_ADDR + offset);
     return *reg;
 }
 
@@ -88,107 +89,57 @@ static inline uint32_t mdio_read_reg(uint32_t offset)
 // MDIO transaction functions
 // ============================================================================
 
-/**
- * mdio_wait_done() - Wait for MDIO transaction to complete
- * 
- * Two-phase polling:
- *   1. Wait for BUSY=1 (state machine picked up start_req on MDC falling edge)
- *   2. Wait for DONE=1 (transaction finished, read data available)
- * 
- * Returns: 1 on success, 0 on timeout
- */
+static inline void mdio_init(void)
+{
+    // Divider = 0x32 (50) -> MDC = 50 MHz / 50 = 1 MHz. NoPre = 0 (with preamble).
+    mdio_write_reg(TSE_MDIO_DIV_REG, 0x32);
+}
+
 static inline int mdio_wait_done(void)
 {
-    // Phase 1: Wait for BUSY to assert (transaction started)
-    // At 1 MHz MDC, worst case is ~500ns (25 sys_clk cycles)
-    int busy_seen = 0;
-    for (int i = 0; i < 2000; i++) {
-        if (mdio_read_reg(MDIO_STATUS_REG) & MDIO_STATUS_BUSY) {
-            busy_seen = 1;
-            break;
-        }
-    }
-    if (!busy_seen)
-        return 0;  // State machine never started - hardware problem
-    
-    // Phase 2: Wait for DONE flag (transaction complete, rdata valid)
-    // At 1 MHz MDC, one MDIO frame = 64 MDC clocks = 64 µs
+    // Wait for BusyStatus (bit 1) to clear
     for (int i = 0; i < 500000; i++) {
-        uint32_t status = mdio_read_reg(MDIO_STATUS_REG);
-        if (status & MDIO_STATUS_DONE)
+        uint32_t status = mdio_read_reg(TSE_MDIO_STATUS_REG);
+        if (!(status & TSE_MDIO_BUSY))
             return 1;
     }
     return 0;  // Timeout
 }
 
-/**
- * mdio_read() - Read a PHY register via MDIO
- * @phy_addr: PHY address (0-31)
- * @reg_addr: Register address (0-31)
- * Returns: 16-bit register value, or 0xFFFF on error
- */
 static inline uint16_t mdio_read(uint8_t phy_addr, uint8_t reg_addr)
 {
-    // Clear done flag first (write 1 to bit 1 of STATUS)
-    mdio_write_reg(MDIO_STATUS_REG, MDIO_STATUS_DONE);
-    
-    // Build CTRL word: start=1, RW=1(read), phy_addr, reg_addr, wdata=0
-    uint32_t ctrl = (1 << 0)                      // start
-                  | (1 << 1)                       // RW = read
-                  | ((phy_addr & 0x1F) << 5)       // PHY address
-                  | ((reg_addr & 0x1F) << 10);     // Register address
-    
-    mdio_write_reg(MDIO_CTRL_REG, ctrl);
+    // Set PHY and register address
+    mdio_write_reg(TSE_MDIO_ADDR_REG, ((phy_addr & 0x1F) << 8) | (reg_addr & 0x1F));
+    // Trigger Read
+    mdio_write_reg(TSE_MDIO_CMD_REG, 0x01);
     
     // Wait for completion
     if (!mdio_wait_done())
         return 0xFFFF;
     
-    // Read data from STATUS[31:16]
-    uint32_t status = mdio_read_reg(MDIO_STATUS_REG);
-    return (uint16_t)(status >> 16);
+    // Read data
+    return (uint16_t)(mdio_read_reg(TSE_MDIO_RDATA_REG) & 0xFFFF);
 }
 
-/**
- * mdio_write() - Write a PHY register via MDIO
- * @phy_addr: PHY address (0-31)
- * @reg_addr: Register address (0-31)
- * @data: 16-bit value to write
- * Returns: 1 on success, 0 on timeout
- */
 static inline int mdio_write(uint8_t phy_addr, uint8_t reg_addr, uint16_t data)
 {
-    // Clear done flag
-    mdio_write_reg(MDIO_STATUS_REG, MDIO_STATUS_DONE);
-    
-    // Build CTRL word: start=1, RW=0(write), phy_addr, reg_addr, wdata
-    uint32_t ctrl = (1 << 0)                      // start
-                  | (0 << 1)                       // RW = write
-                  | ((phy_addr & 0x1F) << 5)       // PHY address
-                  | ((reg_addr & 0x1F) << 10)      // Register address
-                  | ((uint32_t)data << 16);         // Write data
-    
-    mdio_write_reg(MDIO_CTRL_REG, ctrl);
+    // Set write data
+    mdio_write_reg(TSE_MDIO_WDATA_REG, (uint32_t)data);
+    // Set PHY and register address
+    mdio_write_reg(TSE_MDIO_ADDR_REG, ((phy_addr & 0x1F) << 8) | (reg_addr & 0x1F));
+    // Trigger Write
+    mdio_write_reg(TSE_MDIO_CMD_REG, 0x02);
     
     return mdio_wait_done();
 }
 
-/**
- * mdio_phy_reset_release() - Release PHY from hardware reset
- * Sets CONFIG[0] = 1 (PHY reset inactive)
- */
 static inline void mdio_phy_reset_release(void)
 {
-    mdio_write_reg(MDIO_CONFIG_REG, 0x01);
+    // Hardware reset pin F2_RSTB is tied to sys_rst_n_inv in top_level.sv
 }
 
-/**
- * mdio_phy_reset_assert() - Assert PHY hardware reset
- * Sets CONFIG[0] = 0 (PHY in reset)
- */
 static inline void mdio_phy_reset_assert(void)
 {
-    mdio_write_reg(MDIO_CONFIG_REG, 0x00);
 }
 
 // ============================================================================

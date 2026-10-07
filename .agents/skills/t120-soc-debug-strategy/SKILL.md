@@ -23,9 +23,11 @@ When diagnosing or verifying the target board, ALWAYS follow this 4-tier decisio
                                v
 +------------------------------------------------------------------+
 |  Priority 2: Passive UART Landmark Sniffing (/dev/ttyACM0)       |
-|  - Primary autonomous observability for boot phases.            |
-|  - Read landmark strings from APB3 uart_mini (Pin F13).          |
-|  - Do NOT interrupt the user, halt CPU, or invoke JTAG tools.    |
+|  - Mandatory autonomous observability until TCP/IP ping works.   |
+|  - Read landmark strings from APB3 uart_mini (Pin F13 @ 9600b).  |
+|  - ALWAYS verify UART trace via flash_and_listen.py after flash. |
+|  - MANDATORY RULE: If UART trace capability is LOST, STOP and   |
+|    report immediately to the user before attempting more changes!|
 +------------------------------------------------------------------+
                                | (If UART data is missing / ambiguous)
                                v

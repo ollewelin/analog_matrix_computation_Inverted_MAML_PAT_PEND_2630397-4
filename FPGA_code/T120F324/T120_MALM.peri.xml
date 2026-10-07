@@ -78,7 +78,7 @@
             <efxpt:input_config name="F2_RXD3" name_ddio_lo="" conn_type="normal" is_register="false" clock_name="" is_clock_inverted="false" pull_option="none" is_schmitt_trigger="false" ddio_type="none"/>
         </efxpt:gpio>
         <efxpt:gpio name="F2_TXC" gpio_def="GPIOL_17" mode="output" bus_name="" is_lvds_gpio="false" io_standard="3.3 V LVTTL / LVCMOS">
-            <efxpt:output_config name="F2_TXC" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
+            <efxpt:output_config name="F2_TXC_HI" name_ddio_lo="F2_TXC_LO" register_option="register" clock_name="pll_clk_25Mhz_ext" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="resync" drive_strength="1"/>
         </efxpt:gpio>
         <efxpt:gpio name="F2_TXCTL" gpio_def="GPIOL_15" mode="output" bus_name="" is_lvds_gpio="false" io_standard="3.3 V LVTTL / LVCMOS">
             <efxpt:output_config name="F2_TXCTL" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
@@ -388,7 +388,7 @@
         <efxpt:pll_info>
         <efxpt:pll name="pll_inst1" pll_def="PLL_BR0" ref_clock_name="T120_GCLK" ref_clock_freq="50.0000" multiplier="32" pre_divider="1" post_divider="2" reset_name="" locked_name="pll_inst1_LOCKED" is_ipfrz="false" is_bypass_lock="true">
             <efxpt:output_clock name="pll_clk_50Mhz" number="0" out_divider="16" adv_out_phase_shift="0" conn_type="gclk"/>
-            <efxpt:output_clock name="pll_clk_100Mhz" number="1" out_divider="8" adv_out_phase_shift="0" conn_type="gclk"/>
+            <efxpt:output_clock name="pll_clk_25Mhz_ext" number="1" out_divider="32" adv_out_phase_shift="0" conn_type="gclk"/>
             <efxpt:output_clock name="pll_clk_80Mhz" number="2" out_divider="10" adv_out_phase_shift="0" conn_type="gclk"/>
             <efxpt:adv_prop ref_clock_mode="core" ref_clock1_name="" ext_ref_clock_id="2" clksel_name="" feedback_clock_name="" feedback_mode="internal"/>
         </efxpt:pll>
