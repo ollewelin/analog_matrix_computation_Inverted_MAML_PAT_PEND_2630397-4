@@ -252,36 +252,27 @@ module tsemac_axis_packet_fifo (
                 end
 
                 TX_STREAM: begin
-                    tx_axis_tvalid <= 1'b1;
-                    case (tx_byte_idx)
-                        2'd0: tx_axis_tdata <= tx_word_buf[7:0];
-                        2'd1: tx_axis_tdata <= tx_word_buf[15:8];
-                        2'd2: tx_axis_tdata <= tx_word_buf[23:16];
-                        2'd3: tx_axis_tdata <= tx_word_buf[31:24];
-                    endcase
-
-                    // Check if this byte is the last byte
-                    if (tx_bytes_sent + 1'b1 >= reg_tx_len) begin
-                        tx_axis_tlast <= 1'b1;
-                    end else begin
-                        tx_axis_tlast <= 1'b0;
-                    end
-
-                    // Advance on handshake
-                    if (tx_axis_tready) begin
+                    if (tx_axis_tvalid && tx_axis_tready && tx_axis_tlast) begin
+                        // Last byte accepted by the MAC
+                        tx_axis_tvalid <= 1'b0;
+                        tx_axis_tlast  <= 1'b0;
+                        tx_fsm         <= TX_IDLE;
+                        reg_tx_busy    <= 1'b0;
+                    end else if (!tx_axis_tvalid || tx_axis_tready) begin
+                        // Output register is empty or being consumed: load the next byte
+                        tx_axis_tvalid <= 1'b1;
+                        case (tx_byte_idx)
+                            2'd0: tx_axis_tdata <= tx_word_buf[7:0];
+                            2'd1: tx_axis_tdata <= tx_word_buf[15:8];
+                            2'd2: tx_axis_tdata <= tx_word_buf[23:16];
+                            2'd3: tx_axis_tdata <= tx_word_buf[31:24];
+                        endcase
+                        tx_axis_tlast <= (tx_bytes_sent + 1'b1 >= reg_tx_len);
                         tx_bytes_sent <= tx_bytes_sent + 1'b1;
-
-                        if (tx_bytes_sent + 1'b1 >= reg_tx_len) begin
-                            tx_axis_tvalid <= 1'b0;
-                            tx_axis_tlast  <= 1'b0;
-                            tx_fsm         <= TX_IDLE;
-                            reg_tx_busy    <= 1'b0;
-                        end else begin
-                            tx_byte_idx <= tx_byte_idx + 1'b1;
-                            if (tx_byte_idx == 2'd3) begin
-                                tx_word_idx <= tx_word_idx + 1'b1;
-                                tx_word_buf <= tx_ram[tx_word_idx + 1'b1];
-                            end
+                        tx_byte_idx   <= tx_byte_idx + 1'b1;
+                        if (tx_byte_idx == 2'd3) begin
+                            tx_word_idx <= tx_word_idx + 1'b1;
+                            tx_word_buf <= tx_ram[tx_word_idx + 1'b1];
                         end
                     end
                 end
