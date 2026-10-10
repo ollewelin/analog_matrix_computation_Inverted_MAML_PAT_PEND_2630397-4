@@ -16,6 +16,16 @@ FPGA_code/ref_staging/
 **/ip/**/*_devkit/
 **/ip/**/source/
 **/ip/**/ipm/
+FPGA_code/T120F324/apb3_2_axi4_lite.v
+FPGA_code/T120F324/mac_rx2tx.v
+FPGA_code/T120F324/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac.sv
+FPGA_code/T120F324/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_tmpl.vhd
+FPGA_code/T120F324/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_tmpl.sv
+FPGA_code/T120F324/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_define.svh
+FPGA_code/T120F324/ip/RISC_mini/RISC_mini_tmpl.vhd
+FPGA_code/T120F324/ip/RISC_mini/RISC_mini.v
+FPGA_code/T120F324/ip/RISC_mini/RISC_mini_tmpl.v
+FPGA_code/T120F324/ip/RISC_mini/RISC_mini_define.vh
 
 # Staging and temporary references
 **/ref_staging/

@@ -1,4 +1,4 @@
-<efx:project xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="T120_MALM" description="" last_change="1791479748" sw_version="2025.2.288.2.10" last_run_state="pass" last_run_flow="bitstream" config_result_in_sync="sync" design_ood="sync" place_ood="sync" route_ood="sync" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
+<efx:project xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="T120_MALM" description="" last_change="1791574213" sw_version="2025.2.288.2.10" last_run_state="pass" last_run_flow="bitstream" config_result_in_sync="sync" design_ood="sync" place_ood="sync" route_ood="sync" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
     <efx:device_info>
         <efx:family name="Trion" />
         <efx:device name="T120F324" />
@@ -6,9 +6,15 @@
     </efx:device_info>
     <efx:design_info def_veri_version="verilog_2k" def_vhdl_version="vhdl_2008" unified_flow="false">
         <efx:top_module name="top_level" />
-        <efx:design_file name="apb3_2_axi4_lite.v" version="default" library="default" />
-        <efx:design_file name="t120_t20_bus_apb3.sv" version="default" library="default" />
-        <efx:design_file name="tsemac_axis_packet_fifo.sv" version="default" library="default" />
+        <efx:design_file name="t120_inter_fpga_bridge.sv" version="default" library="default" />
+        <efx:design_file name="t120_bridge_clkgen.sv" version="default" library="default" />
+        <efx:design_file name="t120_sbus_tx.sv" version="default" library="default" />
+        <efx:design_file name="t120_sbus_rx.sv" version="default" library="default" />
+        <efx:design_file name="t120_sbus_xact.sv" version="default" library="default" />
+        <efx:design_file name="t120_hbus_seq.sv" version="default" library="default" />
+        <efx:design_file name="t120_creset_controller.sv" version="default" library="default" />
+        <efx:design_file name="eth_mac_100m.sv" version="default" library="default" />
+        <efx:design_file name="ip/mdio_master/mdio_master.sv" version="default" library="default" />
         <efx:design_file name="top_level.sv" version="default" library="default" />
         <efx:top_vhdl_arch name="" />
     </efx:design_info>
@@ -22,9 +28,6 @@
     <efx:ip_info>
         <efx:ip instance_name="RISC_mini" path="ip/RISC_mini/settings.json" ooc="false">
             <efx:ip_src_file name="RISC_mini.v" />
-        </efx:ip>
-        <efx:ip instance_name="rgmii_eth_efx_tsemac" path="ip/rgmii_eth_efx_tsemac/settings.json" ooc="false">
-            <efx:ip_src_file name="rgmii_eth_efx_tsemac.sv" />
         </efx:ip>
     </efx:ip_info>
     <efx:synthesis tool_name="efx_map">
@@ -49,7 +52,7 @@
         <efx:param name="min-ce-fanout" value="0" value_type="e_integer" />
         <efx:param name="mode" value="speed" value_type="e_option" />
         <efx:param name="mult-auto-pipeline" value="0" value_type="e_integer" />
-        <efx:param name="mult-decomp-retime" value="1" value_type="e_option" />
+        <efx:param name="mult-decomp-retime" value="0" value_type="e_option" />
         <efx:param name="operator-sharing" value="0" value_type="e_option" />
         <efx:param name="optimize-adder-tree" value="0" value_type="e_option" />
         <efx:param name="optimize-zero-init-rom" value="1" value_type="e_option" />
@@ -62,6 +65,7 @@
         <efx:param name="use-logic-for-small-mem" value="64" value_type="e_integer" />
         <efx:param name="use-logic-for-small-rom" value="64" value_type="e_integer" />
         <efx:param name="max_threads" value="-1" value_type="e_integer" />
+        <efx:param name="include" value="ip/RISC_mini" value_type="e_string" />
         <efx:param name="suppress_info_msgs" value="off" value_type="e_bool" />
         <efx:param name="suppress_warning_msgs" value="off" value_type="e_bool" />
         <efx:param name="mult_input_regs_packing" value="1" value_type="e_option" />

@@ -110,7 +110,9 @@ Per `FPGA_code/docs/pinout_T120_T20.md`:
    +--------------------+                    +--------------------+
 ```
 
-### 3.1 Packet Framing & Nibble Packing (TX Bus: T120 -> T20)
+> **Note:** the framing in 3.1/3.2 is superseded by `t120_t20_bridge_spec.md`: the bus is split into a hardware-synchronous Hadamard bus (no CRC, 1-bit ACK) and a service bus (CRC8, req/resp). Hadamard timing must never pass through processor code.
+
+### 3.1 Packet Framing & Nibble Packing (TX Bus: T120 -> T20) [superseded]
 Because the TX bus is 4 bits wide, each byte is transmitted over 2 clock cycles:
 - **Cycle 0:** High Nibble `TX[3:0] = Byte[7:4]`
 - **Cycle 1:** Low Nibble `TX[3:0] = Byte[3:0]`

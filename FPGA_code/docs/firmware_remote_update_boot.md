@@ -6,8 +6,8 @@ The objective is to enable the generation and deployment of new bitstreams for t
 
 ### Physical Constraints
 * **JTAG:** Permanently connected to the T120 only. The T20 is programmed manually via JTAG exactly once with a "Golden Image" located at flash address `0x000000`.
-* **Custom Bus:** Used for communication between the T120 (Master) and T20 (Slave). It consists of GPIOs defined in `T120_MALM.peri.xml` (e.g., `TX11_T20_N1`, `RX00_T20_N1`, `T20_CLK9`, etc.).
-* **Patch Wire (Reset):** One GPIO from the T120 is physically wired to the T20's `CRESET_N` pin to allow hardware resets.
+* **Custom Bus:** Used for communication between the T120 (Master) and T20 (Slave), defined in `T120_MALM.peri.xml`. It is split into two independent buses on one shared clock `T20_CLK9`: the **S-bus** (service: this remote-update flow, C-code driven, CRC8) and the **H-bus** (Hadamard, hardware-synchronous, never touched by C code). This document only uses the S-bus; see `t120_t20_bridge_spec.md`. Flash streaming uses S-bus channel `0x01` (one request/ACK per chunk).
+* **Patch Wire (Reset):** The T120 pin `T120_LED1` is physically wired to the T20's `CRESET_N` pin to allow hardware resets (register `T20_CRESET_CTRL`, see `t120_bridge_regs.h`).
 
 ---
 

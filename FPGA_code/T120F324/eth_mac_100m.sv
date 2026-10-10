@@ -76,23 +76,10 @@ module eth_mac_100m (
     logic        rx_ack_reg;
     logic        promisc_reg;
     logic        loopback_reg;
-    logic        rx_clk_inv_reg;
     logic [15:0] tx_len_reg;
     logic [47:0] our_mac_reg;
     logic [31:0] tx_frame_cnt;
     logic [31:0] rx_frame_cnt;
-
-    // Diagnostic Telemetry Signals (RX domain)
-    logic [31:0] rxc_tick_cnt;
-    logic [31:0] rxctl_edge_cnt;
-    logic [31:0] rx_sfd_cnt;
-    logic [31:0] rx_crc_err_cnt;
-    logic [31:0] rx_last_crc;
-    logic [15:0] rx_last_bytes;
-    logic        rxctl_prev;
-
-    // Direct global RX clock from PHY
-    wire rx_sampling_clk = rgmii_rxc;
 
     // Signals crossing from TX domain (25 MHz) to sys_clk (50 MHz)
     logic tx_busy_tx_clk;
@@ -115,45 +102,45 @@ module eth_mac_100m (
     logic rx_crc_err_rx_clk;
     logic rx_crc_err_sync1, rx_crc_err_sync2;
 
-    // Synchronize telemetry counters into sys_clk domain for clean timing
-    logic [31:0] rxc_tick_cnt_sys;
-    logic [31:0] rxctl_edge_cnt_sys;
-    logic [31:0] rx_sfd_cnt_sys;
-    logic [31:0] rx_crc_err_cnt_sys;
-    logic [31:0] rx_last_crc_sys;
-    logic [15:0] rx_last_bytes_sys;
-
     always_ff @(posedge sys_clk or negedge sys_rst_n) begin
         if (!sys_rst_n) begin
-            rx_ready_sync1     <= 1'b0;
-            rx_ready_sync2     <= 1'b0;
-            rx_len_sync        <= 16'd0;
-            rx_crc_err_sync1   <= 1'b0;
-            rx_crc_err_sync2   <= 1'b0;
-            rxc_tick_cnt_sys   <= 32'd0;
-            rxctl_edge_cnt_sys <= 32'd0;
-            rx_sfd_cnt_sys     <= 32'd0;
-            rx_crc_err_cnt_sys <= 32'd0;
-            rx_last_crc_sys    <= 32'd0;
-            rx_last_bytes_sys  <= 16'd0;
+            rx_ready_sync1   <= 1'b0;
+            rx_ready_sync2   <= 1'b0;
+            rx_len_sync      <= 16'd0;
+            rx_crc_err_sync1 <= 1'b0;
+            rx_crc_err_sync2 <= 1'b0;
         end else begin
-            rx_ready_sync1     <= rx_ready_rx_clk;
-            rx_ready_sync2     <= rx_ready_sync1;
+            rx_ready_sync1   <= rx_ready_rx_clk;
+            rx_ready_sync2   <= rx_ready_sync1;
             if (rx_ready_sync1) rx_len_sync <= rx_len_rx_clk;
-            rx_crc_err_sync1   <= rx_crc_err_rx_clk;
-            rx_crc_err_sync2   <= rx_crc_err_sync1;
-            rxc_tick_cnt_sys   <= rxc_tick_cnt;
-            rxctl_edge_cnt_sys <= rxctl_edge_cnt;
-            rx_sfd_cnt_sys     <= rx_sfd_cnt;
-            rx_crc_err_cnt_sys <= rx_crc_err_cnt;
-            rx_last_crc_sys    <= rx_last_crc;
-            rx_last_bytes_sys  <= rx_last_bytes;
+            rx_crc_err_sync1 <= rx_crc_err_rx_clk;
+            rx_crc_err_sync2 <= rx_crc_err_sync1;
         end
     end
 
     // Pulse synchronizers for tx_start and rx_ack (sys_clk -> tx_clk / rx_clk)
     logic tx_start_toggle_sys;
     logic rx_ack_toggle_sys;
+
+    // RX diagnostics: raw sample capture + counters (read-only for debug, own logic)
+    (* ram_style = "logic" *) logic [9:0] cap_mem [0:255];
+    logic        cap_arm_reg;
+    logic [7:0]  cap_idx;
+    logic [1:0]  cap_arm_rxs = 2'b00;
+    logic [7:0]  cap_wr = 8'd0;
+    logic        cap_run = 1'b0;
+    logic        cap_done_rx = 1'b0;
+    logic [1:0]  cap_done_sys;
+    logic [9:0]  cap_rdata_reg;
+    logic [4:0]  neg_s;
+    logic [15:0] rxc_cnt = 16'd0;
+    logic [15:0] rxctl_edge_cnt = 16'd0;
+    logic [15:0] sfd_cnt = 16'd0;
+    logic [15:0] frames_ended_cnt = 16'd0;
+    logic [31:0] rx_last_crc = 32'd0;
+    logic [15:0] rx_last_bytes = 16'd0;
+    logic        rxctl_prev = 1'b0;
+    logic [2:0]  rx_state_prev = 3'd0;
 
     // =========================================================================
     // Dual-Port Packet Buffers (BRAM)
@@ -206,13 +193,14 @@ module eth_mac_100m (
             rx_ack_reg          <= 1'b0;
             promisc_reg         <= 1'b0;
             loopback_reg        <= 1'b0;
-            rx_clk_inv_reg      <= 1'b0; // default 0: negedge sampling (+20ns center eye in 100M mode)
             tx_len_reg          <= 16'd60; // Minimum valid ethernet frame
             our_mac_reg         <= 48'h00_12_34_56_78_9A; // Default MAC
             tx_start_toggle_sys <= 1'b0;
             rx_ack_toggle_sys   <= 1'b0;
             tx_frame_cnt        <= 32'd0;
             rx_frame_cnt        <= 32'd0;
+            cap_arm_reg         <= 1'b0;
+            cap_idx             <= 8'd0;
         end else begin
             // Increment frame counters
             if (tx_busy_sync1 && !tx_busy_sync2) begin
@@ -233,13 +221,14 @@ module eth_mac_100m (
                             if (apb_pwdata[1]) begin // RX_ACK
                                 rx_ack_toggle_sys <= ~rx_ack_toggle_sys;
                             end
-                            promisc_reg    <= apb_pwdata[2];
-                            loopback_reg   <= apb_pwdata[3];
-                            rx_clk_inv_reg <= apb_pwdata[4];
+                            promisc_reg  <= apb_pwdata[2];
+                            loopback_reg <= apb_pwdata[3];
                         end
                         5'h02: tx_len_reg          <= apb_pwdata[15:0]; // 0x08: ETH_TX_LEN
                         5'h04: our_mac_reg[31:0]   <= apb_pwdata;       // 0x10: ETH_MAC_LO
                         5'h05: our_mac_reg[47:32]  <= apb_pwdata[15:0]; // 0x14: ETH_MAC_HI
+                        5'h08: cap_arm_reg         <= apb_pwdata[0];    // 0x20: capture arm
+                        5'h09: cap_idx             <= apb_pwdata[7:0];  // 0x24: capture read index
                         default: ;
                     endcase
                 end else if (is_tx_ram) begin
@@ -249,19 +238,11 @@ module eth_mac_100m (
         end
     end
 
-    // Register BRAM read data on sys_clk to meet setup timing on 50 MHz clock
-    logic [31:0] tx_ram_rdata_reg;
-    logic [31:0] rx_ram_rdata_reg;
-    always_ff @(posedge sys_clk) begin
-        tx_ram_rdata_reg <= tx_buffer[tx_ram_word_addr];
-        rx_ram_rdata_reg <= rx_buffer[rx_ram_word_addr];
-    end
-
     // APB3 Read Handling
     always_comb begin
         if (is_reg_access) begin
             case (apb_paddr[6:2])
-                5'h00: apb_prdata = {27'd0, rx_clk_inv_reg, loopback_reg, promisc_reg, 1'b0, 1'b0};
+                5'h00: apb_prdata = {28'd0, loopback_reg, promisc_reg, 1'b0, 1'b0};
                 5'h01: apb_prdata = {rx_len_sync, 12'd0, rx_crc_err_sync2, phy_link_up, rx_ready_sync2, tx_busy_sync2};
                 5'h02: apb_prdata = {16'd0, tx_len_reg};
                 5'h03: apb_prdata = {16'd0, rx_len_sync};
@@ -269,19 +250,18 @@ module eth_mac_100m (
                 5'h05: apb_prdata = {16'd0, our_mac_reg[47:32]};
                 5'h06: apb_prdata = tx_frame_cnt;
                 5'h07: apb_prdata = rx_frame_cnt;
-                5'h08: apb_prdata = rxc_tick_cnt_sys;          // 0x20: RX clock tick counter
-                5'h09: apb_prdata = rxctl_edge_cnt_sys;        // 0x24: RXCTL rising edge counter
-                5'h0A: apb_prdata = rx_sfd_cnt_sys;            // 0x28: SFD detector hit counter
-                5'h0B: apb_prdata = rx_crc_err_cnt_sys;        // 0x2C: Bad CRC / runt counter
-                5'h0C: apb_prdata = rx_last_crc_sys;           // 0x30: Last frame CRC residual
-                5'h0D: apb_prdata = {16'd0, rx_last_bytes_sys};// 0x34: Last frame raw byte length
-                5'h0E: apb_prdata = {23'd0, rx_clk_inv_reg, rx_state[2:0], rgmii_rxctl, rgmii_rxd[3:0]}; // 0x38: Live status
+                5'h08: apb_prdata = {30'd0, cap_done_sys[1], cap_arm_reg};      // 0x20
+                5'h09: apb_prdata = {22'd0, cap_rdata_reg};                     // 0x24: sample[cap_idx]
+                5'h0A: apb_prdata = {rxc_cnt, rxctl_edge_cnt};                  // 0x28
+                5'h0B: apb_prdata = {sfd_cnt, frames_ended_cnt};                // 0x2C
+                5'h0C: apb_prdata = rx_last_crc;                                // 0x30
+                5'h0D: apb_prdata = {16'd0, rx_last_bytes};                     // 0x34
                 default: apb_prdata = 32'h00000000;
             endcase
         end else if (is_tx_ram) begin
-            apb_prdata = tx_ram_rdata_reg;
+            apb_prdata = tx_buffer[tx_ram_word_addr];
         end else if (is_rx_ram) begin
-            apb_prdata = rx_ram_rdata_reg;
+            apb_prdata = rx_buffer[rx_ram_word_addr];
         end else begin
             apb_prdata = 32'h00000000;
         end
@@ -508,8 +488,8 @@ module eth_mac_100m (
     logic        rx_word_wr_en;
     logic [8:0]  rx_wr_word_addr;
 
-    // Sample inputs on rx_sampling_clk (default center eye with PHY RXDLY enabled):
-    always_ff @(posedge rx_sampling_clk or negedge sys_rst_n) begin
+    // Sample inputs on RISING edge of rgmii_rxc (with PHY RXDLY enabled):
+    always_ff @(posedge rgmii_rxc or negedge sys_rst_n) begin
         if (!sys_rst_n) begin
             rx_state          <= RX_IDLE;
             rx_ready_rx_clk   <= 1'b0;
@@ -521,20 +501,8 @@ module eth_mac_100m (
             rx_word_wr_en     <= 1'b0;
             rx_wr_word_addr   <= 9'd0;
             rx_word_buf       <= 32'd0;
-            rxc_tick_cnt      <= 32'd0;
-            rxctl_edge_cnt    <= 32'd0;
-            rx_sfd_cnt        <= 32'd0;
-            rx_crc_err_cnt    <= 32'd0;
-            rx_last_crc       <= 32'd0;
-            rx_last_bytes     <= 16'd0;
-            rxctl_prev        <= 1'b0;
         end else begin
             rx_word_wr_en <= 1'b0;
-            rxc_tick_cnt  <= rxc_tick_cnt + 1'b1;
-            rxctl_prev    <= rgmii_rxctl;
-            if (rgmii_rxctl && !rxctl_prev) begin
-                rxctl_edge_cnt <= rxctl_edge_cnt + 1'b1;
-            end
 
             // Handle ACK from software
             if (rx_ack_pulse) begin
@@ -555,7 +523,6 @@ module eth_mac_100m (
                     if (!rgmii_rxctl) begin
                         rx_state <= RX_IDLE;
                     end else if (rgmii_rxd == 4'hD) begin // Found SFD high nibble (0xD5)
-                        rx_sfd_cnt      <= rx_sfd_cnt + 1'b1;
                         rx_nibble_phase <= 1'b0; // Next nibble is first data byte low nibble
                         rx_byte_idx     <= 16'd0;
                         rx_crc          <= 32'hFFFFFFFF;
@@ -566,25 +533,17 @@ module eth_mac_100m (
 
                 RX_DATA: begin
                     if (!rgmii_rxctl) begin
-                        // Frame ended! Flush partial word if unaligned
-                        if (rx_byte_idx[1:0] != 2'b00) begin
-                            rx_buffer[rx_byte_idx[10:2]] <= rx_word_buf;
-                        end
-
-                        rx_last_crc   <= rx_crc;
-                        rx_last_bytes <= rx_byte_idx;
-
-                        // Accept if minimum valid length (42-byte ARP + 4-byte FCS = 46) AND (CRC OK or PROMISC)
-                        if (rx_byte_idx >= 16'd46 && (promisc_reg || (rx_crc == 32'hDEBB20E3))) begin
-                            // CRC is VALID (IEEE 802.3 residual for ~FCS is 0xDEBB20E3) or PROMISC enabled
+                        // Frame ended!
+                        if (rx_byte_idx >= 16'd64 && rx_crc == 32'hDEBB20E3) begin
+                            // CRC is VALID (IEEE 802.3 residual for ~FCS is 0xDEBB20E3)
+                            // Or if CRC matches FCS
                             if (!rx_ready_rx_clk) begin // Don't overwrite if unread
                                 rx_ready_rx_clk   <= 1'b1;
-                                rx_len_rx_clk     <= (rx_byte_idx >= 16'd4) ? (rx_byte_idx - 16'd4) : rx_byte_idx;
+                                rx_len_rx_clk     <= rx_byte_idx - 16'd4; // Payload length without FCS
                                 rx_crc_err_rx_clk <= 1'b0;
                             end
                         end else begin
                             rx_crc_err_rx_clk <= 1'b1;
-                            rx_crc_err_cnt    <= rx_crc_err_cnt + 1'b1;
                         end
                         rx_state <= RX_IDLE;
                     end else begin
@@ -624,6 +583,43 @@ module eth_mac_100m (
                 rx_buffer[rx_wr_word_addr] <= rx_word_buf;
             end
         end
+    end
+
+    // =========================================================================
+    // RX diagnostics (does not touch the RX engine above)
+    // Sample word = {neg_ctl, neg_d[3:0], pos_ctl, pos_d[3:0]}: the falling-edge
+    // sample half a clock before the rising-edge sample.
+    // =========================================================================
+    always_ff @(negedge rgmii_rxc) neg_s <= {rgmii_rxctl, rgmii_rxd};
+
+    always_ff @(posedge rgmii_rxc) begin
+        cap_arm_rxs   <= {cap_arm_rxs[0], cap_arm_reg};
+        rxc_cnt       <= rxc_cnt + 1'b1;
+        rxctl_prev    <= rgmii_rxctl;
+        rx_state_prev <= rx_state;
+        if (rgmii_rxctl && !rxctl_prev) rxctl_edge_cnt <= rxctl_edge_cnt + 1'b1;
+        if (rx_state == RX_SFD_HUNT && rgmii_rxctl && rgmii_rxd == 4'hD) sfd_cnt <= sfd_cnt + 1'b1;
+        if (rx_state_prev == RX_DATA && rx_state == RX_IDLE) begin
+            frames_ended_cnt <= frames_ended_cnt + 1'b1;
+            rx_last_crc      <= rx_crc;
+            rx_last_bytes    <= rx_byte_idx;
+        end
+
+        if (!cap_arm_rxs[1]) begin
+            cap_wr      <= 8'd0;
+            cap_run     <= 1'b0;
+            cap_done_rx <= 1'b0;
+        end else if (!cap_done_rx && (cap_run || rgmii_rxctl)) begin
+            cap_run          <= 1'b1;
+            cap_mem[cap_wr]  <= {neg_s, rgmii_rxctl, rgmii_rxd};
+            cap_wr           <= cap_wr + 1'b1;
+            if (cap_wr == 8'd255) cap_done_rx <= 1'b1;
+        end
+    end
+
+    always_ff @(posedge sys_clk) begin
+        cap_done_sys  <= {cap_done_sys[0], cap_done_rx};
+        cap_rdata_reg <= cap_mem[cap_idx];
     end
 
     // Ethernet Activity LED

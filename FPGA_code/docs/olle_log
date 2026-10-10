@@ -13,6 +13,8 @@ Device ID read from JTAG: 0x00220A79
 [+] Programming SUCCESSFUL!
 olle@olle-SSD-256:~/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4$ 
 
+bash scripts/build_t120_fpga.sh
+
 python3 FPGA_code/scripts/program_t120.py
 
 ping 192.168.1.10

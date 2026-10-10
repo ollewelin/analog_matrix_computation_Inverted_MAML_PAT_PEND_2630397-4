@@ -34,7 +34,7 @@ When diagnosing or verifying the target board, ALWAYS follow this 4-tier decisio
 +------------------------------------------------------------------+
 |  Priority 3: Physical LED Observation (User Query)              |
 |  - Ask user about LED status:                                    |
-|    * LED1 = Hardware 50 MHz PLL clock heart (always blinks).     |
+|    * LED1 = T20 CRESET_N patch wire (high = T20 released; no blink)|
 |    * LED2 = Firmware-driven GPIO (landmark pulse count or 500ms).|
 +------------------------------------------------------------------+
                                | (Only as an absolute last resort)
@@ -127,8 +127,7 @@ The firmware embeds landmark print calls (`dbg_print()`) at each critical initia
 ## 4. Priority 3: Physical LED Observation
 
 If UART sniffing is silent or not yet connected:
-- **T120_LED1:** Driven by HDL hardware counter off `pll_clk_50Mhz` (2 Hz blink).
-  - Confirms FPGA configuration bitstream is loaded and PLL is active.
+- **T120_LED1:** Heartbeat removed. The pin is the patch wire to T20 `CRESET_N` (high = T20 released, low = T20 held in reset).
 - **T120_LED2:** Driven by Sapphire SoC `gpio_out[0]` (`0xF800D004`).
   - Pulses corresponding to stage number during boot, then toggles at 500 ms in the main loop.
 - **Rule:** Ask the user specifically about LED2 blink count or steady state only when UART telemetries are missing.

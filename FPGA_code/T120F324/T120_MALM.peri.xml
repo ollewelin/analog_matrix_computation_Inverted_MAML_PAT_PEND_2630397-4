@@ -78,22 +78,22 @@
             <efxpt:input_config name="F2_RXD3" name_ddio_lo="" conn_type="normal" is_register="false" clock_name="" is_clock_inverted="false" pull_option="none" is_schmitt_trigger="false" ddio_type="none"/>
         </efxpt:gpio>
         <efxpt:gpio name="F2_TXC" gpio_def="GPIOL_17" mode="output" bus_name="" is_lvds_gpio="false" io_standard="3.3 V LVTTL / LVCMOS">
-            <efxpt:output_config name="F2_TXC_HI" name_ddio_lo="F2_TXC_LO" register_option="register" clock_name="PLL_125MHZ_90DEG" is_clock_inverted="true" is_slew_rate="false" tied_option="none" ddio_type="resync" drive_strength="1"/>
+            <efxpt:output_config name="F2_TXC" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
         </efxpt:gpio>
         <efxpt:gpio name="F2_TXCTL" gpio_def="GPIOL_15" mode="output" bus_name="" is_lvds_gpio="false" io_standard="3.3 V LVTTL / LVCMOS">
-            <efxpt:output_config name="F2_TXCTL" name_ddio_lo="" register_option="register" clock_name="PLL_125MHZ" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
+            <efxpt:output_config name="F2_TXCTL" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
         </efxpt:gpio>
         <efxpt:gpio name="F2_TXD0" gpio_def="GPIOL_18" mode="output" bus_name="" is_lvds_gpio="false" io_standard="3.3 V LVTTL / LVCMOS">
-            <efxpt:output_config name="F2_TXD0_HI" name_ddio_lo="F2_TXD0_LO" register_option="register" clock_name="PLL_125MHZ" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="resync" drive_strength="1"/>
+            <efxpt:output_config name="F2_TXD0" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
         </efxpt:gpio>
         <efxpt:gpio name="F2_TXD1" gpio_def="GPIOL_20" mode="output" bus_name="" is_lvds_gpio="false" io_standard="3.3 V LVTTL / LVCMOS">
-            <efxpt:output_config name="F2_TXD1_HI" name_ddio_lo="F2_TXD1_LO" register_option="register" clock_name="PLL_125MHZ" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="resync" drive_strength="1"/>
+            <efxpt:output_config name="F2_TXD1" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
         </efxpt:gpio>
         <efxpt:gpio name="F2_TXD2" gpio_def="GPIOL_22" mode="output" bus_name="" is_lvds_gpio="false" io_standard="3.3 V LVTTL / LVCMOS">
-            <efxpt:output_config name="F2_TXD2_HI" name_ddio_lo="F2_TXD2_LO" register_option="register" clock_name="PLL_125MHZ" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="resync" drive_strength="1"/>
+            <efxpt:output_config name="F2_TXD2" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
         </efxpt:gpio>
         <efxpt:gpio name="F2_TXD3" gpio_def="GPIOL_24" mode="output" bus_name="" is_lvds_gpio="false" io_standard="3.3 V LVTTL / LVCMOS">
-            <efxpt:output_config name="F2_TXD3_HI" name_ddio_lo="F2_TXD3_LO" register_option="register" clock_name="PLL_125MHZ" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="resync" drive_strength="1"/>
+            <efxpt:output_config name="F2_TXD3" name_ddio_lo="" register_option="none" clock_name="" is_clock_inverted="false" is_slew_rate="false" tied_option="none" ddio_type="none" drive_strength="1"/>
         </efxpt:gpio>
         <efxpt:gpio name="OUT1_ADC_45" gpio_def="GPIOR_173" mode="input" bus_name="" is_lvds_gpio="false" io_standard="3.3 V LVTTL / LVCMOS">
             <efxpt:input_config name="OUT1_ADC_45" name_ddio_lo="" conn_type="normal" is_register="false" clock_name="" is_clock_inverted="false" pull_option="none" is_schmitt_trigger="false" ddio_type="none"/>
