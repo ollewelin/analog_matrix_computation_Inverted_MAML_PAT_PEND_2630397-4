@@ -10,7 +10,7 @@ import os
 import subprocess
 import time
 
-BASE_DIR = "/home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 EFINITY_HOME = "/home/olle/efinix2/efinity-2025.2.288.2.10-linux-x64/efinity/2025.2"
 TOOLCHAIN = "/home/olle/efinity/efinity-riscv-ide-2025.1/toolchain/bin"
 SW_DIR = os.path.join(BASE_DIR, "FPGA_code/sw/t120_master")

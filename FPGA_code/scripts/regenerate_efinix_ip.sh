@@ -65,7 +65,10 @@ with open(setting_file) as f:
 backend = IPManagerBackend.singleton()
 backend.init()
 
-out_dir = ip_dir.parent
+out_dir = project_dir
+
+# Backup settings.json content because upgrade_ip might overwrite or move it
+settings_backup = setting_file.read_text()
 
 print(f"[*] Calling Efinity IP Manager backend...")
 res = backend.upgrade_ip(
@@ -78,6 +81,10 @@ res = backend.upgrade_ip(
     project_xml_path=str(project_dir / 'T120_MALM.xml'),
     peri_xml_file_path=str(project_dir / 'T120_MALM.peri.xml')
 )
+
+# Ensure settings.json is preserved
+if not setting_file.exists():
+    setting_file.write_text(settings_backup)
 
 target_v = ip_dir / 'RISC_mini.v'
 if target_v.exists():

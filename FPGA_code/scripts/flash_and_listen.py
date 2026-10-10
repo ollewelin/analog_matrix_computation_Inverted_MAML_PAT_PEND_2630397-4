@@ -8,7 +8,7 @@ import time
 import subprocess
 import termios
 
-BASE_DIR = "/home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEV = "/dev/ttyACM0"
 
 def configure_port(port):

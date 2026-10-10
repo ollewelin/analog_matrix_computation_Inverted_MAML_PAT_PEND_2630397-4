@@ -63,6 +63,14 @@ IMPORTANT fix to get JTAG working.
 4. 2026-10-07: Bug at Centertap 0-ohm to GND there should be 10nF to GND Eth Phy magnetics
 ![](LED_test1.jpeg)
 
+### Regenerate FPGA code with AI agent example (one promt)
+Install the Efinix software tool localy on you computer
+VS code and AI agent support
+![](regerate_SoC_and_Ethernet_IP.png)
+
+### Example timing report (125Mhz requirment passed)
+![](Timing_report_T120_Soc_Eth.png)
+
 
     
     

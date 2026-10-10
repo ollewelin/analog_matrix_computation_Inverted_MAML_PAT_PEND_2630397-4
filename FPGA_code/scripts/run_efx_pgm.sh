@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
-BASE_DIR="/home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 export EFINITY_HOME="/home/olle/efinix2/efinity-2025.2.288.2.10-linux-x64/efinity/2025.2"
 
 cd "$BASE_DIR/FPGA_code/T120F324"
