@@ -1,0 +1,12 @@
+**** Efinity Programming Tool Generation Report *****
+Time: 2026-10-10 23:16
+
+Generated Multi Image output file: FPGA_code/T20_multi_image.hex
+Device: T20F256
+Image type: internal
+CBSEL[1:0]  Flash Address  Length      Input Image File
+     2'b00  0x00000000     0x000a5afa  FPGA_code/T20_Golden/outflow/T20F256.hex
+     2'b01  0x000a6000     0x000a5afa  FPGA_code/T20_Custom/outflow/T20F256.hex
+     2'b10  0x0014c000     0x00000000  <blank>
+     2'b11  0x0014c000     0x00000000  <blank>
+

@@ -366,6 +366,15 @@ static int t20_ping_sbus(char *info_out, uint32_t max_len) {
 // Send CMD_JUMP to T20 over S-bus (Channel 0x01, Opcode 0x02)
 // target_cbsel: 0 = Golden Image, 1 = Application Image 1
 static int t20_jump_sbus(uint8_t target_cbsel, char *info_out, size_t max_len) {
+    T20_REG(T20_CLK_PERIOD) = 25;       // 2 MHz bus clock (CLK9)
+    T20_REG(T20_CTRL)       = 1;        // Enable CLK9 continuously
+    T20_REG(T20_CRESET_CTRL) = 1;       // Ensure T20 CRESET_N is released (HIGH)
+    T20_REG(T20_S_TIMEOUT_US) = 50000;  // 50 ms timeout
+
+    // Clear previous status
+    T20_REG(T20_S_CTRL) = (1 << 2);
+    bsp_uDelay(500);
+
     // Write 1-byte payload into TX buffer (target image index)
     *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_S_TX_BUF + 0) = (uint32_t)target_cbsel;
 
@@ -388,19 +397,28 @@ static int t20_jump_sbus(uint8_t target_cbsel, char *info_out, size_t max_len) {
     // Release RX buffer
     T20_REG(T20_S_CTRL) = (1 << 1);
 
+    if (!info_out || max_len == 0) return 0;
+    info_out[0] = '\0';
+
     if ((st & T20_S_ST_RX_VALID) && resp == T20_RESP_ACK) {
-        if (info_out && max_len > 40) {
-            strcpy(info_out, "T20 CMD_JUMP ACK (0x06)! Target CBSEL=");
-            char c = (char)('0' + target_cbsel);
-            char tmp[3] = {c, '\0', '\0'};
-            strcat(info_out, tmp);
-        }
+        strcpy(info_out, "T20 CMD_JUMP ACK (0x06)! Target CBSEL=");
+        char c = (char)('0' + target_cbsel);
+        char tmp[2] = {c, '\0'};
+        strcat(info_out, tmp);
         return 1;
     }
 
-    if (info_out && max_len > 40) {
-        strcpy(info_out, "T20 CMD_JUMP NAK/TIMEOUT");
-    }
+    strcpy(info_out, "JUMP RESP=");
+    const char h[] = "0123456789ABCDEF";
+    char buf[64];
+    buf[0] = '0'; buf[1] = 'x';
+    buf[2] = h[(resp >> 4) & 0xF]; buf[3] = h[resp & 0xF];
+    buf[4] = ' '; buf[5] = 'S'; buf[6] = 'T'; buf[7] = '='; buf[8] = '0'; buf[9] = 'x';
+    for (int i = 7; i >= 0; i--) buf[10 + (7 - i)] = h[(st >> (i * 4)) & 0xF];
+    buf[18] = ' '; buf[19] = 'H'; buf[20] = 'D'; buf[21] = 'R'; buf[22] = '='; buf[23] = '0'; buf[24] = 'x';
+    for (int i = 7; i >= 0; i--) buf[25 + (7 - i)] = h[(rx_hdr >> (i * 4)) & 0xF];
+    buf[33] = '\0';
+    strcat(info_out, buf);
     return 0;
 }
 
