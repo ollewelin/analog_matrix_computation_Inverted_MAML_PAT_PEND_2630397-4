@@ -9,8 +9,8 @@ FPGA_code/docs/efinix_datasheets/
 **/work_pt/
 **/*.bin
 **/*.bak*
-FPGA_code/T120F324/RUNPNR_*
-FPGA_code/ref_staging/
+**/FPGA_code/T120F324/RUNPNR_*
+**/FPGA_code/ref_staging/
 
 # Efinity IP Manager auto-generated devkits and testbenches
 **/ip/**/Testbench/
