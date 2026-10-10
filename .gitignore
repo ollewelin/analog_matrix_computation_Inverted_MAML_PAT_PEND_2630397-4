@@ -1,4 +1,5 @@
 .vscode/
+FPGA_code/T120F324/.lock
 FPGA_code/docs/efinix_datasheets/
 
 # Efinity build & intermediate artifacts
