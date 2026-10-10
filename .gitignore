@@ -35,7 +35,6 @@ FPGA_code/T120F324/ip/RISC_mini/RISC_mini_define.vh
 **/build/
 **/*.o
 **/*.elf
-**/*.hex
 **/*.asm
 **/*.map
 
