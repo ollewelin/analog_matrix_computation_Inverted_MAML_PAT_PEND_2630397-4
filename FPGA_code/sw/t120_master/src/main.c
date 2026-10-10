@@ -363,6 +363,47 @@ static int t20_ping_sbus(char *info_out, uint32_t max_len) {
     return 0;
 }
 
+// Send CMD_JUMP to T20 over S-bus (Channel 0x01, Opcode 0x02)
+// target_cbsel: 0 = Golden Image, 1 = Application Image 1
+static int t20_jump_sbus(uint8_t target_cbsel, char *info_out, size_t max_len) {
+    // Write 1-byte payload into TX buffer (target image index)
+    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_S_TX_BUF + 0) = (uint32_t)target_cbsel;
+
+    // TX Header: Channel = 0x01 (Flash/Reconfig), Opcode = 0x02 (JUMP), Length = 1
+    T20_REG(T20_S_TX_HDR) = (0x01u << 24) | (0x02u << 16) | 0x0001u;
+
+    // Start transaction
+    T20_REG(T20_S_CTRL) = (1 << 0);
+
+    int waited_ms = 0;
+    while ((T20_REG(T20_S_STATUS) & T20_S_ST_XACT_BUSY) && waited_ms < 60) {
+        bsp_uDelay(1000);
+        waited_ms++;
+    }
+
+    uint32_t st = T20_REG(T20_S_STATUS);
+    uint32_t rx_hdr = T20_REG(T20_S_RX_HDR);
+    uint8_t resp = (uint8_t)(rx_hdr >> 24);
+
+    // Release RX buffer
+    T20_REG(T20_S_CTRL) = (1 << 1);
+
+    if ((st & T20_S_ST_RX_VALID) && resp == T20_RESP_ACK) {
+        if (info_out && max_len > 40) {
+            strcpy(info_out, "T20 CMD_JUMP ACK (0x06)! Target CBSEL=");
+            char c = (char)('0' + target_cbsel);
+            char tmp[3] = {c, '\0', '\0'};
+            strcat(info_out, tmp);
+        }
+        return 1;
+    }
+
+    if (info_out && max_len > 40) {
+        strcpy(info_out, "T20 CMD_JUMP NAK/TIMEOUT");
+    }
+    return 0;
+}
+
 // =============================================================================
 // ARP and ICMP Echo (Ping) Protocol Handler
 // =============================================================================
@@ -484,11 +525,21 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
                     T20_REG(T20_CRESET_US)   = 2000000;
                     T20_REG(T20_CRESET_CTRL) = (1 << 1); // trigger pulse
                     strcpy(ver_msg, "T20_CRESET_N 2-SECOND PULSE TRIGGERED!\r\n");
+                } else if (pay_len >= 8 && memcmp(payload, "JUMP_APP", 8) == 0) {
+                    char jmp_res[80];
+                    t20_jump_sbus(1, jmp_res, sizeof(jmp_res));
+                    strcpy(ver_msg, jmp_res);
+                    strcat(ver_msg, "\r\n");
+                } else if (pay_len >= 11 && memcmp(payload, "JUMP_GOLDEN", 11) == 0) {
+                    char jmp_res[80];
+                    t20_jump_sbus(0, jmp_res, sizeof(jmp_res));
+                    strcpy(ver_msg, jmp_res);
+                    strcat(ver_msg, "\r\n");
                 } else {
                     char t20_status_str[96];
                     t20_ping_sbus(t20_status_str, sizeof(t20_status_str));
 
-                    strcpy(ver_msg, "T120_SOC_ETH_FW v1.3 (Build 2026-10-10)\r\nStatus: ");
+                    strcpy(ver_msg, "T120_SOC_ETH_FW v1.4 (Build 2026-10-10)\r\nStatus: ");
                     strcat(ver_msg, t20_status_str);
                     strcat(ver_msg, "\r\n");
                 }

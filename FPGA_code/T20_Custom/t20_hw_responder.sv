@@ -87,7 +87,7 @@ module t20_hw_responder #(
                 tx_len   <= 11'd0;
 
                 if (rx_ch == 8'h04 && op == 4'h0) begin
-                    rsp[0] <= "T"; rsp[1] <= "2"; rsp[2] <= "0"; rsp[3] <= "G";
+                    rsp[0] <= "T"; rsp[1] <= "2"; rsp[2] <= "0"; rsp[3] <= "A";
                     rsp[4] <= 8'h01; rsp[5] <= {6'd0, static_on, HAS_SOC[0]};
                     rsp[6] <= h_word_cnt[15:8]; rsp[7] <= h_word_cnt[7:0];
                     rsp[8] <= h_sync_err[15:8]; rsp[9] <= h_sync_err[7:0];

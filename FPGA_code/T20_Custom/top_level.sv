@@ -362,14 +362,18 @@ module top_level (
         hb_cnt <= hb_cnt + 26'd1;
     end
 
-    assign T20_LED1 = hb_cnt[24];              // Golden Image Heartbeat (~1.5 Hz)
-    assign T20_LED2 = ~hb_cnt[24];             // Golden Image Counter-phase (LED1=HIGH -> LED2=LOW)
-    assign T20_LED3 = TX11_T20_P1;             // H_SYNC pulses
-    assign T20_LED4 = h_ack;                   // H_ACK pulse
+    // LED assignments for Custom Application:
+    // LED8: Blink/heartbeat from 50 MHz oscillator (~1.5 Hz)
+    // LED7: Traffic/activity from T20_CLK9 bus clock
+    // LED6: Active traffic on H-bus (TX11_T20_P1 sync / h_ack)
+    assign T20_LED8 = hb_cnt[24];              // Heartbeat from 50 MHz clock
+    assign T20_LED7 = T20_CLK9;                // Traffic / bus clock indicator from T20_CLK9
+    assign T20_LED6 = TX11_T20_P1 | h_ack;     // H-bus active traffic indicator
     assign T20_LED5 = s_rx_frame_ok;           // S-bus RX frame received
-    assign T20_LED6 = s_tx_busy;               // S-bus TX active
-    assign T20_LED7 = |h_word_cnt;             // H words have been applied
-    assign T20_LED8 = |s_crc_err_cnt;          // CRC error indicator
+    assign T20_LED4 = s_tx_busy;               // S-bus TX active
+    assign T20_LED3 = |h_word_cnt;             // H words applied
+    assign T20_LED2 = 1'b0;                    // Off (distinguishes Custom from Golden Image)
+    assign T20_LED1 = 1'b0;                    // Off / spare
 
     // Peripheral tie-offs
     assign COMP_LED_ON  = 1'b0;
