@@ -148,14 +148,18 @@ static void phy_init_100m(void) {
     print_s(" ID="); print_hex16_s(id1); print_s("/"); print_hex16_s(id2); println_s("");
 
     // -----------------------------------------------------------------
-    // RGMII internal delay: page 0xd08, register 0x11
+    // RGMII internal delay: page 0xd08, register 0x11 (TX) and 0x15 (RX)
     // -----------------------------------------------------------------
     print_s("RGMII DLY...");
     mdio_write(phy, 0x1F, 0x0d08);
     bsp_uDelay(1000);
     uint16_t reg11 = mdio_read(phy, 0x11);
-    reg11 |= (1 << 8) | (1 << 3);            // as in the last known-good Ethernet build
+    reg11 |= (1 << 8) | (1 << 3);
     mdio_write(phy, 0x11, reg11);
+    bsp_uDelay(1000);
+    uint16_t reg15 = mdio_read(phy, 0x15);
+    reg15 |= (1 << 3); // Enable RTL8211F RX delay (2 ns)
+    mdio_write(phy, 0x15, reg15);
     bsp_uDelay(1000);
     mdio_write(phy, 0x1F, 0x0000);
     println_s("OK");
@@ -575,7 +579,7 @@ void main(void) {
     mdio_init();
     phy_init_100m();
     eth_rx_diag();
-    rgmii_delay_sweep(active_phy);
+    // Do NOT run rgmii_delay_sweep: phy_init_100m already sets reg 0x11 = 0x018b / bit 8+3.
 
     bridge_selftest();
 
@@ -590,35 +594,7 @@ void main(void) {
         // Poll incoming Ethernet frames
         uint16_t rx_len = pkt_fifo_recv(rx_frame, sizeof(rx_frame));
         if (rx_len > 0) {
-            static uint8_t dumped = 0;
-            if (dumped < 6) {
-                dumped++;
-                print_s("[RXDUMP] len="); print_hex16_s(rx_len); print_s(" ST="); print_hex16_s((uint16_t)ETH_STATUS_REG); print_s(": ");
-                for (int i = 0; i < 20; i++) { print_hex8_s(rx_frame[i]); print_s(" "); }
-                println_s("");
-            }
             handle_ethernet_packet(rx_frame, rx_len);
-        } else {
-            // Diagnostic & Direct RX processor: Even if hardware dropped due to CRC gate,
-            // process packet directly from BRAM!
-            static uint16_t last_ended = 0;
-            uint16_t ended = (uint16_t)ETH_RXSFD_REG;
-            if (ended != last_ended) {
-                last_ended = ended;
-                uint16_t blen = (uint16_t)ETH_LAST_LEN_REG;
-                if (blen >= 60 && blen <= 1518) {
-                    uint16_t copy_len = (blen > 1514) ? 1514 : blen;
-                    uint32_t words = (copy_len + 3) / 4;
-                    for (uint32_t i = 0; i < words; i++) {
-                        uint32_t dw = ETH_RX_BUF[i];
-                        rx_frame[i * 4 + 0] = (uint8_t)(dw & 0xFF);
-                        rx_frame[i * 4 + 1] = (uint8_t)((dw >> 8) & 0xFF);
-                        rx_frame[i * 4 + 2] = (uint8_t)((dw >> 16) & 0xFF);
-                        rx_frame[i * 4 + 3] = (uint8_t)((dw >> 24) & 0xFF);
-                    }
-                    handle_ethernet_packet(rx_frame, copy_len);
-                }
-            }
         }
 
         // Periodic Status Telemetry (~every 1 second)

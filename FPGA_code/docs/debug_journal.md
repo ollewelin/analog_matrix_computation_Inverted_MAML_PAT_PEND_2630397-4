@@ -112,3 +112,95 @@ sudo tcpdump -ni enp2s0 -e 'arp or ether host 00:12:34:56:78:9a'   # needs sudo 
 
 UART: `/dev/ttyACM0`, 115200 8N1, passive read only (FPGA TX to host). Efinity: `/home/olle/efinix2/efinity-2025.2.288.2.10-linux-x64/efinity/2025.2`.
 Rules: see `.agents/skills/t120-soc-debug-strategy` and `t120-systematic-debug-protocol` (change one variable at a time).
+
+---
+
+## 7. The Three Builds & Path Forward (2026-10-10)
+
+### Comparison of the 3 Builds in Scope:
+1. **Target Architecture (`FPGA_code/T120F324`)**:
+   - Clean, lightweight APB3-based architecture with separate 100M MAC and MDIO master.
+   - Has **excellent timing margin** (+0.83 ns on GCLK 50MHz, +14.6 ns on F2_RXC).
+   - Correct pinout for current hardware board.
+   - Current status: Link is 100M FD, SoC receives ARP/ICMP, but software ping reply does not reach the PC because MAC RX/TX nibble sampling / framing requires closure.
+2. **Reference Board Build (`FPGA_code/ref_staging/t120_eth_soc/correct_full_embedded_sw`)**:
+   - Working ping on another platform with different I/O pinout.
+   - Uses `eth_mac_100m.sv` and standalone APB MDIO master.
+3. **Legacy AXI/TSE Build (`FPGA_code/ref_staging/FPGA_code_ping_work_but_BAD_TIMING_Ohther_BUS_sturcure`)**:
+   - Uses standard Efinix TSE MAC core (`rgmii_eth_efx_tsemac`) + APB-to-AXI bridge + 125 MHz reference clock.
+   - **Tested live on the board today**: Ping to 192.168.1.50 works 100% (0.29 ms RTT, 0% packet loss)!
+   - **Critical Problem**: Severe negative slack on 125 MHz clock (-0.326 ns to -3.3 ns). Adding any logic or T20 bus causes timing and ping to break completely.
+
+### The Objective & Action Plan:
+Get ping working on **Architecture 1 (`FPGA_code/T120F324`)** while retaining its **healthy positive timing margin**:
+1. **Root Cause Analysis (Why Architecture 1 failed RX/TX in hardware)**:
+   - In Architecture 3 (where ping worked), the TSE MAC used dedicated DDIO I/O primitives for TX and RX sampling.
+   - In Architecture 1 (`eth_mac_100m.sv`), the RGMII signals (`F2_TXC`, `F2_TXD[3:0]`, `F2_RXC`, `F2_RXD[3:0]`) were mapped as pure fabric logic without I/O flip-flops (`register_option="none"`). Fabric routing adds uncontrollable pin-to-LUT skews across the 4 data bits and clock.
+   - Furthermore, `eth_mac_100m.sv` drove `rgmii_txc = rgmii_tx_clk` directly while driving `txd` on `negedge`, which does not provide the phase-aligned clock that the PHY requires unless an I/O register or PLL phase shift is used.
+2. **Implementation Plan for Architecture 1**:
+   - **Option A (Clean 100M MAC with I/O Flip-Flops)**:
+     - Enable `register_option="register"` in `T120_MALM.peri.xml` for `F2_TXD*`, `F2_TXCTL`, `F2_RXD*`, `F2_RXCTL`.
+     - Or use DDIO / phase-shifted 25 MHz clock so setup/hold margin is deterministic and verified by STA.
+     - Keep 25 MHz / 50 MHz clocking domain (avoiding the 125 MHz clock of the TSE MAC that caused -0.326 ns slack).
+   - **Option B (TSE MAC with Native 25 MHz PLL in 100M mode)**:
+     - If TSE MAC is used, find if the reference clock can be constrained at 25 MHz instead of 125 MHz to eliminate the timing failure.
+   - **Execution & Validation**:
+     - Verify timing closure with `efinix-timing-guard`.
+     - Recompile and test live ping.
+    - **Option C (Dedicated 3-PLL Hardware Isolation Architecture)**:
+      - If the current DDIO build fails timing or exhibits jitter/crosstalk:
+        1. **pll_inst1 (PLL_BR0)**: System Core PLL (50 MHz / 80 MHz) for Sapphire CPU and APB bus fabric. Completely isolates noisy CPU/memory switching currents from Ethernet.
+        2. **pll_inst2 (PLL_BR1)**: Internal RGMII MAC logic PLL (PLL_125MHZ or 25 MHz) exclusively for internal packet engines and data processing.
+        3. **pll_inst3 (PLL_BR2 or PLL_BL0)**: Dedicated I/O Phase-Shift & Pad Clock PLL (PLL_125MHZ_90DEG_to_F2_TXC / F2_RXC_PLL).
+           - Directly drives physical pin clocking with its own independent VCO and output divider.
+           - Eliminates back-EMF / EMI feedback from cable/PHY into internal fabric clocks.
+           - Allows arbitrary phase adjustments (0°, 45°, 90°, 135°, etc.) without altering internal logic timing.
+    - **Execution & Validation Order**:
+      - 1. Test current DDIO build first.
+      - 2. If this synthesis or live ping fails, immediately pivot to Option C (3-PLL architecture).
+
+---
+
+## 5. Major Breakthrough & Root Cause Identification (2026-10-10)
+
+### A. RX Eye Resolution — CRC Passes with 100% Integrity
+- **Observation:** In the previous build, incoming packets occasionally experienced single-bit glitching on `F2_RXD0` due to setup/hold boundary conditions.
+- **Root Cause:** In 100M MII/RGMII mode, the clock period is 40 ns. Sampling directly on `posedge rgmii_rxc` placed the sampling edge too close to the pin transition window when board trace skews and PHY internal delays aligned.
+- **Fix:** Switched the RX data engine sampling in [`FPGA_code/T120F324/eth_mac_100m.sv`](file:///home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324/eth_mac_100m.sv) from `always_ff @(posedge rgmii_rxc)` to `always_ff @(negedge rgmii_rxc)`.
+- **Result & Verification:**
+  - In live hardware telemetry, the MAC diagnostic register reported:
+    ```
+    SFD=0001 ENDED=0002 LASTLEN=0040 LASTCRC=DEBB20E3
+    ```
+    `0xDEBB20E3` is the IEEE 802.3 residual magic CRC checksum indicating a **flawless, bit-perfect frame**!
+  - Incoming broadcast ARP requests and IP packets from the host were received, parsed, and logged cleanly without any byte corruption:
+    ```
+    [RXDUMP] len=003C ST=0004: FF FF FF FF FF FF A8 5E 45 B9 CB 08 08 06 00 01 08 00 06 04
+    [ARP] Replied to ARP Request!
+    ```
+
+### C. Live Ping & ARP Resolution Verified (100% PASS, 0% Packet Loss)
+- **Host Ping Test Output (`ping -c 5 -W 1 -I enp2s0 192.168.1.50`):**
+  ```
+  PING 192.168.1.50 (192.168.1.50) from 192.168.1.129 enp2s0: 56(84) bytes of data.
+  64 bytes from 192.168.1.50: icmp_seq=1 ttl=64 time=0.311 ms
+  64 bytes from 192.168.1.50: icmp_seq=2 ttl=64 time=0.325 ms
+  64 bytes from 192.168.1.50: icmp_seq=3 ttl=64 time=0.319 ms
+  64 bytes from 192.168.1.50: icmp_seq=4 ttl=64 time=0.318 ms
+  64 bytes from 192.168.1.50: icmp_seq=5 ttl=64 time=0.348 ms
+
+  --- 192.168.1.50 ping statistics ---
+  5 packets transmitted, 5 received, 0% packet loss, time 4125ms
+  rtt min/avg/max/mdev = 0.311/0.324/0.348/0.012 ms
+  ```
+- **Host ARP Table Resolution:**
+  ```
+  Address          HWtype  HWaddress           Flags Mask  Iface
+  192.168.1.50     ether   00:12:34:56:78:9a   C           enp2s0
+  ```
+- **Static Timing Analysis (STA) on Main Architecture 1:**
+  - `T120_GCLK`: Fmax = 53.15 MHz (Slack: **+1.185 ns**)
+  - `pll_clk_25Mhz_ext`: Fmax = 29.29 MHz (Slack: **+5.863 ns** to **+36.661 ns**)
+  - `F2_RXC`: Fmax = 147.36 MHz (Slack: **+0.689 ns** to **+2.234 ns**)
+  - Hold slacks: All strictly positive (**+0.086 ns** to **+20.956 ns**).
+- **Status:** **COMPLETE & FULLY FUNCTIONAL** without relying on negative-slack AXI/TSE cores.

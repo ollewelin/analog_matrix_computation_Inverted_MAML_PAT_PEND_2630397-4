@@ -488,8 +488,8 @@ module eth_mac_100m (
     logic        rx_word_wr_en;
     logic [8:0]  rx_wr_word_addr;
 
-    // Sample inputs on RISING edge of rgmii_rxc (with PHY RXDLY enabled):
-    always_ff @(posedge rgmii_rxc or negedge sys_rst_n) begin
+    // Sample inputs on FALLING edge of rgmii_rxc (gives 20 ns hold margin in 100M mode):
+    always_ff @(negedge rgmii_rxc or negedge sys_rst_n) begin
         if (!sys_rst_n) begin
             rx_state          <= RX_IDLE;
             rx_ready_rx_clk   <= 1'b0;
