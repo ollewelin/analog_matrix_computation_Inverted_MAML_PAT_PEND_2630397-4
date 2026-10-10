@@ -66,7 +66,7 @@ IMPORTANT fix to get JTAG working.
 ### Regenerate FPGA code with AI agent example (one prompt)
 Install the Efinix software tool locally on you computer
 VS code and AI agent support
-![](regenerate_SoC_and_Ethernet_IP.png)
+![](regerate_SoC_and_Ethernet_IP.png)
 
 ### Example timing report (125Mhz requirement passed)
 ![](Timing_report_T120_Soc_Eth.png)
