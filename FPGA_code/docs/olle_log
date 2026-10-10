@@ -1,4 +1,15 @@
- tail -f /home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324/outflow/T120_MALM.log
+# 1. Source local Efinity toolchain
+source /opt/efinity/<version>/bin/setup.sh
+# 2. Regenerate vendor IP locally (respects EULA/copyright)
+bash FPGA_code/scripts/regenerate_efinix_ip.sh
+# 3. Build FPGA Bitstream (positive timing slack verified)
+bash FPGA_code/scripts/build_t120_fpga.sh
+# 4. Build Firmware & Flash
+python3 FPGA_code/scripts/flash_and_listen.py --listen-only --seconds 15
+# 5. Verify Ping
+ping -c 5 192.168.1.50
+
+tail -f /home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324/outflow/T120_MALM.log
 
  olle@olle-SSD-256:~/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4$ python3 FPGA_code/scripts/program_t120.py
 [*] Programming Target: /home/olle/AnalogAI/git/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324/outflow/T120_MALM.bit
