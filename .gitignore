@@ -26,7 +26,7 @@ FPGA_code/ref_staging/
 **/FPGA_code/T120F324/ip/RISC_mini/RISC_mini_tmpl.vhd
 **/FPGA_code/T120F324/ip/RISC_mini/RISC_mini.v
 **/FPGA_code/T120F324/ip/RISC_mini/RISC_mini_tmpl.v
-FPGA_code/T120F324/ip/RISC_mini/RISC_mini_define.vh
+**/FPGA_code/T120F324/ip/RISC_mini/RISC_mini_define.vh
 
 # Staging and temporary references
 **/ref_staging/
