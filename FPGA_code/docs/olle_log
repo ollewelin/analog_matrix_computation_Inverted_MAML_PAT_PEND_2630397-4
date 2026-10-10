@@ -30,3 +30,10 @@ picocom -b 9600 /dev/ttyACM0
 tail -f FPGA_code/T120F324/outflow/T120_MALM.log
 tail -n 25 FPGA_code/T120F324/outflow/T120_MALM.log
 ps aux | grep -E "efx_run|efx_map|efx_pnr" | grep -v grep
+
+
+T20 APP start
+echo -n "JUMP_APP" | nc -u -w2 192.168.1.50 5000
+
+or
+python3 -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.sendto(b'JUMP_APP', ('192.168.1.50', 5000)); print(s.recvfrom(1024)[0].decode())"
