@@ -50,4 +50,4 @@ If you *do* run a full compile (`efx_run`), synthesis runs with `--dir ip/RISC_m
 - `GPIO_OUTPUT`: `0x04`
 - `GPIO_OUTPUT_ENABLE`: `0x08`
 - `T120_LED2` is wired to `gpio_out[0]` (bit 0).
-- `T120_LED1` is wired to the 2 Hz hardware counter (`led1_hw_toggle`).
+- `T120_LED1` (patch wire) | out | — | `T20_CRESET_N` | T20 hardware reset, active low (see §6). LED1 heartbeat removed |

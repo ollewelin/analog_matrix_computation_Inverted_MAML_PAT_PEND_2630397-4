@@ -247,8 +247,8 @@ module top_level
         .jtagCtrl_tdo               (jtag_inst1_TDO)
     );
 
-    // Hardware UART on dedicated board pin SCLR_DAC_W_34
-    assign SCLR_DAC_W_34 = sapphire_uart_txd;
+    // SCLR_DAC_W_34 tied to 1'b0 (DAC pin restored/disconnected from UART)
+    assign SCLR_DAC_W_34 = 1'b0;
 
     // =========================================================================
     // APB3 Address Decoder
@@ -389,11 +389,11 @@ module top_level
     end
 
     // =========================================================================
-    // Status LEDs
-    // =========================================================================
+    // Status LEDs:
     // LED1 pin is the patch wire to T20 CRESET_N (heartbeat removed)
     assign T120_LED1 = t20_creset_n;
-    assign T120_LED2 = gpio_out[0];
+    // LED2 pin is now UART TX (moved from DAC pin F13 to LED2)
+    assign T120_LED2 = sapphire_uart_txd;
 
     // Tied off unused analog pins safely to ground/default
     assign ADC_45_CONV    = 1'b0;

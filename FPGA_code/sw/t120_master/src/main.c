@@ -376,6 +376,62 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
                 print_s(" MAC_TX="); print_hex16_s(tok); println_s("");
             }
         }
+
+        // UDP (Protocol 17) - Version Responder on Port 5000
+        if (proto == 0x11 && len >= (14 + ihl + 8)) {
+            uint32_t udp_offset = 14 + ihl;
+            uint16_t src_port = ((uint16_t)frame[udp_offset + 0] << 8) | frame[udp_offset + 1];
+            uint16_t dst_port = ((uint16_t)frame[udp_offset + 2] << 8) | frame[udp_offset + 3];
+
+            if (dst_port == 5000) {
+                static const char ver_msg[] = "T120_SOC_ETH_FW v1.2 (Bridge OK, LED2_UART, Build 2026-10-10)\r\n";
+                uint16_t payload_len = (uint16_t)strlen(ver_msg);
+                uint16_t udp_len = 8 + payload_len;
+                uint16_t total_ip_len = ihl + udp_len;
+                uint16_t total_frame_len = 14 + total_ip_len;
+
+                // Ethernet header
+                memcpy(&tx_frame[0], &frame[6], 6);     // Dst MAC = Sender MAC
+                memcpy(&tx_frame[6], MY_MAC, 6);        // Src MAC = MY_MAC
+                tx_frame[12] = 0x08; tx_frame[13] = 0x00; // IPv4
+
+                // IPv4 header
+                memcpy(&tx_frame[14], &frame[14], ihl);
+                tx_frame[16] = (uint8_t)(total_ip_len >> 8);
+                tx_frame[17] = (uint8_t)(total_ip_len & 0xFF);
+                tx_frame[22] = 64;                      // TTL
+                tx_frame[23] = 0x11;                    // UDP
+                memcpy(&tx_frame[26], &frame[30], 4);   // Src IP = MY_IP
+                memcpy(&tx_frame[30], &frame[26], 4);   // Dst IP = Sender IP
+
+                // Compute IPv4 header checksum
+                tx_frame[24] = 0; tx_frame[25] = 0;
+                uint32_t ip_csum = 0;
+                for (int i = 0; i < ihl; i += 2) {
+                    ip_csum += ((uint32_t)tx_frame[14 + i] << 8) | tx_frame[14 + i + 1];
+                }
+                while (ip_csum >> 16) ip_csum = (ip_csum & 0xFFFF) + (ip_csum >> 16);
+                ip_csum = ~ip_csum & 0xFFFF;
+                tx_frame[24] = (uint8_t)(ip_csum >> 8);
+                tx_frame[25] = (uint8_t)(ip_csum & 0xFF);
+
+                // UDP header
+                tx_frame[udp_offset + 0] = (uint8_t)(dst_port >> 8); // Src port = 5000
+                tx_frame[udp_offset + 1] = (uint8_t)(dst_port & 0xFF);
+                tx_frame[udp_offset + 2] = (uint8_t)(src_port >> 8); // Dst port = requester port
+                tx_frame[udp_offset + 3] = (uint8_t)(src_port & 0xFF);
+                tx_frame[udp_offset + 4] = (uint8_t)(udp_len >> 8);
+                tx_frame[udp_offset + 5] = (uint8_t)(udp_len & 0xFF);
+                tx_frame[udp_offset + 6] = 0; // Checksum optional in IPv4 UDP
+                tx_frame[udp_offset + 7] = 0;
+
+                // Payload
+                memcpy(&tx_frame[udp_offset + 8], ver_msg, payload_len);
+
+                pkt_fifo_send(tx_frame, total_frame_len);
+                println_s("[UDP] Replied to Version Query on port 5000!");
+            }
+        }
     }
 }
 
