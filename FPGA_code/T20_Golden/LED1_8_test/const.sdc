@@ -9,7 +9,3 @@
 # =============================================================================
 
 create_clock -name CLK_50MHZ -period 20.0 [get_ports {CLK_50MHZ}]
-create_clock -name T20_CLK9 -period 100.0 [get_ports {T20_CLK9}]
-
-# Asynchronous clock domains
-set_clock_groups -asynchronous -group [get_clocks {CLK_50MHZ}] -group [get_clocks {T20_CLK9}]

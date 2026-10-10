@@ -282,6 +282,88 @@ static uint16_t pkt_fifo_recv(uint8_t *buf, uint16_t max_len) {
 }
 
 // =============================================================================
+// S-bus query: sends a Channel 0x04 (TRACE/PING) frame to T20 and awaits response.
+// Returns 1 if T20 responds with ACK (0x06) and 'T20G' / 'T20', 0 otherwise.
+// =============================================================================
+static int t20_ping_sbus(char *info_out, uint32_t max_len) {
+    T20_REG(T20_CLK_PERIOD) = 25;       // 2 MHz bus clock (CLK9)
+    T20_REG(T20_CTRL)       = 1;        // Enable CLK9 continuously
+    T20_REG(T20_CRESET_CTRL) = 1;       // Ensure T20 CRESET_N is released (HIGH)
+    T20_REG(T20_S_TIMEOUT_US) = 50000;  // 50 ms timeout
+
+    // Allow clock edges to settle T20 reset synchronizer
+    bsp_uDelay(500);
+
+    // Clear previous status
+    T20_REG(T20_S_CTRL) = (1 << 2);
+
+    // TX Header: Channel = 0x04 (Trace/Status), seq = 0x00, len = 0
+    T20_REG(T20_S_TX_HDR) = (0x04u << 24) | (0x00u << 16) | 0x0000u;
+
+    // Start transaction
+    T20_REG(T20_S_CTRL) = (1 << 0);
+
+    // Wait for transaction to complete (up to 60 ms)
+    int waited_ms = 0;
+    while ((T20_REG(T20_S_STATUS) & T20_S_ST_XACT_BUSY) && waited_ms < 60) {
+        bsp_uDelay(1000);
+        waited_ms++;
+    }
+
+    uint32_t st = T20_REG(T20_S_STATUS);
+    uint32_t rx_hdr = T20_REG(T20_S_RX_HDR);
+    uint32_t rx_len = T20_REG(T20_S_RX_LEN);
+    uint8_t resp = (uint8_t)(rx_hdr >> 24);
+
+    if ((st & T20_S_ST_RX_VALID) && resp == T20_RESP_ACK) {
+        // Read response payload from RX buffer
+        uint32_t w0 = *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_S_RX_BUF + 0);
+        char tag[5];
+        tag[0] = (char)(w0 & 0xFF);
+        tag[1] = (char)((w0 >> 8) & 0xFF);
+        tag[2] = (char)((w0 >> 16) & 0xFF);
+        tag[3] = (char)((w0 >> 24) & 0xFF);
+        tag[4] = '\0';
+
+        // Release RX buffer
+        T20_REG(T20_S_CTRL) = (1 << 1);
+
+        if (info_out && max_len > 32) {
+            strcpy(info_out, "T20 ONLINE [TAG=");
+            strcat(info_out, tag);
+            strcat(info_out, ", S-bus ACK 0x06]");
+        }
+        return 1;
+    }
+
+    uint32_t rx_pins = T20_REG(T20_RX_PINS);
+
+    // Release RX buffer
+    T20_REG(T20_S_CTRL) = (1 << 1);
+
+    if (info_out && max_len >= 64) {
+        strcpy(info_out, "ST=0x");
+        char hexbuf[9];
+        const char h[] = "0123456789ABCDEF";
+        for (int i = 7; i >= 0; i--) hexbuf[7 - i] = h[(st >> (i * 4)) & 0xF];
+        hexbuf[8] = '\0';
+        strcat(info_out, hexbuf);
+
+        strcat(info_out, " HDR=0x");
+        for (int i = 7; i >= 0; i--) hexbuf[7 - i] = h[(rx_hdr >> (i * 4)) & 0xF];
+        hexbuf[8] = '\0';
+        strcat(info_out, hexbuf);
+
+        strcat(info_out, " PIN=0x");
+        hexbuf[0] = h[(rx_pins >> 4) & 0xF];
+        hexbuf[1] = h[rx_pins & 0xF];
+        hexbuf[2] = '\0';
+        strcat(info_out, hexbuf);
+    }
+    return 0;
+}
+
+// =============================================================================
 // ARP and ICMP Echo (Ping) Protocol Handler
 // =============================================================================
 static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
@@ -377,6 +459,7 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
             }
         }
 
+
         // UDP (Protocol 17) - Version Responder on Port 5000
         if (proto == 0x11 && len >= (14 + ihl + 8)) {
             uint32_t udp_offset = 14 + ihl;
@@ -384,7 +467,32 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
             uint16_t dst_port = ((uint16_t)frame[udp_offset + 2] << 8) | frame[udp_offset + 3];
 
             if (dst_port == 5000) {
-                static const char ver_msg[] = "T120_SOC_ETH_FW v1.2 (Bridge OK, LED2_UART, Build 2026-10-10)\r\n";
+                uint8_t *payload = &frame[udp_offset + 8];
+                uint16_t pay_len = (len >= (udp_offset + 8)) ? (len - (udp_offset + 8)) : 0;
+
+                char ver_msg[200];
+                if (pay_len >= 9 && memcmp(payload, "RESET_LOW", 9) == 0) {
+                    // Assert reset (drive CRESET_N LOW = 0)
+                    T20_REG(T20_CRESET_CTRL) = 0;
+                    strcpy(ver_msg, "T20_CRESET_N ASSERTED LOW (Reset Active)\r\n");
+                } else if (pay_len >= 10 && memcmp(payload, "RESET_HIGH", 10) == 0) {
+                    // Release reset (drive CRESET_N HIGH = 1)
+                    T20_REG(T20_CRESET_CTRL) = 1;
+                    strcpy(ver_msg, "T20_CRESET_N RELEASED HIGH (Normal Run)\r\n");
+                } else if (pay_len >= 11 && memcmp(payload, "RESET_PULSE", 11) == 0) {
+                    // 2000 ms pulse (2 seconds) so you can easily see LED stop and restart
+                    T20_REG(T20_CRESET_US)   = 2000000;
+                    T20_REG(T20_CRESET_CTRL) = (1 << 1); // trigger pulse
+                    strcpy(ver_msg, "T20_CRESET_N 2-SECOND PULSE TRIGGERED!\r\n");
+                } else {
+                    char t20_status_str[96];
+                    t20_ping_sbus(t20_status_str, sizeof(t20_status_str));
+
+                    strcpy(ver_msg, "T120_SOC_ETH_FW v1.3 (Build 2026-10-10)\r\nStatus: ");
+                    strcat(ver_msg, t20_status_str);
+                    strcat(ver_msg, "\r\n");
+                }
+
                 uint16_t payload_len = (uint16_t)strlen(ver_msg);
                 uint16_t udp_len = 8 + payload_len;
                 uint16_t total_ip_len = ihl + udp_len;
@@ -429,7 +537,7 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
                 memcpy(&tx_frame[udp_offset + 8], ver_msg, payload_len);
 
                 pkt_fifo_send(tx_frame, total_frame_len);
-                println_s("[UDP] Replied to Version Query on port 5000!");
+                println_s("[UDP] Replied to Version Query with live T20 status!");
             }
         }
     }
@@ -456,7 +564,9 @@ static void bridge_selftest(void) {
     uint32_t hst = T20_REG(T20_H_STATUS);
     print_s("H_STATUS="); print_hex8_s((uint8_t)hst);
     println_s((hst & 2) ? " [H DONE OK]" : " [H DONE MISSING]");
-    T20_REG(T20_CTRL) = 0;                     // CLK9 off again (idle bus = quiet pins)
+    // Keep CLK9 running (2 MHz) so T20 stays active and synchronized
+    T20_REG(T20_CLK_PERIOD) = 25;
+    T20_REG(T20_CTRL)       = 1;
 
     T20_REG(T20_CRESET_US)   = 12000;
     T20_REG(T20_CRESET_CTRL) = (1 << 1);       // 12 ms T20 reset pulse
@@ -464,6 +574,7 @@ static void bridge_selftest(void) {
     uint32_t c1 = T20_REG(T20_CRESET_CTRL);
     bsp_uDelay(20000);
     uint32_t c2 = T20_REG(T20_CRESET_CTRL);
+    T20_REG(T20_CRESET_CTRL) = 1;              // ensure released HIGH
     println_s(((c1 & 0x101) == 0x100 && (c2 & 0x101) == 0x001) ? "CRESET pulse [OK]" : "CRESET pulse [FAIL]");
 }
 
