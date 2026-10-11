@@ -62,17 +62,17 @@ class CellDiagnosticsEngine:
                 pos = float(res.adc45_pos[col])
                 neg = float(res.adc45_neg[col])
                 zero = float(res.adc45_zero[col])
-                nom_swing = 16.0  # Physical 12-bit LSB single-cell swing for M3 (1/8 column divider)
+                nom_swing = 35.0  # Physical 12-bit LSB single-cell swing for M3
             elif mat_id == 1:  # M8 (Layer 2 -> ADC_49)
                 pos = float(res.adc49_pos[col])
                 neg = float(res.adc49_neg[col])
                 zero = float(res.adc49_zero[col])
-                nom_swing = 16.0  # Physical 12-bit LSB single-cell swing for M8 (1/7 column divider)
+                nom_swing = 35.0  # Physical 12-bit LSB single-cell swing for M8
             else:            # M33 (Main 6x6 -> ADC_49)
                 pos = float(res.adc49_pos[col])
                 neg = float(res.adc49_neg[col])
                 zero = float(res.adc49_zero[col])
-                nom_swing = 28.0  # Physical 12-bit LSB single-cell swing for M33 (1/6 column divider)
+                nom_swing = 80.0  # Physical 12-bit LSB single-cell swing for M33
             swing = abs(pos - neg)
             gain_pct = (swing / nom_swing) * 100.0
             offset_lsb = zero
