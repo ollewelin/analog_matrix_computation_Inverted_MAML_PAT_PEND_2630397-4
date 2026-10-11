@@ -202,3 +202,25 @@ Each of the 16 Hadamard steps is executed as a 2-word Return-to-Hi-Z (`[HADAMARD
 - **Oscilloscope Supply Verification:** Direct top-side oscilloscope probing of all Sigmoid and TIA `MCP6024` quad op-amps confirmed **`Pin 4 (VDD) = 3.3 V`** and **`Pin 11 (VSS) = 0.0 V (GND)`** across all packages.
 - **Sigmoid Soft-Clipping Stability (`SIG_OUT_FULL` -> `ADC_45`):** Full-range DAC sweep (`codes 0..224`) confirmed smooth Sigmoid transfer compression (`S-curve`) centered at **`1.650 V .. 1.656 V` (`raw 12-bit = 2048..2056`)** at zero drive (`DAC_2 = 1.65 V`), with **`0.33 to 0.87 LSB RMS` (`0.27 to 0.70 mV RMS`)** noise across the entire linear + `MMBT3904` BJT feedback knee (`Q1..Q4`, `C1 = 100 pF` Miller compensation), proving **zero op-amp oscillation or instability**.
 
+---
+
+## 8. Evening Update (`2026-10-11 21:20`) — Synchronous Autonomous 2T1C Refresh (`10.0 ms` / `100 Hz`) & Matrix 3 (`M3`) Multiplication Characterization
+
+### 8.1 Hardware-Synchronous Autonomous Refresh Engine (`100 µs/col`, `10.0 ms` Period)
+- **Root Cause Fixed:** Previously, the `100 nF` gate storage capacitors (`C_N`, `C_P`) across the 126 Dual-2T1C cells were not refreshed in `IDLE` or `HOLD` mode, allowing gate charge to leak down between measurements.
+- **Implementation ([`maml_platform.c`](../sw/t120_master/src/maml_platform.c#L306-L395)):**
+  - `g_col_settle_us = 100u` (`50 µs` = $5\tau_{\text{charge}}$ for `G_N` + `50 µs` = $5\tau_{\text{charge}}$ for `G_P`, where $\tau_{\text{charge}} = 100\ \Omega \times 100\text{ nF} = 10\ \mu\text{s}$ $\rightarrow$ `>99.3%` settled; total refresh duty time $= 6 \times 100\ \mu\text{s} = 600\ \mu\text{s} = 6\%$ duty cycle).
+  - `g_refresh_period_us = 10000u` (`10.0 ms` = `100 Hz` refresh rate clocked by the 50 MHz RISC-V CLINT timer `clint_getTimeLow(BSP_CLINT)`).
+  - Deterministic single-cell readout timing in `maml_probe_single_cell()`: every `(X, W)` measurement (`X = 0`, `X = +x_amp`, `X = -x_amp`) is preceded by a synchronous column refresh and sampled at the exact same relative delay (`10 µs`) after the refresh window.
+
+### 8.2 Extended Matrix 3 (`M3` $\rightarrow$ Layer 1 Sigmoid $\rightarrow$ `ADC_45`) Multiplication Summary
+
+| Matrix 3 Crosspoint Cell | Quiescent Baseline `(X=0, W=0)` | Weight Span $\Delta\text{ADC}_W$ (`W=-96` $\rightarrow$ `+96`) | Input Gain $\Delta\text{ADC}_X$ at **$W = -96$** (`X=-120` $\rightarrow$ `+120`) | Input Gain $\Delta\text{ADC}_X$ at **$W = +48 / +96$** (`X=-120` $\rightarrow$ `+120`) |
+| :--- | :---: | :---: | :---: | :---: |
+| **`Row 4, Col 1`** (`DAC_2[3]` $\rightarrow$ `ADC_45[0]`) | `2225` (`+177 LSB`, $1.793\text{ V}$) | **`+78 LSB`** (`2164` $\rightarrow$ `2242`) | **`+1 LSB`** (`2163` $\rightarrow$ `2164`) | **`+14 LSB`** (`2228` $\rightarrow$ `2242`) |
+| **`Row 5, Col 1`** (`DAC_2[4]` $\rightarrow$ `ADC_45[0]`) | `2224` (`+176 LSB`, $1.792\text{ V}$) | **`+76 LSB`** (`2186` $\rightarrow$ `2262`) | **`-1 LSB`** (`2187` $\rightarrow$ `2186`) | **`+10 LSB`** (`2252` $\rightarrow$ `2262`) |
+| **`Row 4, Col 2`** (`DAC_2[3]` $\rightarrow$ `ADC_45[1]`) | `2100` (`+52 LSB`, $1.692\text{ V}$) | **`+45 LSB`** (`2055` $\rightarrow$ `2100`) | **`+2 LSB`** (`2054` $\rightarrow$ `2056`) | **`+9 LSB`** (`2087` $\rightarrow$ `2096`) |
+| **`Row 6, Col 3`** (`DAC_2[5]` $\rightarrow$ `ADC_45[2]`) | `2080` (`+32 LSB`, $1.676\text{ V}$) | **`+15 LSB`** (`2082` $\rightarrow$ `2097`) | **`+1 LSB`** (`2081` $\rightarrow$ `2082`) | **`+8 LSB`** (`2089` $\rightarrow$ `2097`) |
+| **All 6 Rows Combined** $\rightarrow$ `ADC_45[0]` | `2226` (`+178 LSB`, $1.793\text{ V}$) | **`+104 LSB`** (`2177` $\rightarrow$ `2281`) | **`+6 LSB`** (`2171` $\rightarrow$ `2177`) | **`+20..+23 LSB`** (`2261` $\rightarrow$ `2281`) |
+
+For the full fixed-$X$ / swept-$W$ tables and daily summary, see [`FPGA_code/docs/dev_status_2026-10-11.md`](dev_status_2026-10-11.md).

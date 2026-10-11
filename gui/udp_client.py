@@ -510,23 +510,7 @@ class MamlUdpClient:
         return self.sim_telemetry
 
     def probe_cell(self, matrix_id: int, row: int, col: int) -> Optional[CellProbeResult]:
-        payload = struct.pack("<BBB", matrix_id, row, col)
-        raw = self._send_binary(MAML_CMD_CELL_DIAG, payload)
-        if raw is not None and len(raw) >= self.PROBE_SIZE:
-            u = struct.unpack(self.PROBE_FMT, raw[:self.PROBE_SIZE])
-            if u[0] == MAML_UDP_MAGIC and u[1] == 0x97:
-                return CellProbeResult(
-                    matrix_id=u[2],
-                    row=u[3],
-                    col=u[4],
-                    adc45_pos=list(u[5:11]),
-                    adc45_neg=list(u[11:17]),
-                    adc45_zero=list(u[17:23]),
-                    adc49_pos=list(u[23:29]),
-                    adc49_neg=list(u[29:35]),
-                    adc49_zero=list(u[35:41]),
-                )
-        return None
+        return self.probe_cell_xw(matrix_id, row, col, x_amp=96, w_fixed=96, sweep_input=False, hold=False)
 
     def probe_cell_xw(
         self,

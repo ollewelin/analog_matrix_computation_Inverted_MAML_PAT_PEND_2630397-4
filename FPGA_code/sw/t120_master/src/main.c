@@ -867,8 +867,8 @@ void main(void) {
             handle_ethernet_packet(rx_frame, rx_len);
         }
 
-        // Periodic MAML background tick (watchdog + training/operation scheduler)
-        if ((loop_cnt & 0x3FF) == 0) {
+        // Periodic MAML background tick (10.0 ms hardware-synchronous 2T1C refresh + watchdog)
+        if ((loop_cnt & 0xFF) == 0) {
             maml_platform_tick();
         }
 
