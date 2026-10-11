@@ -113,10 +113,11 @@ class InvertedMamlMainWindow(QMainWindow):
         cols_layout.setSpacing(8)
         root_layout.addLayout(cols_layout, stretch=1)
 
-        # Left Column: Heater Safety + Hardware/Oscilloscope/LED/Jumper Controls
+        # Left Column: Heater Safety + Hardware/Oscilloscope/Single-Cell Multiplier/LED/Jumper Controls
         left_col = QVBoxLayout()
         left_col.addWidget(self._build_heater_safety_group())
         left_col.addWidget(self._build_hardware_diag_group())
+        left_col.addWidget(self._build_single_cell_multiplier_group())
         left_col.addWidget(self._build_jumper_and_led_group())
         left_col.addStretch(1)
         cols_layout.addLayout(left_col, stretch=3)
@@ -298,6 +299,126 @@ class InvertedMamlMainWindow(QMainWindow):
         lay.addWidget(self.btn_dac_ovr)
 
         return grp
+
+    # =========================================================================
+    # Left Column: Single-Cell Multiplier (X × W) Interactive Test
+    # =========================================================================
+    def _build_single_cell_multiplier_group(self) -> QGroupBox:
+        grp = QGroupBox("2B. Single-Cell Multiplier (X × W) Test (Fix W, Move Input Row Up/Down)")
+        lay = QVBoxLayout(grp)
+
+        grid = QGridLayout()
+        grid.addWidget(QLabel("Target Matrix:"), 0, 0)
+        self.cmb_mult_mat = QComboBox()
+        self.cmb_mult_mat.addItems([
+            "M33 Main (6×6 → ADC_49)",
+            "M3 Comp L1 (8×6 → ADC_45)",
+            "M8 Comp L2 (7×6 → ADC_49)",
+        ])
+        self.cmb_mult_mat.setCurrentIndex(0)
+        grid.addWidget(self.cmb_mult_mat, 0, 1, 1, 3)
+
+        grid.addWidget(QLabel("Row (0..7):"), 1, 0)
+        self.spn_mult_row = QSpinBox()
+        self.spn_mult_row.setRange(0, 7)
+        self.spn_mult_row.setValue(0)
+        grid.addWidget(self.spn_mult_row, 1, 1)
+
+        grid.addWidget(QLabel("Col (0..5):"), 1, 2)
+        self.spn_mult_col = QSpinBox()
+        self.spn_mult_col.setRange(0, 5)
+        self.spn_mult_col.setValue(0)
+        grid.addWidget(self.spn_mult_col, 1, 3)
+
+        grid.addWidget(QLabel("Fixed Weight W (-127..+127):"), 2, 0)
+        self.spn_mult_w = QSpinBox()
+        self.spn_mult_w.setRange(-127, 127)
+        self.spn_mult_w.setSingleStep(16)
+        self.spn_mult_w.setValue(64)
+        grid.addWidget(self.spn_mult_w, 2, 1)
+
+        grid.addWidget(QLabel("Input Step ±X (1..127):"), 2, 2)
+        self.spn_mult_x = QSpinBox()
+        self.spn_mult_x.setRange(1, 127)
+        self.spn_mult_x.setSingleStep(16)
+        self.spn_mult_x.setValue(96)
+        grid.addWidget(self.spn_mult_x, 2, 3)
+        lay.addLayout(grid)
+
+        btn_row = QHBoxLayout()
+        btn_single_w = QPushButton("Test Fixed W (Step Input Row ±X)")
+        btn_single_w.setStyleSheet("background-color: #0284c7; font-weight: bold;")
+        btn_single_w.clicked.connect(self._on_run_single_w_mult_test)
+        btn_row.addWidget(btn_single_w)
+
+        btn_sweep_w = QPushButton("Sweep 5 Weights (W=-96..+96) × (±X)")
+        btn_sweep_w.setStyleSheet("background-color: #047857; font-weight: bold;")
+        btn_sweep_w.clicked.connect(self._on_run_multi_w_sweep_test)
+        btn_row.addWidget(btn_sweep_w)
+        lay.addLayout(btn_row)
+
+        self.lbl_mult_result = QLabel("Select (Matrix, Row, Col, W, ±X) and click to test single-cell X×W multiplication.")
+        self.lbl_mult_result.setStyleSheet(
+            "font-family: monospace; font-size: 9.5px; background-color: #0f172a; color: #a7f3d0; padding: 5px; border-radius: 4px;"
+        )
+        lay.addWidget(self.lbl_mult_result)
+
+        return grp
+
+    def _get_selected_mult_mat_id(self) -> int:
+        idx = self.cmb_mult_mat.currentIndex()
+        return 2 if idx == 0 else (0 if idx == 1 else 1)
+
+    def _on_run_single_w_mult_test(self) -> None:
+        mat_id = self._get_selected_mult_mat_id()
+        row = self.spn_mult_row.value()
+        col = self.spn_mult_col.value()
+        w_fixed = self.spn_mult_w.value()
+        x_amp = self.spn_mult_x.value()
+
+        res = self.client.probe_cell_xw(mat_id, row, col, x_amp=x_amp, w_fixed=w_fixed, sweep_input=True, hold=True)
+        if res is None:
+            self.lbl_mult_result.setText("Hardware offline or no response from MAML_CMD_PROBE_CELL.")
+            return
+
+        if mat_id == 0:
+            v_neg, v_zero, v_pos = res.adc45_neg[col], res.adc45_zero[col], res.adc45_pos[col]
+            adc_lbl = f"ADC_45[C{col+1}]"
+            mat_lbl = "M3"
+        else:
+            v_neg, v_zero, v_pos = res.adc49_neg[col], res.adc49_zero[col], res.adc49_pos[col]
+            adc_lbl = f"ADC_49[C{col+1}]"
+            mat_lbl = "M33" if mat_id == 2 else "M8"
+
+        delta = v_pos - v_neg
+        self.lbl_mult_result.setText(
+            f"{mat_lbl}[R{row+1},C{col+1}] @ Fixed W={w_fixed:+d} (W+={128+w_fixed}, W-={128-w_fixed}) → {adc_lbl}:\n"
+            f"  X={-x_amp:+4d} ({128-x_amp:3d}): {v_neg:+5d} LSB | X=0 (128): {v_zero:+5d} LSB | "
+            f"X={+x_amp:+4d} ({128+x_amp:3d}): {v_pos:+5d} LSB\n"
+            f"  Input Up-Down Swing Δ = (X+{x_amp}) - (X-{x_amp}) = {delta:+d} LSB ({delta*0.806:+.1f} mV)"
+        )
+
+    def _on_run_multi_w_sweep_test(self) -> None:
+        mat_id = self._get_selected_mult_mat_id()
+        row = self.spn_mult_row.value()
+        col = self.spn_mult_col.value()
+        x_amp = self.spn_mult_x.value()
+        weights = [-96, -48, 0, +48, +96]
+
+        curve = self.client.run_single_cell_multiplier_curve(mat_id, row, col, x_amp=x_amp, weights=weights)
+        if not curve:
+            self.lbl_mult_result.setText("Hardware offline or no response from MAML_CMD_PROBE_CELL.")
+            return
+
+        mat_lbl = "M33" if mat_id == 2 else ("M3" if mat_id == 0 else "M8")
+        adc_lbl = curve[0]["adc_name"]
+        lines = [f"{mat_lbl}[R{row+1},C{col+1}] → {adc_lbl}  (Input Row R{row+1} stepped X = -{x_amp}, 0, +{x_amp}):"]
+        for pt in curve:
+            lines.append(
+                f"  W={pt['w']:+4d}: X={-x_amp:+4d}→{pt['out_x_neg']:+5d} | X=0→{pt['out_x_zero']:+5d} | "
+                f"X={+x_amp:+4d}→{pt['out_x_pos']:+5d} | Δ(Up-Down)={pt['delta_up_down']:+5d} LSB"
+            )
+        self.lbl_mult_result.setText("\n".join(lines))
 
     # =========================================================================
     # Left Column: Analog Jumper Selector & Analog Column LED Switches

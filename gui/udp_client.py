@@ -528,6 +528,81 @@ class MamlUdpClient:
                 )
         return None
 
+    def probe_cell_xw(
+        self,
+        matrix_id: int,
+        row: int,
+        col: int,
+        x_amp: int = 96,
+        w_fixed: int = 64,
+        sweep_input: bool = True,
+        hold: bool = False,
+    ) -> Optional[CellProbeResult]:
+        """
+        Locks cell (matrix_id, row, col) at fixed weight W = w_fixed (-127..+127)
+        and steps Input row DAC_2[row] across X = 0 (adc_zero), X = +x_amp (adc_pos),
+        and X = -x_amp (adc_neg).
+        """
+        x_clamped = max(-127, min(127, int(x_amp)))
+        w_clamped = max(-127, min(127, int(w_fixed)))
+        mode_flag = (0x01 if sweep_input else 0x00) | (0x02 if hold else 0x00)
+        payload = struct.pack("<BBBbbB", matrix_id & 0xFF, row & 0xFF, col & 0xFF, x_clamped, w_clamped, mode_flag)
+        raw = self._send_binary(MAML_CMD_CELL_DIAG, payload)
+        if raw is not None and len(raw) >= self.PROBE_SIZE:
+            u = struct.unpack(self.PROBE_FMT, raw[:self.PROBE_SIZE])
+            if u[0] == MAML_UDP_MAGIC and u[1] == 0x97:
+                return CellProbeResult(
+                    matrix_id=u[2],
+                    row=u[3],
+                    col=u[4],
+                    adc45_pos=list(u[5:11]),
+                    adc45_neg=list(u[11:17]),
+                    adc45_zero=list(u[17:23]),
+                    adc49_pos=list(u[23:29]),
+                    adc49_neg=list(u[29:35]),
+                    adc49_zero=list(u[35:41]),
+                )
+        return None
+
+    def run_single_cell_multiplier_curve(
+        self,
+        matrix_id: int,
+        row: int,
+        col: int,
+        x_amp: int = 96,
+        weights: Optional[List[int]] = None,
+    ) -> List[dict]:
+        """
+        Sweeps fixed weight W across `weights` (default [-96, -48, 0, +48, +96]) while moving
+        input row DAC_2[row] up (+x_amp) and down (-x_amp) by the same amount at each weight.
+        """
+        if weights is None:
+            weights = [-96, -48, 0, +48, +96]
+        results: List[dict] = []
+        for w in weights:
+            res = self.probe_cell_xw(matrix_id, row, col, x_amp=x_amp, w_fixed=w, sweep_input=True, hold=False)
+            if res is not None:
+                if matrix_id == MAT_M3:
+                    v_neg = res.adc45_neg[col]
+                    v_zero = res.adc45_zero[col]
+                    v_pos = res.adc45_pos[col]
+                    adc_name = f"ADC_45[C{col+1}]"
+                else:
+                    v_neg = res.adc49_neg[col]
+                    v_zero = res.adc49_zero[col]
+                    v_pos = res.adc49_pos[col]
+                    adc_name = f"ADC_49[C{col+1}]"
+                results.append({
+                    "w": w,
+                    "x_amp": x_amp,
+                    "adc_name": adc_name,
+                    "out_x_neg": v_neg,
+                    "out_x_zero": v_zero,
+                    "out_x_pos": v_pos,
+                    "delta_up_down": v_pos - v_neg,
+                })
+        return results
+
     def diag_hadamard(self, mode: int = 0, en_mask: int = 0x7FFF) -> Optional[HadamardDiagResult]:
         payload = struct.pack("<BH", mode & 0xFF, en_mask & 0xFFFF)
         raw = self._send_binary(MAML_CMD_DIAG_HADAMARD, payload)

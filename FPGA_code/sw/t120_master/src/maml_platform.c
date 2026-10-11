@@ -1270,6 +1270,7 @@ static void maml_probe_charge_column(uint8_t matrix_id, uint8_t row, uint8_t col
 }
 
 static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t col,
+                                       int8_t x_amp, int8_t w_fixed, uint8_t mode_flag,
                                        uint8_t *resp_buf, uint16_t resp_max) {
     if (resp_max < sizeof(maml_cell_probe_resp_t)) return 0;
     maml_cell_probe_resp_t resp;
@@ -1285,41 +1286,92 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
     /* Ensure Hadamard is 3-stated (Hi-Z centered) during static cell characterization */
     t20_hadamard_tristate_center();
 
-    /* Measure quiescent column baseline at d2 = 128, w = 0 */
+    /* Measure quiescent column baseline at d2 = 128 (X = 0), w = 0 */
     uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
     aio_load_dac2(d2_mid);
     maml_probe_charge_column(matrix_id, row, col, 0);
     int16_t base45[6], base49[6];
     aio_trigger_settled_adc_read(base45, base49);
 
-    /* Drive +96 differential input on probed row of DAC_2 (128 on all other rows) */
-    uint8_t d2[6] = {128, 128, 128, 128, 128, 128};
-    if (row < 6) {
-        d2[row] = 224; /* +96 differential input drive */
-    } else {
-        /* For bias/ref rows 6..7, drive a moderate common vector on DAC_2 */
-        for (int i = 0; i < 6; i++) d2[i] = 192;
-    }
-    aio_load_dac2(d2);
-    bsp_uDelay(5);
-
-    /* 1. Probe Zero Weight (W+ = 128, W- = 128) */
     int16_t raw45_zero[6], raw49_zero[6];
     int16_t raw45_pos[6],  raw49_pos[6];
     int16_t raw45_neg[6],  raw49_neg[6];
-    aio_trigger_settled_adc_read(raw45_zero, raw49_zero);
 
-    /* 2. Probe Positive Weight (W+ = 224, W- = 32 -> w = +96) */
-    maml_probe_charge_column(matrix_id, row, col, +96);
-    aio_trigger_settled_adc_read(raw45_pos, raw49_pos);
+    if (mode_flag & 0x01u) {
+        /* --------------------------------------------------------------------
+         * Fixed-Weight Input-Up/Down Multiplier Mode (mode_flag bit 0 = 1):
+         *   1. Lock cell (matrix_id, row, col) at fixed weight W = w_fixed
+         *   2. Read ADC at Input X = 0 (128)         -> adc_zero
+         *   3. Move Input row UP to X = +x_amp       -> adc_pos
+         *   4. Move Input row DOWN to X = -x_amp     -> adc_neg
+         * -------------------------------------------------------------------- */
+        maml_probe_charge_column(matrix_id, row, col, (int32_t)w_fixed);
 
-    /* 3. Probe Negative Weight (W+ = 32, W- = 224 -> w = -96) */
-    maml_probe_charge_column(matrix_id, row, col, -96);
-    aio_trigger_settled_adc_read(raw45_neg, raw49_neg);
+        /* X = 0 (all DAC_2 = 128) */
+        aio_load_dac2(d2_mid);
+        bsp_uDelay(10);
+        aio_trigger_settled_adc_read(raw45_zero, raw49_zero);
 
-    /* Restore column to zero after probing */
-    aio_load_dac2(d2_mid);
-    maml_probe_charge_column(matrix_id, row, col, 0);
+        /* X = +x_amp on probed row (move input UP) */
+        uint8_t d2_pos[6] = {128, 128, 128, 128, 128, 128};
+        if (row < 6) {
+            d2_pos[row] = off_to_dac_u8(+(int32_t)x_amp);
+        } else {
+            for (int i = 0; i < 6; i++) d2_pos[i] = off_to_dac_u8(+(int32_t)x_amp);
+        }
+        aio_load_dac2(d2_pos);
+        bsp_uDelay(10);
+        aio_trigger_settled_adc_read(raw45_pos, raw49_pos);
+
+        /* X = -x_amp on probed row (move input DOWN) */
+        uint8_t d2_neg[6] = {128, 128, 128, 128, 128, 128};
+        if (row < 6) {
+            d2_neg[row] = off_to_dac_u8(-(int32_t)x_amp);
+        } else {
+            for (int i = 0; i < 6; i++) d2_neg[i] = off_to_dac_u8(-(int32_t)x_amp);
+        }
+        aio_load_dac2(d2_neg);
+        bsp_uDelay(10);
+        aio_trigger_settled_adc_read(raw45_neg, raw49_neg);
+
+        if (mode_flag & 0x02u) {
+            /* Hold static (X = +x_amp, W = w_fixed) active on the board for live inspection */
+            aio_load_dac2(d2_pos);
+            bsp_uDelay(10);
+            aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
+        } else {
+            aio_load_dac2(d2_mid);
+            maml_probe_charge_column(matrix_id, row, col, 0);
+        }
+    } else {
+        /* --------------------------------------------------------------------
+         * Standard Cell Self-Diagnosis Mode (mode_flag = 0):
+         *   Hold Input DAC_2[row] = +x_amp and step Weight W = 0, +w_fixed, -w_fixed
+         * -------------------------------------------------------------------- */
+        uint8_t d2[6] = {128, 128, 128, 128, 128, 128};
+        if (row < 6) {
+            d2[row] = off_to_dac_u8(+(int32_t)x_amp);
+        } else {
+            for (int i = 0; i < 6; i++) d2[i] = 192;
+        }
+        aio_load_dac2(d2);
+        bsp_uDelay(5);
+
+        /* 1. Probe Zero Weight (W+ = 128, W- = 128) */
+        aio_trigger_settled_adc_read(raw45_zero, raw49_zero);
+
+        /* 2. Probe Positive Weight (w = +w_fixed) */
+        maml_probe_charge_column(matrix_id, row, col, +(int32_t)w_fixed);
+        aio_trigger_settled_adc_read(raw45_pos, raw49_pos);
+
+        /* 3. Probe Negative Weight (w = -w_fixed) */
+        maml_probe_charge_column(matrix_id, row, col, -(int32_t)w_fixed);
+        aio_trigger_settled_adc_read(raw45_neg, raw49_neg);
+
+        /* Restore column to zero after probing */
+        aio_load_dac2(d2_mid);
+        maml_probe_charge_column(matrix_id, row, col, 0);
+    }
 
     /* Return 100% raw hardware ADC deltas relative to the quiescent baseline */
     for (int c = 0; c < 6; c++) {
@@ -1612,8 +1664,13 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
             break;
 
         case MAML_CMD_PROBE_CELL:
-            if (req_len >= 8) {
-                return maml_probe_single_cell(req[5], req[6], req[7], resp_buf, resp_max);
+            if (req_len >= 10) {
+                int8_t  x_amp     = (int8_t)req[8];
+                int8_t  w_fixed   = (int8_t)req[9];
+                uint8_t mode_flag = (req_len >= 11) ? req[10] : 0x01u;
+                return maml_probe_single_cell(req[5], req[6], req[7], x_amp, w_fixed, mode_flag, resp_buf, resp_max);
+            } else if (req_len >= 8) {
+                return maml_probe_single_cell(req[5], req[6], req[7], 96, 96, 0x00u, resp_buf, resp_max);
             }
             break;
 
