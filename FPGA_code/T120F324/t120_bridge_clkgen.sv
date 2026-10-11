@@ -21,6 +21,7 @@ module t120_bridge_clkgen (
     input  wire        clk,
     input  wire        rstn,
     input  wire        enable,
+    input  wire        freeze_low,
     input  wire [11:0] period,
     output logic       clk9,
     output wire        rise_ev,
@@ -32,9 +33,10 @@ module t120_bridge_clkgen (
 
     wire [11:0] per_req = (period < 12'd4) ? 12'd4 : period;
     wire [11:0] half    = {1'b0, per_q[11:1]};
+    wire        frozen  = freeze_low && !clk9;
 
-    assign rise_ev = enable && run && (cnt == per_q - 12'd1);
-    assign fall_ev = enable && run && (cnt == half  - 12'd1);
+    assign rise_ev = enable && run && !frozen && (cnt == per_q - 12'd1);
+    assign fall_ev = enable && run && !frozen && (cnt == half  - 12'd1);
 
     always_ff @(posedge clk or negedge rstn) begin
         if (!rstn) begin
@@ -48,6 +50,9 @@ module t120_bridge_clkgen (
                 cnt   <= 12'd0;
                 clk9  <= 1'b0;
                 per_q <= per_req;
+            end else if (frozen) begin
+                // Hold clk9 cleanly LOW during the Quiet Analog DC Settling + ADC Readout window
+                clk9  <= 1'b0;
             end else if (rise_ev) begin
                 cnt   <= 12'd0;
                 clk9  <= 1'b1;

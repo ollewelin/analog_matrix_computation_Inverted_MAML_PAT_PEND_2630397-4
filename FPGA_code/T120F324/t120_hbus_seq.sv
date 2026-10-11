@@ -54,7 +54,8 @@ module t120_hbus_seq #(
     output logic       h_data,
     input  wire        ack_in,
 
-    // Status
+    // Status & Hardware Settle-Then-Sample Handshake
+    input  wire        ext_hold_busy,
     output logic       running,
     output logic       done,
     output logic       ack_miss_sticky,
@@ -64,9 +65,10 @@ module t120_hbus_seq #(
     output logic [15:0] lat_last,
     output logic [15:0] lat_min,
     output logic [15:0] lat_max,
-    output logic       step_strobe
+    output logic       step_strobe,
+    output logic       latch_strobe
 );
-    localparam [15:0] MIN_PERIOD = W + 3;
+    localparam [15:0] MIN_PERIOD = W + 4;
     localparam [16:0] DEPTH = (17'd1 << DL);
 
     wire [15:0] period_eff = (period < MIN_PERIOD) ? MIN_PERIOD : period;
@@ -75,6 +77,8 @@ module t120_hbus_seq #(
     logic        start_pend, stop_pend;
     logic [15:0] c;
     logic [W-1:0] shreg;
+    logic        cur_is_quiet;
+    logic        latch_done;
     logic [15:0] cyc;
     logic [15:0] sync_cyc;
     logic        ack_pend, ack_seen;
@@ -89,12 +93,14 @@ module t120_hbus_seq #(
             running <= 1'b0; done <= 1'b0; ack_miss_sticky <= 1'b0;
             step <= 16'd0; ack_ok <= 32'd0; ack_miss <= 32'd0;
             lat_last <= 16'd0; lat_min <= 16'hFFFF; lat_max <= 16'd0;
-            step_strobe <= 1'b0;
+            step_strobe <= 1'b0; latch_strobe <= 1'b0;
             start_pend <= 1'b0; stop_pend <= 1'b0;
-            c <= 16'd0; shreg <= '0; cyc <= 16'd0; sync_cyc <= 16'd0;
+            c <= 16'd0; shreg <= '0; cur_is_quiet <= 1'b1; latch_done <= 1'b0;
+            cyc <= 16'd0; sync_cyc <= 16'd0;
             ack_pend <= 1'b0; ack_seen <= 1'b0; ack_prev <= 1'b0;
         end else begin
-            step_strobe <= 1'b0;
+            step_strobe  <= 1'b0;
+            latch_strobe <= 1'b0;
             if (start && !running) begin start_pend <= 1'b1; done <= 1'b0; end
             if (stop)  stop_pend <= 1'b1;
 
@@ -103,7 +109,7 @@ module t120_hbus_seq #(
                 lat_last <= 16'd0; lat_min <= 16'hFFFF; lat_max <= 16'd0;
             end
 
-            // ---------------- ACK sampling (CLK9 rising event) ----------------
+            // ---------------- ACK sampling & Settle Trigger (CLK9 rising event) ----------------
             if (rise_ev) begin
                 ack_prev <= ack_in;
                 if (ack_evt && ack_pend && !ack_seen) begin
@@ -117,6 +123,12 @@ module t120_hbus_seq #(
                         ack_miss <= ack_miss + 32'd1;
                         ack_miss_sticky <= 1'b1;
                     end
+                end
+                // At c == W + 3 rising edge, T20 is latching the new Hadamard state onto its pads.
+                // Pulse latch_strobe once per step so ext_hold_busy is active before c == W + 3 falling edge!
+                if (running && (c == W + 3) && !cur_is_quiet && !latch_done) begin
+                    latch_strobe <= 1'b1;
+                    latch_done   <= 1'b1;
                 end
             end
 
@@ -137,9 +149,11 @@ module t120_hbus_seq #(
                     running <= 1'b0; ack_pend <= 1'b0;
                 end else if (running) begin
                     if (c == 16'd0) begin
-                        rd_addr <= step[DL-1:0];
+                        rd_addr    <= step[DL-1:0];
+                        latch_done <= 1'b0;
                     end else if (c == 16'd1) begin
-                        shreg <= rd_data[W-1:0];
+                        shreg        <= rd_data[W-1:0];
+                        cur_is_quiet <= rd_data[W-1];
                     end else if (c == 16'd2) begin
                         h_sync   <= 1'b1;
                         h_data   <= shreg[W-1];
@@ -154,12 +168,14 @@ module t120_hbus_seq #(
                     end
 
                     if (c >= period_eff - 16'd1) begin
-                        c <= 16'd0;
-                        if (step + 16'd1 >= count_eff) begin
-                            if (loop_en) step <= 16'd0;
-                            else begin running <= 1'b0; done <= 1'b1; end
-                        end else begin
-                            step <= step + 16'd1;
+                        if (!ext_hold_busy) begin
+                            c <= 16'd0;
+                            if (step + 16'd1 >= count_eff) begin
+                                if (loop_en) step <= 16'd0;
+                                else begin running <= 1'b0; done <= 1'b1; end
+                            end else begin
+                                step <= step + 16'd1;
+                            end
                         end
                     end else begin
                         c <= c + 16'd1;

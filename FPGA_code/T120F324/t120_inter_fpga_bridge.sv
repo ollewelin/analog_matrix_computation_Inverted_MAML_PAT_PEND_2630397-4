@@ -77,7 +77,11 @@ module t120_inter_fpga_bridge #(
 
     output wire         irq,
     output wire         h_step_strobe,
-    output wire         h_active
+    output wire         h_latch_strobe,
+    output wire [3:0]   h_step_idx,
+    output wire         h_active,
+    input  wire         h_hold_busy,
+    input  wire         quiet_bus_freeze
 );
     assign pready  = 1'b1;
     assign pslverr = 1'b0;
@@ -165,11 +169,12 @@ module t120_inter_fpga_bridge #(
     end
 
     // ------------------------------------------------------------------
-    // CLK9 generator
+    // CLK9 generator (frozen cleanly LOW while h_hold_busy / quiet_bus_freeze active)
     // ------------------------------------------------------------------
     wire clk9, rise_ev, fall_ev;
     t120_bridge_clkgen u_clkgen (
         .clk(pclk), .rstn(presetn), .enable(r_clk_en && !r_manual),
+        .freeze_low(h_hold_busy || quiet_bus_freeze),
         .period(r_period), .clk9(clk9), .rise_ev(rise_ev), .fall_ev(fall_ev)
     );
 
@@ -269,12 +274,15 @@ module t120_inter_fpga_bridge #(
         .count(r_h_count), .period(r_h_period),
         .ack_min(r_h_ack_win[7:0]), .ack_max(r_h_ack_win[15:8]),
         .h_sync(h_sync), .h_data(h_data), .ack_in(rx_s2[0]),
+        .ext_hold_busy(h_hold_busy),
         .running(h_running), .done(h_done), .ack_miss_sticky(h_miss_sticky),
         .step(h_step), .ack_ok(h_ack_ok), .ack_miss(h_ack_miss),
         .lat_last(h_lat_last), .lat_min(h_lat_min), .lat_max(h_lat_max),
-        .step_strobe(h_step_strobe)
+        .step_strobe(h_step_strobe),
+        .latch_strobe(h_latch_strobe)
     );
-    assign h_active = h_running;
+    assign h_active   = h_running;
+    assign h_step_idx = h_step[3:0];
 
     // ------------------------------------------------------------------
     // T20 CRESET_N
@@ -289,7 +297,7 @@ module t120_inter_fpga_bridge #(
     );
 
     // ------------------------------------------------------------------
-    // Pins
+    // Pins (t20_clk9 frozen cleanly LOW by u_clkgen during Settle + ADC S/H)
     // ------------------------------------------------------------------
     assign t20_clk9 = r_manual ? r_man_clk : clk9;
     assign t20_tx   = r_manual ? r_man_tx  : {sb_sym[1], sb_sym[0], h_data, h_sync};

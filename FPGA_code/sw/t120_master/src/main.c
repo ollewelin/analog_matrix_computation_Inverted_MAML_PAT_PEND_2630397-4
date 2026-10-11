@@ -5,6 +5,7 @@
 #include "uart_mini_driver.h"
 #include "mdio_apb_master.h"
 #include "t120_bridge_regs.h"
+#include "maml_platform.h"
 
 // =============================================================================
 // 100-Mbit Ethernet MAC Peripheral Registers (APB3 Base: 0xf8102000)
@@ -529,40 +530,50 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
                 uint8_t *payload = &frame[udp_offset + 8];
                 uint16_t pay_len = (len >= (udp_offset + 8)) ? (len - (udp_offset + 8)) : 0;
 
-                char ver_msg[200];
-                if (pay_len >= 9 && memcmp(payload, "RESET_LOW", 9) == 0) {
-                    // Assert reset (drive CRESET_N LOW = 0)
-                    T20_REG(T20_CRESET_CTRL) = 0;
-                    strcpy(ver_msg, "T20_CRESET_N ASSERTED LOW (Reset Active)\r\n");
-                } else if (pay_len >= 10 && memcmp(payload, "RESET_HIGH", 10) == 0) {
-                    // Release reset (drive CRESET_N HIGH = 1)
-                    T20_REG(T20_CRESET_CTRL) = 1;
-                    strcpy(ver_msg, "T20_CRESET_N RELEASED HIGH (Normal Run)\r\n");
-                } else if (pay_len >= 11 && memcmp(payload, "RESET_PULSE", 11) == 0) {
-                    // 2000 ms pulse (2 seconds) so you can easily see LED stop and restart
-                    T20_REG(T20_CRESET_US)   = 2000000;
-                    T20_REG(T20_CRESET_CTRL) = (1 << 1); // trigger pulse
-                    strcpy(ver_msg, "T20_CRESET_N 2-SECOND PULSE TRIGGERED!\r\n");
-                } else if (pay_len >= 8 && memcmp(payload, "JUMP_APP", 8) == 0) {
-                    char jmp_res[80];
-                    t20_jump_sbus(1, jmp_res, sizeof(jmp_res));
-                    strcpy(ver_msg, jmp_res);
-                    strcat(ver_msg, "\r\n");
-                } else if (pay_len >= 11 && memcmp(payload, "JUMP_GOLDEN", 11) == 0) {
-                    char jmp_res[80];
-                    t20_jump_sbus(0, jmp_res, sizeof(jmp_res));
-                    strcpy(ver_msg, jmp_res);
-                    strcat(ver_msg, "\r\n");
-                } else {
-                    char t20_status_str[96];
-                    t20_ping_sbus(t20_status_str, sizeof(t20_status_str));
+                uint8_t *tx_payload = &tx_frame[udp_offset + 8];
+                uint16_t payload_len = 0;
 
-                    strcpy(ver_msg, "T120_SOC_ETH_FW v1.4 (Build 2026-10-10)\r\nStatus: ");
-                    strcat(ver_msg, t20_status_str);
-                    strcat(ver_msg, "\r\n");
+                // Check for binary MAML protocol packet ('MAML' = 0x4D414D4C)
+                uint16_t bin_len = maml_handle_udp_command(payload, pay_len, tx_payload, 1400);
+                if (bin_len > 0) {
+                    payload_len = bin_len;
+                } else {
+                    char ver_msg[200];
+                    if (pay_len >= 9 && memcmp(payload, "RESET_LOW", 9) == 0) {
+                        // Assert reset (drive CRESET_N LOW = 0)
+                        T20_REG(T20_CRESET_CTRL) = 0;
+                        strcpy(ver_msg, "T20_CRESET_N ASSERTED LOW (Reset Active)\r\n");
+                    } else if (pay_len >= 10 && memcmp(payload, "RESET_HIGH", 10) == 0) {
+                        // Release reset (drive CRESET_N HIGH = 1)
+                        T20_REG(T20_CRESET_CTRL) = 1;
+                        strcpy(ver_msg, "T20_CRESET_N RELEASED HIGH (Normal Run)\r\n");
+                    } else if (pay_len >= 11 && memcmp(payload, "RESET_PULSE", 11) == 0) {
+                        // 2000 ms pulse (2 seconds) so you can easily see LED stop and restart
+                        T20_REG(T20_CRESET_US)   = 2000000;
+                        T20_REG(T20_CRESET_CTRL) = (1 << 1); // trigger pulse
+                        strcpy(ver_msg, "T20_CRESET_N 2-SECOND PULSE TRIGGERED!\r\n");
+                    } else if (pay_len >= 8 && memcmp(payload, "JUMP_APP", 8) == 0) {
+                        char jmp_res[80];
+                        t20_jump_sbus(1, jmp_res, sizeof(jmp_res));
+                        strcpy(ver_msg, jmp_res);
+                        strcat(ver_msg, "\r\n");
+                    } else if (pay_len >= 11 && memcmp(payload, "JUMP_GOLDEN", 11) == 0) {
+                        char jmp_res[80];
+                        t20_jump_sbus(0, jmp_res, sizeof(jmp_res));
+                        strcpy(ver_msg, jmp_res);
+                        strcat(ver_msg, "\r\n");
+                    } else {
+                        char t20_status_str[96];
+                        t20_ping_sbus(t20_status_str, sizeof(t20_status_str));
+
+                        strcpy(ver_msg, "T120_SOC_ETH_FW v2.0-MAML (Build 2026-10-11)\r\nStatus: ");
+                        strcat(ver_msg, t20_status_str);
+                        strcat(ver_msg, "\r\n");
+                    }
+                    payload_len = (uint16_t)strlen(ver_msg);
+                    memcpy(tx_payload, ver_msg, payload_len);
                 }
 
-                uint16_t payload_len = (uint16_t)strlen(ver_msg);
                 uint16_t udp_len = 8 + payload_len;
                 uint16_t total_ip_len = ihl + udp_len;
                 uint16_t total_frame_len = 14 + total_ip_len;
@@ -602,11 +613,10 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
                 tx_frame[udp_offset + 6] = 0; // Checksum optional in IPv4 UDP
                 tx_frame[udp_offset + 7] = 0;
 
-                // Payload
-                memcpy(&tx_frame[udp_offset + 8], ver_msg, payload_len);
-
                 pkt_fifo_send(tx_frame, total_frame_len);
-                println_s("[UDP] Replied to Version Query with live T20 status!");
+                if (bin_len == 0) {
+                    println_s("[UDP] Replied to Version Query with live T20 status!");
+                }
             }
         }
     }
@@ -645,6 +655,26 @@ static void bridge_selftest(void) {
     uint32_t c2 = T20_REG(T20_CRESET_CTRL);
     T20_REG(T20_CRESET_CTRL) = 1;              // ensure released HIGH
     println_s(((c1 & 0x101) == 0x100 && (c2 & 0x101) == 0x001) ? "CRESET pulse [OK]" : "CRESET pulse [FAIL]");
+
+    // Wait for T20 Golden image to finish booting from SPI flash (~300-600 ms),
+    // then auto-jump to Application image (CBSEL=1, T20A, LED8 blinking).
+    char sbus_buf[96];
+    for (int retry = 0; retry < 15; retry++) {
+        bsp_uDelay(100000);
+        if (t20_ping_sbus(sbus_buf, sizeof(sbus_buf))) {
+            break;
+        }
+    }
+    if (t20_jump_sbus(1, sbus_buf, sizeof(sbus_buf))) {
+        println_s(sbus_buf);
+        for (int retry = 0; retry < 15; retry++) {
+            bsp_uDelay(100000);
+            if (t20_ping_sbus(sbus_buf, sizeof(sbus_buf))) {
+                println_s(sbus_buf);
+                break;
+            }
+        }
+    }
 }
 
 // =============================================================================
@@ -801,11 +831,11 @@ void main(void) {
     for (int i = 0; i < 3; i++) led_pulse(150);
 
     println_s("================================");
-    println_s("= T120 100M APB MAC =");
+    println_s("= T120 100M APB MAC + MAML     =");
     println_s("= IP:  192.168.1.50            =");
     println_s("= MAC: 00:12:34:56:78:9A       =");
     println_s("================================");
-    println_s("Test 4: Sapphire SoC Packet Handling (ARP + Ping Responder)");
+    println_s("Test 4: Sapphire SoC Packet Handling (ARP + Ping + MAML UDP)");
 
     ETH_MAC_LO_REG = 0x56789A;
     ETH_MAC_HI_REG = 0x001234;
@@ -819,7 +849,11 @@ void main(void) {
 
     bridge_selftest();
 
-    println_s("100M MAC + Sapphire SoC Active. Listening for ARP / Ping...");
+    // Initialize Inverted MAML Analog Platform Engine (Ref 40/41/42)
+    maml_platform_init();
+    println_s("[MAML] Analog Matrix Platform Initialized (Differential DAC/ADC + 3-State Hadamard).");
+
+    println_s("100M MAC + Sapphire SoC Active. Listening for ARP / Ping / MAML UDP...");
 
     uint32_t loop_cnt = 0;
     uint16_t last_bmsr = 0;
@@ -831,6 +865,11 @@ void main(void) {
         uint16_t rx_len = pkt_fifo_recv(rx_frame, sizeof(rx_frame));
         if (rx_len > 0) {
             handle_ethernet_packet(rx_frame, rx_len);
+        }
+
+        // Periodic MAML background tick (watchdog + training/operation scheduler)
+        if ((loop_cnt & 0x3FF) == 0) {
+            maml_platform_tick();
         }
 
         // Periodic Status Telemetry (~every 1 second)

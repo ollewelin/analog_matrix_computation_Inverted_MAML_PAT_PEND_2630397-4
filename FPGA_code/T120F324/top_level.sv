@@ -10,12 +10,12 @@ module top_level
   (* syn_peri_port = 0 *) input OUT3_ADC_45,
   (* syn_peri_port = 0 *) input OUT4_ADC_45,
   (* syn_peri_port = 0 *) input pll_inst1_LOCKED,
-  (* syn_peri_port = 0 *) input RCK_DAC_W_34,
-  (* syn_peri_port = 0 *) input SCK_DAC7_W_34,
-  (* syn_peri_port = 0 *) input SCK_DAC8_W_34,
-  (* syn_peri_port = 0 *) input SI_DAC2_DAC_2,
-  (* syn_peri_port = 0 *) input SI_DAC5_DAC_2,
-  (* syn_peri_port = 0 *) input SI_DAC8_W_34,
+  (* syn_peri_port = 0 *) output RCK_DAC_W_34,
+  (* syn_peri_port = 0 *) output SCK_DAC7_W_34,
+  (* syn_peri_port = 0 *) output SCK_DAC8_W_34,
+  (* syn_peri_port = 0 *) output SI_DAC2_DAC_2,
+  (* syn_peri_port = 0 *) output SI_DAC5_DAC_2,
+  (* syn_peri_port = 0 *) output SI_DAC8_W_34,
   (* syn_peri_port = 0 *) input F2_INTB,
   (* syn_peri_port = 0 *) input F2_MDIO_IN,
   (* syn_peri_port = 0 *) input OUT1_ADC_49,
@@ -247,18 +247,17 @@ module top_level
         .jtagCtrl_tdo               (jtag_inst1_TDO)
     );
 
-    // SCLR_DAC_W_34 tied to 1'b0 (DAC pin restored/disconnected from UART)
-    assign SCLR_DAC_W_34 = 1'b0;
-
     // =========================================================================
     // APB3 Address Decoder
     // Base 0xF810_1000..0xF810_1FFF -> MDIO master
     // Base 0xF810_2000..0xF810_2FFF -> 100-Mbit Ethernet MAC and packet RAM
     // Base 0xF810_3000..0xF810_3FFF -> T120 <-> T20 Custom Bus
+    // Base 0xF810_4000..0xF810_4FFF -> T120 Analog DAC & ADC Controller
     // =========================================================================
-    wire mdio_selected    = (apb_paddr[15:12] == 4'h1);
-    wire eth_selected     = (apb_paddr[15:12] == 4'h2);
-    wire t20_bus_selected = (apb_paddr[15:12] == 4'h3);
+    wire mdio_selected      = (apb_paddr[15:12] == 4'h1);
+    wire eth_selected       = (apb_paddr[15:12] == 4'h2);
+    wire t20_bus_selected   = (apb_paddr[15:12] == 4'h3);
+    wire analog_io_selected = (apb_paddr[15:12] == 4'h4);
 
     // =========================================================================
     // Reference design's APB MDIO master and 100-Mbit MAC
@@ -340,6 +339,13 @@ module top_level
                                 RX01_T20_N1, RX01_T20_P1, RX00_T20_N1, RX00_T20_P1};
     wire        t20_creset_n;
 
+    wire        h_step_strobe;
+    wire        h_latch_strobe;
+    wire [3:0]  h_step_idx;
+    wire        h_active;
+    wire        h_hold_busy;
+    wire        quiet_bus_freeze;
+
     // H-bus: TX11_P = H_SYNC, TX11_N = H_DATA (hardware-synchronous Hadamard)
     // S-bus: TX12_P/N = 2-bit service TX (C-code driven)
     assign TX11_T20_P1 = t20_tx_wires[0];
@@ -348,25 +354,92 @@ module top_level
     assign TX12_T20_N1 = t20_tx_wires[3];
 
     t120_inter_fpga_bridge #(.H_WIDTH(16)) u_t20_bridge (
-        .pclk           (sys_clk),
-        .presetn        (sys_rst_n_inv),
-        .psel           (apb_psel & t20_bus_selected),
-        .penable        (apb_penable),
-        .pwrite         (apb_pwrite),
-        .paddr          (apb_paddr[11:0]),
-        .pwdata         (apb_pwdata),
-        .prdata         (t20_bus_prdata),
-        .pready         (t20_bus_pready),
-        .pslverr        (),
+        .pclk             (sys_clk),
+        .presetn          (sys_rst_n_inv),
+        .psel             (apb_psel & t20_bus_selected),
+        .penable          (apb_penable),
+        .pwrite           (apb_pwrite),
+        .paddr            (apb_paddr[11:0]),
+        .pwdata           (apb_pwdata),
+        .prdata           (t20_bus_prdata),
+        .pready           (t20_bus_pready),
+        .pslverr          (),
 
-        .t20_clk9       (T20_CLK9),
-        .t20_tx         (t20_tx_wires),
-        .t20_rx         (t20_rx_wires),
-        .t20_creset_n   (t20_creset_n),
+        .t20_clk9         (T20_CLK9),
+        .t20_tx           (t20_tx_wires),
+        .t20_rx           (t20_rx_wires),
+        .t20_creset_n     (t20_creset_n),
 
-        .irq            (),
-        .h_step_strobe  (),
-        .h_active       ()
+        .irq              (),
+        .h_step_strobe    (h_step_strobe),
+        .h_latch_strobe   (h_latch_strobe),
+        .h_step_idx       (h_step_idx),
+        .h_active         (h_active),
+        .h_hold_busy      (h_hold_busy),
+        .quiet_bus_freeze (quiet_bus_freeze)
+    );
+
+    // =========================================================================
+    // T120 Analog DAC & ADC Hardware Engine APB3 Slave (0xF810_4000)
+    // =========================================================================
+    wire [31:0] analog_io_prdata;
+    wire        analog_io_pready;
+
+    t120_analog_io_ctrl u_analog_io (
+        .pclk             (sys_clk),
+        .presetn          (sys_rst_n_inv),
+        .psel             (apb_psel & analog_io_selected),
+        .penable          (apb_penable),
+        .pwrite           (apb_pwrite),
+        .paddr            (apb_paddr[11:0]),
+        .pwdata           (apb_pwdata),
+        .prdata           (analog_io_prdata),
+        .pready           (analog_io_pready),
+        .pslverr          (),
+
+        .h_latch_strobe   (h_latch_strobe),
+        .h_step_idx       (h_step_idx),
+        .h_active         (h_active),
+        .h_hold_busy      (h_hold_busy),
+        .quiet_bus_freeze (quiet_bus_freeze),
+
+        // Bank 0: DAC_2 (6 channels)
+        .si_dac_2         ({SI_DAC6_DAC_2, SI_DAC5_DAC_2, SI_DAC4_DAC_2, SI_DAC3_DAC_2, SI_DAC2_DAC_2, SI_DAC1_DAC_2}),
+        .sck_dac_2        ({SCK_DAC6_DAC_2, SCK_DAC5_DAC_2, SCK_DAC4_DAC_2, SCK_DAC3_DAC_2, SCK_DAC2_DAC_2, SCK_DAC1_DAC_2}),
+        .rck_dac_2        (RCK_DAC_2),
+        .sclr_dac_2       (SCLR_DAC_2),
+
+        // Bank 1: W_15 (8 channels, Matrix 3)
+        .si_dac_w15       ({SI_DAC8_W_15, SI_DAC7_W_15, SI_DAC6_W_15, SI_DAC5_W_15, SI_DAC4_W_15, SI_DAC3_W_15, SI_DAC2_W_15, SI_DAC1_W_15}),
+        .sck_dac_w15      ({SCK_DAC8_W_15, SCK_DAC7_W_15, SCK_DAC6_W_15, SCK_DAC5_W_15, SCK_DAC4_W_15, SCK_DAC3_W_15, SCK_DAC2_W_15, SCK_DAC1_W_15}),
+        .rck_dac_w15      (RCK_DAC_W_15),
+        .sclr_dac_w15     (SCLR_DAC_W_15),
+
+        // Bank 2: W_12 (8 channels, Matrix 8)
+        .si_dac_w12       ({SI_DAC8_W_12, SI_DAC7_W_12, SI_DAC6_W_12, SI_DAC5_W_12, SI_DAC4_W_12, SI_DAC3_W_12, SI_DAC2_W_12, SI_DAC1_W_12}),
+        .sck_dac_w12      ({SCK_DAC8_W_12, SCK_DAC7_W_12, SCK_DAC6_W_12, SCK_DAC5_W_12, SCK_DAC4_W_12, SCK_DAC3_W_12, SCK_DAC2_W_12, SCK_DAC1_W_12}),
+        .rck_dac_w12      (RCK_DAC_W_12),
+        .sclr_dac_w12     (SCLR_DAC_W_12),
+
+        // Bank 3: W_34 (8 channels, Matrix 33 + trim-DAC 38)
+        .si_dac_w34       ({SI_DAC8_W_34, SI_DAC7_W_34, SI_DAC6_W_34, SI_DAC5_W_34, SI_DAC4_W_34, SI_DAC3_W_34, SI_DAC2_W_34, SI_DAC1_W_34}),
+        .sck_dac_w34      ({SCK_DAC8_W_34, SCK_DAC7_W_34, SCK_DAC6_W_34, SCK_DAC5_W_34, SCK_DAC4_W_34, SCK_DAC3_W_34, SCK_DAC2_W_34, SCK_DAC1_W_34}),
+        .rck_dac_w34      (RCK_DAC_W_34),
+        .sclr_dac_w34     (SCLR_DAC_W_34),
+
+        // ADC_45 (6 channels, Intermediate Layer 1 Output)
+        .out_adc_45       ({OUT6_ADC_45, OUT5_ADC_45, OUT4_ADC_45, OUT3_ADC_45, OUT2_ADC_45, OUT1_ADC_45}),
+        .adc_45_conv      (ADC_45_CONV),
+        .adc_45_sck_1_2   (ADC_45_SCK_1_2),
+        .adc_45_sck_3_4   (ADC_45_SCK_3_4),
+        .adc_45_sck_5_6   (ADC_45_SCK_5_6),
+
+        // ADC_49 (6 channels, Final Summed Output)
+        .out_adc_49       ({OUT6_ADC_49, OUT5_ADC_49, OUT4_ADC_49, OUT3_ADC_49, OUT2_ADC_49, OUT1_ADC_49}),
+        .adc_49_conv      (ADC_49_CONV),
+        .adc_49_sck_1_2   (ADC_49_SCK_1_2),
+        .adc_49_sck_3_4   (ADC_49_SCK_3_4),
+        .adc_49_sck_5_6   (ADC_49_SCK_5_6)
     );
 
     // =========================================================================
@@ -382,6 +455,9 @@ module top_level
         end else if (t20_bus_selected) begin
             apb_prdata = t20_bus_prdata;
             apb_pready = t20_bus_pready;
+        end else if (analog_io_selected) begin
+            apb_prdata = analog_io_prdata;
+            apb_pready = analog_io_pready;
         end else begin
             apb_prdata = 32'h0;
             apb_pready = 1'b1;
@@ -394,79 +470,5 @@ module top_level
     assign T120_LED1 = t20_creset_n;
     // LED2 pin is now UART TX (moved from DAC pin F13 to LED2)
     assign T120_LED2 = sapphire_uart_txd;
-
-    // Tied off unused analog pins safely to ground/default
-    assign ADC_45_CONV    = 1'b0;
-    assign ADC_45_SCK_1_2 = 1'b0;
-    assign ADC_45_SCK_3_4 = 1'b0;
-    assign ADC_45_SCK_5_6 = 1'b0;
-    assign ADC_49_CONV    = 1'b0;
-    assign ADC_49_SCK_1_2 = 1'b0;
-    assign ADC_49_SCK_3_4 = 1'b0;
-    assign ADC_49_SCK_5_6 = 1'b0;
-
-    assign RCK_DAC_W_12   = 1'b0;
-    assign SCK_DAC2_W_34  = 1'b0;
-    assign SCLR_DAC_W_12  = 1'b1;
-    assign SI_DAC1_W_15   = 1'b0;
-    assign SI_DAC2_W_15   = 1'b0;
-    assign SI_DAC2_W_34   = 1'b0;
-    assign SI_DAC4_W_15   = 1'b0;
-    assign SI_DAC6_W_15   = 1'b0;
-    assign SI_DAC7_W_15   = 1'b0;
-
-    assign RCK_DAC_2      = 1'b0;
-    assign RCK_DAC_W_15   = 1'b0;
-    assign SCK_DAC1_DAC_2 = 1'b0;
-    assign SCK_DAC1_W_12  = 1'b0;
-    assign SCK_DAC1_W_34  = 1'b0;
-    assign SCK_DAC2_DAC_2 = 1'b0;
-    assign SCK_DAC2_W_12  = 1'b0;
-    assign SCK_DAC2_W_15  = 1'b0;
-    assign SCK_DAC3_DAC_2 = 1'b0;
-    assign SCK_DAC3_W_12  = 1'b0;
-    assign SCK_DAC3_W_15  = 1'b0;
-    assign SCK_DAC3_W_34  = 1'b0;
-    assign SCK_DAC4_DAC_2 = 1'b0;
-    assign SCK_DAC4_W_12  = 1'b0;
-    assign SCK_DAC4_W_15  = 1'b0;
-    assign SCK_DAC4_W_34  = 1'b0;
-    assign SCK_DAC5_DAC_2 = 1'b0;
-    assign SCK_DAC5_W_12  = 1'b0;
-    assign SCK_DAC5_W_15  = 1'b0;
-    assign SCK_DAC5_W_34  = 1'b0;
-    assign SCK_DAC6_DAC_2 = 1'b0;
-    assign SCK_DAC6_W_12  = 1'b0;
-    assign SCK_DAC6_W_15  = 1'b0;
-    assign SCK_DAC6_W_34  = 1'b0;
-    assign SCK_DAC7_W_15  = 1'b0;
-    assign SCK_DAC8_W_15  = 1'b0;
-    assign SCLR_DAC_2     = 1'b1;
-    assign SCLR_DAC_W_15  = 1'b1;
-    assign SI_DAC1_DAC_2  = 1'b0;
-    assign SI_DAC1_W_34   = 1'b0;
-    assign SI_DAC3_DAC_2  = 1'b0;
-    assign SI_DAC3_W_15   = 1'b0;
-    assign SI_DAC3_W_34   = 1'b0;
-    assign SI_DAC4_DAC_2  = 1'b0;
-    assign SI_DAC4_W_34   = 1'b0;
-    assign SI_DAC5_W_15   = 1'b0;
-    assign SI_DAC5_W_34   = 1'b0;
-    assign SI_DAC6_DAC_2  = 1'b0;
-    assign SI_DAC6_W_34   = 1'b0;
-    assign SI_DAC7_W_34   = 1'b0;
-
-    assign SCK_DAC1_W_15  = 1'b0;
-    assign SCK_DAC7_W_12  = 1'b0;
-    assign SCK_DAC8_W_12  = 1'b0;
-    assign SI_DAC1_W_12   = 1'b0;
-    assign SI_DAC2_W_12   = 1'b0;
-    assign SI_DAC3_W_12   = 1'b0;
-    assign SI_DAC4_W_12   = 1'b0;
-    assign SI_DAC5_W_12   = 1'b0;
-    assign SI_DAC6_W_12   = 1'b0;
-    assign SI_DAC7_W_12   = 1'b0;
-    assign SI_DAC8_W_12   = 1'b0;
-    assign SI_DAC8_W_15   = 1'b0;
 
 endmodule

@@ -1,4 +1,4 @@
-<efx:project xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="T120_MALM" description="" last_change="1791651570" sw_version="2025.2.288.2.10" last_run_state="pass" last_run_flow="bitstream" config_result_in_sync="sync" design_ood="sync" place_ood="sync" route_ood="sync" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
+<efx:project xmlns:efx="http://www.efinixinc.com/enf_proj" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="T120_MALM" description="" last_change="1791711151" sw_version="2025.2.288.2.10" last_run_state="pass" last_run_flow="bitstream" config_result_in_sync="sync" design_ood="sync" place_ood="sync" route_ood="sync" xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd">
     <efx:device_info>
         <efx:family name="Trion" />
         <efx:device name="T120F324" />
@@ -13,6 +13,7 @@
         <efx:design_file name="t120_sbus_xact.sv" version="default" library="default" />
         <efx:design_file name="t120_hbus_seq.sv" version="default" library="default" />
         <efx:design_file name="t120_creset_controller.sv" version="default" library="default" />
+        <efx:design_file name="t120_analog_io_ctrl.sv" version="default" library="default" />
         <efx:design_file name="eth_mac_100m.sv" version="default" library="default" />
         <efx:design_file name="ip/mdio_master/mdio_master.sv" version="default" library="default" />
         <efx:design_file name="top_level.sv" version="default" library="default" />

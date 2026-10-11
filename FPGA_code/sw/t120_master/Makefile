@@ -4,6 +4,7 @@ STANDALONE = ./software
 BSP_PATH = ./bsp/efinix/EfxSapphireSoc
 
 SRCS = src/main.c \
+       src/maml_platform.c \
        ${STANDALONE}/common/start_minimal.S
 
 CFLAGS += -Iinclude \

@@ -25,7 +25,8 @@ module tb_t120_bridge;
         .pclk(clk), .presetn(rstn), .psel(psel), .penable(penable), .pwrite(pwrite),
         .paddr(paddr), .pwdata(pwdata), .prdata(prdata), .pready(), .pslverr(),
         .t20_clk9(t20_clk9), .t20_tx(t20_tx), .t20_rx(t20_rx), .t20_creset_n(t20_creset_n),
-        .irq(irq), .h_step_strobe(h_step_strobe), .h_active(h_active));
+        .irq(irq), .h_step_strobe(h_step_strobe), .h_latch_strobe(), .h_step_idx(),
+        .h_active(h_active), .h_hold_busy(1'b0), .quiet_bus_freeze(1'b0));
 
     // ---------------- APB tasks ----------------
     task apb_write(input [11:0] a, input [31:0] d);

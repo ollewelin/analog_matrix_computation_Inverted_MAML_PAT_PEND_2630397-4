@@ -2,7 +2,12 @@
 
 **Document Reference:** `INVERTED-MAML-AIMC-SPEC-V4`  
 **Patent Status:** Patent Pending (SE 2630397-4)  
-**Hardware Platforms:** Efinix Trion T120 (Master / Orchestration) & Trion T20 (Dedicated Compute Node)
+**Hardware Platforms:** Efinix Trion T120 (Master / Orchestration / DAC & ADC Banks) & Trion T20 (3-State Hadamard, Differential `G_P/G_N` Gates, `0.2 Hz` Heaters, Analog LEDs)
+
+> [!IMPORTANT]
+> **Companion Implementation Documents:**
+> - For the exact non-backpropagation Forward Hadamard gradient equations (`Equations 1–7`, Carrier Wave Search `Eq. 5/6`, Dot-Product Second-Derivative Outer Loop `Ref 40`, 4-Phase Settle-Then-Sample ADC rule, and Full Differential `(+/-)` / 3-State Hadamard rules), see [`NON_BACKPROP_HADAMARD_GRADIENT_RULES.md`](./NON_BACKPROP_HADAMARD_GRADIENT_RULES.md).
+> - For the complete embedded + English PC GUI platform architecture and PCB pinout, see [`MASTER_PLATFORM_DEVELOPMENT_PLAN.md`](./MASTER_PLATFORM_DEVELOPMENT_PLAN.md).
 
 ---
 
