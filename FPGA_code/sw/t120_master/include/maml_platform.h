@@ -34,6 +34,7 @@
 #define MAML_CMD_SEED_WEIGHTS   0x16
 #define MAML_CMD_PROBE_CELL     0x17
 #define MAML_CMD_STEP_ONCE      0x18
+#define MAML_CMD_DIAG_HADAMARD  0x19
 
 /* Run Modes */
 #define MAML_MODE_IDLE          0
@@ -139,6 +140,30 @@ typedef struct {
     int16_t  adc49_neg[6];          /* ADC_49 when cell set to -w_probe */
     int16_t  adc49_zero[6];         /* ADC_49 when cell centered at 0 (128/128) */
 } maml_cell_probe_resp_t;
+
+/* Hadamard Permutation & Demodulation Diagnostic Response Packet */
+typedef struct {
+    uint32_t magic;                 /* 0x4D414D4C */
+    uint8_t  msg_type;              /* 0x99 = Hadamard Diag Response */
+    uint8_t  mode;                  /* 0=Identity, 1=Permuted+pi_inv, 2=Permuted no pi_inv */
+    uint16_t en_mask;               /* Active Hadamard mask on T20 */
+    uint8_t  perm[16];              /* 16-step permutation pi[0..15] */
+    uint16_t h_words[16];           /* 16 Hadamard words loaded into T20_H_TABLE */
+    uint32_t ack_ok;                /* H-bus ACK OK count */
+    uint32_t ack_miss;              /* H-bus ACK MISS count */
+    uint16_t lat_last;              /* H-bus ACK latency (last) */
+    uint16_t lat_min;               /* H-bus ACK latency (min) */
+    uint16_t lat_max;               /* H-bus ACK latency (max) */
+    uint16_t t20_word_cnt;          /* T20 H-bus word counter from S-bus status */
+    uint16_t t20_sync_err;          /* T20 H-bus sync error counter */
+    uint16_t settle_cycles;         /* Quiet analog settle cycles used */
+    int16_t  adc45_hiz[6];          /* Quiet 3-state (0x8000) ADC_45 readout */
+    int16_t  adc49_hiz[6];          /* Quiet 3-state (0x8000) ADC_49 readout */
+    int16_t  cap45[16][6];          /* Hardware Capture RAM for ADC_45 (16 x 6) */
+    int16_t  cap49[16][6];          /* Hardware Capture RAM for ADC_49 (16 x 6) */
+    int16_t  fwht45[16][6];         /* FWHT-16 Demodulated Matrix 3 / ADC_45 (16 x 6) */
+    int16_t  fwht49[16][6];         /* FWHT-16 Demodulated Matrix 8 / ADC_49 (16 x 6) */
+} maml_hadamard_diag_resp_t;
 
 #pragma pack(pop)
 

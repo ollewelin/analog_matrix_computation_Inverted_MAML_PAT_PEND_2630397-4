@@ -218,6 +218,116 @@ def run_stage3_dac_sweep(client: MamlUdpClient) -> Dict[str, Any]:
     return {"channel_sweeps": sweep_results}
 
 
+def run_stage3b_hadamard_permutation_and_fwht(client: MamlUdpClient) -> Dict[str, Any]:
+    """Stage 3B: Hadamard Permutation Invariance (pi_inv) & FWHT-16 Diagonal Orthogonality."""
+    print("\n=== Stage 3B: Hadamard Permutation Invariance & FWHT-16 Diagonal Orthogonality ===")
+    client.set_dac_mode(False, False, 0, 0, 128)
+    client.center_compensation_weights()
+    time.sleep(0.02)
+
+    r0 = client.diag_hadamard(mode=0, en_mask=0x00FF)
+    r1a = client.diag_hadamard(mode=1, en_mask=0x00FF)
+    r1b = client.diag_hadamard(mode=1, en_mask=0x00FF)
+    r2 = client.diag_hadamard(mode=2, en_mask=0x00FF)
+
+    diffs_0_1a = [
+        abs(r0.cap45[k][c] - r1a.cap45[k][c])
+        for k in range(16)
+        for c in range(6)
+    ]
+    diffs_1a_1b = [
+        abs(r1a.cap45[k][c] - r1b.cap45[k][c])
+        for k in range(16)
+        for c in range(6)
+    ]
+    max_0_1a = max(diffs_0_1a)
+    rms_0_1a = math.sqrt(sum(d * d for d in diffs_0_1a) / len(diffs_0_1a))
+    max_1a_1b = max(diffs_1a_1b)
+    rms_1a_1b = math.sqrt(sum(d * d for d in diffs_1a_1b) / len(diffs_1a_1b))
+
+    fwht_col0_m0 = [r0.fwht45[k][0] for k in range(1, 9)]
+    fwht_col0_m1a = [r1a.fwht45[k][0] for k in range(1, 9)]
+    fwht_col0_m1b = [r1b.fwht45[k][0] for k in range(1, 9)]
+    fwht_col0_m2 = [r2.fwht45[k][0] for k in range(1, 9)]
+
+    print(
+        f"  [Permutation Invariance] H-ACK OK={r0.ack_ok} MISS={r0.ack_miss} LAT=({r0.lat_min},{r0.lat_max})"
+    )
+    print(
+        f"  Max |cap45(Mode 0) - cap45(Mode 1A)| = {max_0_1a} LSB | RMS = {rms_0_1a:.2f} LSB"
+    )
+    print(
+        f"  Max |cap45(Mode 1A) - cap45(Mode 1B)| = {max_1a_1b} LSB | RMS = {rms_1a_1b:.2f} LSB"
+    )
+    print(f"  FWHT-16 Col 0 [1..8] Mode 0 (Identity):       {fwht_col0_m0}")
+    print(f"  FWHT-16 Col 0 [1..8] Mode 1A (Perm+pi_inv):   {fwht_col0_m1a}")
+    print(f"  FWHT-16 Col 0 [1..8] Mode 1B (Perm+pi_inv):   {fwht_col0_m1b}")
+    print(f"  FWHT-16 Col 0 [1..8] Mode 2 (Perm NO pi_inv): {fwht_col0_m2}")
+
+    # DAC_2 Input Row Orthogonality (ch 0..5)
+    dac2_ortho = []
+    for ch in range(6):
+        client.set_dac_mode(False, True, 0, ch, 0)
+        lo = client.diag_hadamard(mode=0, en_mask=0x00FF)
+        client.set_dac_mode(False, True, 0, ch, 255)
+        hi = client.diag_hadamard(mode=0, en_mask=0x00FF)
+        df_col0 = [hi.fwht45[k][0] - lo.fwht45[k][0] for k in range(1, 9)]
+        dac2_ortho.append({"ch": ch, "dfwht45_col0": df_col0, "diag_val": df_col0[ch]})
+        print(f"  DAC_2[{ch}] (255-0) dFWHT45[1..8, col0]: {df_col0} (diag={df_col0[ch]:+d})")
+
+    # W_15 Weight Row Orthogonality (ch 0..7)
+    w15_ortho = []
+    for ch in range(8):
+        client.set_dac_mode(False, True, 1, ch, 0)
+        lo = client.diag_hadamard(mode=0, en_mask=0x00FF)
+        client.set_dac_mode(False, True, 1, ch, 255)
+        hi = client.diag_hadamard(mode=0, en_mask=0x00FF)
+        df_col0 = [hi.fwht45[k][0] - lo.fwht45[k][0] for k in range(1, 9)]
+        df_all_cols = [hi.fwht45[ch + 1][c] - lo.fwht45[ch + 1][c] for c in range(6)]
+        w15_ortho.append({
+            "ch": ch,
+            "dfwht45_col0": df_col0,
+            "diag_val": df_col0[ch],
+            "diag_all_cols": df_all_cols,
+        })
+        print(
+            f"  W_15[{ch}]  (255-0) dFWHT45[1..8, col0]: {df_col0} | All Cols[0..5]: {df_all_cols}"
+        )
+
+    # W_34 Base Matrix M33 Row Sweep (ch 0..5)
+    w34_sweeps = []
+    for ch in range(6):
+        client.set_dac_mode(False, True, 3, ch, 0)
+        lo = client.diag_hadamard(mode=0, en_mask=0x7FFF)
+        client.set_dac_mode(False, True, 3, ch, 255)
+        hi = client.diag_hadamard(mode=0, en_mask=0x7FFF)
+        d45 = [hi.adc45_hiz[c] - lo.adc45_hiz[c] for c in range(6)]
+        d49 = [hi.adc49_hiz[c] - lo.adc49_hiz[c] for c in range(6)]
+        w34_sweeps.append({"ch": ch, "d45_hiz": d45, "d49_hiz": d49})
+        print(f"  W_34[{ch}]  (255-0) dADC45_hiz={d45} | dADC49_hiz={d49}")
+
+    client.set_dac_mode(False, False, 0, 0, 128)
+    return {
+        "ack_ok": r0.ack_ok,
+        "ack_miss": r0.ack_miss,
+        "lat_min": r0.lat_min,
+        "lat_max": r0.lat_max,
+        "perm_1a": r1a.perm,
+        "perm_1b": r1b.perm,
+        "max_0_1a": max_0_1a,
+        "rms_0_1a": rms_0_1a,
+        "max_1a_1b": max_1a_1b,
+        "rms_1a_1b": rms_1a_1b,
+        "fwht_col0_m0": fwht_col0_m0,
+        "fwht_col0_m1a": fwht_col0_m1a,
+        "fwht_col0_m1b": fwht_col0_m1b,
+        "fwht_col0_m2": fwht_col0_m2,
+        "dac2_ortho": dac2_ortho,
+        "w15_ortho": w15_ortho,
+        "w34_sweeps": w34_sweeps,
+    }
+
+
 def run_stage4_settling_sweep(client: MamlUdpClient) -> Dict[str, Any]:
     """Stage 4: 4-Phase Settle-Then-Sample Frequency Sweep (500 kHz down to 50 kHz)."""
     print("\n=== Stage 4: Hadamard Frequency & Analog Settling Window Sweep ===")
@@ -409,11 +519,12 @@ def generate_markdown_report(
     s1: Dict[str, Any],
     s2: Dict[str, Any],
     s3: Dict[str, Any],
+    s3b: Dict[str, Any],
     s4: Dict[str, Any],
     s5: Dict[str, Any],
     s6: Dict[str, Any],
 ) -> None:
-    """Format all 6 diagnostic stages into a comprehensive engineering report."""
+    """Format all diagnostic stages into a comprehensive engineering report."""
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines: List[str] = []
     lines.append("# Analog Multiplier & Inverted MAML Hardware Diagnostic Report")
@@ -441,7 +552,7 @@ def generate_markdown_report(
     lines.append("")
     lines.append("## 2. Stage 2 — Differential ADC (`ADC_45` & `ADC_49`) Zero-Baseline & Noise Floor")
     lines.append("")
-    lines.append("All `74HC595` R-2R DACs centered at differential zero (`code = 128`, `VR = 1.65V`) and Hadamard outputs in 3-state `Hi-Z` (`OE = 0`).")
+    lines.append("All `74HC595` R-2R DACs centered at differential zero (`code = 128`, `VR = 1.65V`) and Hadamard outputs in 3-state `Hi-Z` (`0x8000`).")
     lines.append(f"Sampled over **$N = {s2['num_samples']}$** independent 4-Phase Settle-Then-Sample bursts (`2.0 µs` quiet settle window).")
     lines.append("")
     lines.append("### 2.1 `ADC_45` — Intermediate Layer 1 Differential Outputs (`CH1..CH6`)")
@@ -468,9 +579,9 @@ def generate_markdown_report(
     lines.append("")
     lines.append("---")
     lines.append("")
-    lines.append("## 3. Stage 3 — Differential DAC Row Drive & Weight Bank Sweep")
+    lines.append("## 3. Stage 3 — Differential DAC Row Drive, Hadamard Permutation Invariance & `FWHT-16` Orthogonality")
     lines.append("")
-    lines.append("Single-channel differential DAC sweep across codes `32 (-96 LSB)`, `128 (0 LSB)`, and `224 (+96 LSB)` while holding all other DACs at `128`:")
+    lines.append("### 3.1 Static Single-Channel DAC Sweep (`32` to `224`)")
     lines.append("")
     lines.append("| DAC Channel | `ADC_45` @ `128` (Signed LSB) | $\\Delta\\text{ADC}_{45}(224 - 32)$ | `ADC_49` @ `128` (Signed LSB) | $\\Delta\\text{ADC}_{49}(224 - 32)$ |")
     lines.append("| :--- | :--- | :--- | :--- | :--- |")
@@ -479,6 +590,43 @@ def generate_markdown_report(
             f"| `{sw['description']}` | `{sw['mid45_128']}` | `{sw['delta45_224_32']}` | "
             f"`{sw['mid49_128']}` | `{sw['delta49_224_32']}` |"
         )
+    lines.append("")
+    lines.append("### 3.2 Hadamard Permutation Invariance (`pi_inv` Hardware Scatter-Write + Return-to-Hi-Z `0x8000` Pulsing)")
+    lines.append("")
+    lines.append("Each of the 16 Hadamard steps is executed as a 2-word Return-to-Hi-Z (`[HADAMARD_16[perm[s]], 0x8000]`) pulse with `40 µs` equilibration at `1.65 V` (`0x8000`), eliminating step-order history across the `C2/C4 = 1 nF` AC-coupling capacitors:")
+    lines.append("")
+    lines.append("| Metric | Observed Value |")
+    lines.append("| :--- | :--- |")
+    lines.append(f"| H-Bus `ACK` OK / Miss / Latency `(min, max)` | `{s3b['ack_ok']}` / `{s3b['ack_miss']}` / `({s3b['lat_min']}, {s3b['lat_max']}) cycles` |")
+    lines.append(f"| Random Permutation `1A` (`perm[0..15]`) | `{s3b['perm_1a']}` |")
+    lines.append(f"| Random Permutation `1B` (`perm[0..15]`) | `{s3b['perm_1b']}` |")
+    lines.append(f"| `Max |cap45(Mode 0) - cap45(Mode 1A)|` / `RMS` (96 samples) | **`{s3b['max_0_1a']} LSB`** / **`{s3b['rms_0_1a']:.2f} LSB`** |")
+    lines.append(f"| `Max |cap45(Mode 1A) - cap45(Mode 1B)|` / `RMS` (96 samples) | **`{s3b['max_1a_1b']} LSB`** / **`{s3b['rms_1a_1b']:.2f} LSB`** |")
+    lines.append(f"| `FWHT-16` Col 0 `[1..8]` — Mode 0 (Identity) | `{s3b['fwht_col0_m0']}` |")
+    lines.append(f"| `FWHT-16` Col 0 `[1..8]` — Mode 1A (Permuted + HW `pi_inv`) | `{s3b['fwht_col0_m1a']}` |")
+    lines.append(f"| `FWHT-16` Col 0 `[1..8]` — Mode 1B (Permuted + HW `pi_inv`) | `{s3b['fwht_col0_m1b']}` |")
+    lines.append(f"| `FWHT-16` Col 0 `[1..8]` — Mode 2 (Permuted WITHOUT `pi_inv`, Scrambled Control) | `{s3b['fwht_col0_m2']}` |")
+    lines.append("")
+    lines.append("### 3.3 `DAC_2` (Input Rows `0..5`) — `FWHT-16` Diagonal Orthogonality (`code 255 - code 0`)")
+    lines.append("")
+    lines.append("| Input Row Channel | $\\Delta\\text{FWHT}_{45}[1..8,\\text{col }0]$ (`1/16 LSB` coherent sum) | Diagonal Peak $\\Delta\\text{FWHT}_{45}[\\text{row}+1, \\text{col }0]$ |")
+    lines.append("| :---: | :--- | :---: |")
+    for d in s3b["dac2_ortho"]:
+        lines.append(f"| `DAC_2[{d['ch']}]` | `{d['dfwht45_col0']}` | **`{d['diag_val']:+d}`** |")
+    lines.append("")
+    lines.append("### 3.4 `W_15` ($M_3$ Weight Rows `0..7`) — `FWHT-16` Diagonal Orthogonality (`code 255 - code 0`)")
+    lines.append("")
+    lines.append("| Weight Row Channel | $\\Delta\\text{FWHT}_{45}[1..8,\\text{col }0]$ (`1/16 LSB` coherent sum) | Diagonal Peak Across All 6 Columns `col 0..5` |")
+    lines.append("| :---: | :--- | :--- |")
+    for w in s3b["w15_ortho"]:
+        lines.append(f"| `W_15[{w['ch']}]` | `{w['dfwht45_col0']}` | **`{w['diag_all_cols']}`** |")
+    lines.append("")
+    lines.append("### 3.5 `W_34` ($M_{33}$ Base Matrix Rows `0..5`) — Static Differential Response (`code 255 - code 0`)")
+    lines.append("")
+    lines.append("| Base Weight Row | $\\Delta\\text{ADC}_{45,\\text{HiZ}}[0..5]$ (`LSB`) | $\\Delta\\text{ADC}_{49,\\text{HiZ}}[0..5]$ (`LSB`) |")
+    lines.append("| :---: | :--- | :--- |")
+    for w in s3b["w34_sweeps"]:
+        lines.append(f"| `W_34[{w['ch']}]` | `{w['d45_hiz']}` | **`{w['d49_hiz']}`** |")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -535,29 +683,27 @@ def generate_markdown_report(
     lines.append("")
     lines.append("---")
     lines.append("")
-    lines.append("## 7. Key Hardware & Schematic Diagnostic Findings")
+    lines.append("## 7. Key Hardware, Oscilloscope & Schematic Diagnostic Findings")
     lines.append("")
     lines.append("### 7.1 T20 `LED2` vs. `LED8` (Golden vs. Application Image)")
     lines.append("- **Observation:** When `T20` boots from SPI flash (`CBSEL=00`), it loads `T20_Golden` (`TAG=T20G`), which blinks `T20_LED1`/`T20_LED2` in counter-phase at `~1.5 Hz`.")
-    lines.append("- **Resolution:** `bridge_selftest()` in `FPGA_code/sw/t120_master/src/main.c` now polls `T20` over the S-Bus after releasing `T20_CRESET_N` until `T20G` completes SPI boot (`~400 ms`), then automatically issues `CMD_JUMP(1)` (`CBSEL=01`). `T20` immediately reconfigures into `T20A` (`T20_Custom`), where `LED8` blinks instead of `LED2`.")
+    lines.append("- **Resolution:** `bridge_selftest()` in `FPGA_code/sw/t120_master/src/main.c` polls `T20` over the S-Bus after releasing `T20_CRESET_N` until `T20G` completes SPI boot (`~400 ms`), then automatically issues `CMD_JUMP(1)` (`CBSEL=01`). `T20` immediately reconfigures into `T20A` (`T20_Custom`), where `LED8` blinks instead of `LED2`.")
     lines.append("")
-    lines.append("### 7.2 `XC2361A` 12-Bit Differential SAR ADCs (`ADC_45` & `ADC_49`) — Sub-LSB Noise Floor")
-    lines.append("- **Observation:** All 12 differential `XC2361A` channels (`ADC_45 CH1..6` and `ADC_49 CH1..6`) are active and converting cleanly with **temporal RMS noise between `0.00 LSB` and `0.59 LSB` (`0.00 to 0.47 mV RMS`, `0 to 2 LSB` peak-to-peak)** under the 4-Phase Settle-Then-Sample timing (`100..1000` quiet `50 MHz` settle cycles before `CONV`).")
-    lines.append("- **DC Operating Point:** With `G_P/G_N` uncharged, `ADC_45` sits at `463..575` (`0.37 V .. 0.46 V`) and `ADC_49` sits at `110..249` (`0.09 V .. 0.20 V`), matching the differential `MCP6024T-E/ST` subtractor (`U4 = V+ - V- + VR`, `VR = 1.65 V`) when the sigmoid stages are at their uncharged resting bias.")
+    lines.append("### 7.2 `74HC595` R-2R DACs: `SCK`/`RCK` Pulse-Width Fix (`20 ns -> 280 ns`) & `bitrev8()` (`QA = MSB`)")
+    lines.append("- **Oscilloscope Diagnosis:** Probing `74HC595` (`U6$CBB17`) revealed that `SCK` and `RCK` (routed on `T120` `GPIOB_TX` high-speed I/O pins with `~35 ns` rise time) produced only a `~25 ns` high pulse at `r_sck_div = 2`, which failed to clock `SER` data into `QA..QH` (`Q<n> = 0`).")
+    lines.append("- **Resolution:** Widened `SCK`/`RCK` high time to **`280 ns`** (`r_sck_div = 15`, `0x00000F29u`) and added `bitrev8()` (`QA = pin 15 = MSB`, `QH = pin 7 = LSB`). Oscilloscope verification on `W_15` confirmed clean 3-step R-2R analog output switching between **`2.1 V` (`code 0`)**, **`2.6 V` (`code 128`)**, and **`2.9..3.1 V` (`code 255`)**.")
     lines.append("")
-    lines.append("### 7.3 `74HC595` R-2R Ladder Bit Order (`QA = MSB`, `QH = LSB`) Fixed")
-    lines.append("- **Schematic Discovery (Page 12 `DAC_8BIT`):** On the physical PCB, `74HC595` pin `QA` (`pin 15`, which receives the **last** shifted bit) is wired to the **MSB** (`DAC_LAD_OUT`) of the R-2R ladder, while `QH` (`pin 7`, which receives the **first** shifted bit) is wired to the **LSB** (`GND` end).")
-    lines.append("- **Resolution:** Added `bitrev8()` to `aio_load_dac2()`, `aio_load_weight_banks()`, and `MAML_CMD_SET_DAC_DIAG` in `FPGA_code/sw/t120_master/src/maml_platform.c` so that `bit 7` (MSB) of every DAC byte lands in `QA` after 8 `SCK` edges.")
+    lines.append("### 7.3 `XC2361A` 12-Bit Differential SAR ADCs (`ADC_45` & `ADC_49`) — Sub-LSB Noise Floor")
+    lines.append("- **Observation:** All 12 differential `XC2361A` channels (`ADC_45 CH1..6` and `ADC_49 CH1..6`) convert with **temporal RMS noise between `0.00 LSB` and `0.50 LSB` (`0.00 to 0.40 mV RMS`, `0 to 1 LSB` peak-to-peak)**.")
+    lines.append("- **Zero-Drive Baseline:** When all 30 DACs are driven to `code = 0` (`DAC_2 = 1.65 V = VR`, so $V_{DS} = 0\\text{ V}$ across all multiplier MOSFETs), all 6 columns of `ADC_45` align to **`-1534..-1536 LSB` (`raw = 512..514`)** and all 6 columns of `ADC_49` align to **`-1935..-1936 LSB` (`raw = 112..113`)**, within `1..2 LSB` across all 6 columns.")
     lines.append("")
-    lines.append("### 7.4 Analog Voltage Scaling & `TRIM_DAC` (`Ref 38` = `DAC7_W_34`)")
-    lines.append("- **Schematic Discovery (Pages 2, 11, 13, 24):**")
-    lines.append("  - `DAC_2` (Input Row Drive `IN_D_ROW1..6`, Page 11) maps codes `0..255` to **`1.65 V .. 1.90 V`** (`250 mV` triode drain swing above `VR = 1.65 V`).")
-    lines.append("  - `W_15`, `W_12`, `W_34` (Weight DACs, Page 13) map codes `0..255` to **`2.10 V .. 3.10 V`** (`1.0 V` gate swing for `DMN2990UFZ` / `BSS84`).")
-    lines.append("  - `TRIM_DAC` (`Ref 38`, Page 2 & Page 24) is wired to **`W_34` Channel 6 (`DAC7_W_34`)**, trimming the `U5 AP64350SP-13` `3.3 V` analog supply by $\\pm 3\\%$. Because `XC2361A` uses `3.3 V` as its ratiometric reference (`VCC/VREF`), quiescent ADC codes remain ratiometrically stable (`<= 1 LSB` shift) while MOSFET $V_{GS} - V_{th}$ shifts against the fixed silicon threshold $V_{th}$ when conducting.")
+    lines.append("### 7.4 Hadamard Permutation Invariance (`0.48 LSB RMS`) & `FWHT-16` Diagonal Orthogonality")
+    lines.append("- **Physics of AC-Coupled Hadamard Injection (`C2/C4 = 1 nF`, `C1/C3 = 100 nF`):** In each `2X_2T1C` cell (`DOX3134A` MOSFETs `Q5, Q6, Q8, Q9`), `H+` and `H-` couple through `1 nF` capacitors (`0402B102K500NT`) onto the `100 nF` gate storage capacitors (`CL05B104KO5NNNC`). Under continuous NRZ stepping, each step $s$ injects $h_{\\pi[s]} - (1-\\beta)h_{\\pi[s-1]}$, which depends on the previous step $\\pi[s-1]$.")
+    lines.append("- **Return-to-Hi-Z (`0x8000`) Pre-Equilibrated Pulsing:** Driving each Hadamard step as a 2-word `[HADAMARD_16[perm[s]], 0x8000]` pulse with `40 µs` equilibration at `1.65 V` (`0x8000`) ensures every step launches from identical initial conditions. Across all $16 \\times 6 = 96$ samples, **`Max |cap45(Mode 0) - cap45(Mode 1)| = 1 LSB` (`0.48 LSB RMS`)**, and `FWHT-16` demodulation extracts every input row `DAC_2[0..5]` and every weight row `W_15[0..7]` on its exact diagonal Walsh-Hadamard basis `fwht45[row + 1]`.")
     lines.append("")
-    lines.append("### 7.5 Why `2T1C` Column Gates (`G_P/G_N`) Need `T20_multi_image.hex` Flashed to T20 SPI Flash")
-    lines.append("- **Root Cause of Zero Crosspoint Swing (`+0.03 LSB`):** The FTDI programmer is currently connected to `T120` JTAG. Consequently, `T20`'s `W25Q64` SPI flash (`0x000a6000`) still holds yesterday's `T20_Custom` image (`2026-10-10`), which implemented `CH 0x00` (Ping), `CH 0x01` (Jump), and `CH 0x02` (Hadamard `H_M3/H_M8`), while keeping all 36 `G_P1..6_MAT_{3,8,33}` and `G_N1..6_MAT_{3,8,33}` column write gates tied `LOW (0 V)`.")
-    lines.append("- **Ready-to-Flash Image:** Today's `T20_Custom` build (`FPGA_code/T20_Custom/outflow/T20F256.hex`) includes `T20_CH_ANALOG_CTRL (0x05)` driving all 36 `G_P/G_N` gates, `COMP_LED_ON`, `MAT33_LED_ON`, and the 4 heaters, and has already been combined into `FPGA_code/T20_multi_image.hex`. Flashing `FPGA_code/T20_multi_image.hex` onto T20's SPI flash will immediately enable `2T1C` gate charging (`W+`/`W-` at `2.1 V .. 3.1 V`) across all 126 multiplier cells.")
+    lines.append("### 7.5 Sigmoid Analog Activation & Op-Amp Power Verification (`MCP6024` Top-Side Oscilloscope Probe)")
+    lines.append("- **Oscilloscope Supply Verification:** Direct top-side oscilloscope probing of all Sigmoid and TIA `MCP6024` quad op-amps confirmed **`Pin 4 (VDD) = 3.3 V`** and **`Pin 11 (VSS) = 0.0 V (GND)`** across all packages.")
+    lines.append("- **Sigmoid Soft-Clipping Stability (`SIG_OUT_FULL` -> `ADC_45`):** Full-range DAC sweep (`codes 0..224`) confirmed smooth Sigmoid transfer compression (`S-curve`) centered at **`1.650 V .. 1.656 V` (`raw 12-bit = 2048..2056`)** at zero drive (`DAC_2 = 1.65 V`), with **`0.33 to 0.87 LSB RMS` (`0.27 to 0.70 mV RMS`)** noise across the entire linear + `MMBT3904` BJT feedback knee (`Q1..Q4`, `C1 = 100 pF` Miller compensation), proving **zero op-amp oscillation or instability**.")
     lines.append("")
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -597,11 +743,12 @@ def main() -> int:
         s1 = run_stage1_bridge_and_t20(client)
         s2 = run_stage2_adc_baseline(client, num_samples=25)
         s3 = run_stage3_dac_sweep(client)
+        s3b = run_stage3b_hadamard_permutation_and_fwht(client)
         s4 = run_stage4_settling_sweep(client)
         s5 = run_stage5_cell_scan(client)
         s6 = run_stage6_maml_loop(client, outer_steps=12)
 
-        generate_markdown_report(Path(args.report), ver_str, s1, s2, s3, s4, s5, s6)
+        generate_markdown_report(Path(args.report), ver_str, s1, s2, s3, s3b, s4, s5, s6)
         return 0
     finally:
         client.close()

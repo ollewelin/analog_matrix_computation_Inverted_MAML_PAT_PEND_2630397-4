@@ -27,11 +27,34 @@ MAML_CMD_CENTER_COMP    = 0x15
 MAML_CMD_SEED_WEIGHTS   = 0x16
 MAML_CMD_CELL_DIAG      = 0x17
 MAML_CMD_STEP_OUTER     = 0x18
+MAML_CMD_DIAG_HADAMARD  = 0x19
 
 # Matrix IDs matching maml_platform.h (0=M3, 1=M8, 2=M33)
 MAT_M3  = 0
 MAT_M8  = 1
 MAT_M33 = 2
+
+
+@dataclass
+class HadamardDiagResult:
+    mode: int
+    en_mask: int
+    settle_cycles: int
+    ack_ok: int
+    ack_miss: int
+    lat_last: int
+    lat_min: int
+    lat_max: int
+    t20_word_cnt: int
+    t20_sync_err: int
+    perm: List[int]
+    h_words: List[int]
+    cap45: List[List[int]]
+    cap49: List[List[int]]
+    fwht45: List[List[int]]
+    fwht49: List[List[int]]
+    adc45_hiz: List[int]
+    adc49_hiz: List[int]
 
 
 @dataclass
@@ -117,6 +140,10 @@ class MamlUdpClient:
     # Exact struct format for maml_cell_probe_resp_t (80 bytes, #pragma pack(1))
     PROBE_FMT = "<IBBBB6h6h6h6h6h6h"
     PROBE_SIZE = struct.calcsize(PROBE_FMT)
+
+    # Exact struct format for maml_hadamard_diag_resp_t (866 bytes, #pragma pack(1))
+    HAD_DIAG_FMT = "<IBBH16B16HIIHHHHHH6h6h96h96h96h96h"
+    HAD_DIAG_SIZE = struct.calcsize(HAD_DIAG_FMT)
 
     def __init__(self, host: str = "192.168.1.50", port: int = 5000, timeout: float = 0.25):
         self.host = host
@@ -498,6 +525,47 @@ class MamlUdpClient:
                     adc49_pos=list(u[23:29]),
                     adc49_neg=list(u[29:35]),
                     adc49_zero=list(u[35:41]),
+                )
+        return None
+
+    def diag_hadamard(self, mode: int = 0, en_mask: int = 0x7FFF) -> Optional[HadamardDiagResult]:
+        payload = struct.pack("<BH", mode & 0xFF, en_mask & 0xFFFF)
+        raw = self._send_binary(MAML_CMD_DIAG_HADAMARD, payload)
+        if raw is not None and len(raw) >= self.HAD_DIAG_SIZE:
+            u = struct.unpack(self.HAD_DIAG_FMT, raw[:self.HAD_DIAG_SIZE])
+            if u[0] == MAML_UDP_MAGIC and u[1] == 0x99:
+                idx = 4
+                perm = list(u[idx : idx + 16]); idx += 16
+                h_words = list(u[idx : idx + 16]); idx += 16
+                ack_ok = u[idx]; ack_miss = u[idx + 1]; idx += 2
+                lat_last = u[idx]; lat_min = u[idx + 1]; lat_max = u[idx + 2]
+                t20_word_cnt = u[idx + 3]; t20_sync_err = u[idx + 4]; settle_cycles = u[idx + 5]
+                idx += 6
+                adc45_hiz = list(u[idx : idx + 6]); idx += 6
+                adc49_hiz = list(u[idx : idx + 6]); idx += 6
+                cap45 = [list(u[idx + 6 * k : idx + 6 * (k + 1)]) for k in range(16)]; idx += 96
+                cap49 = [list(u[idx + 6 * k : idx + 6 * (k + 1)]) for k in range(16)]; idx += 96
+                fwht45 = [list(u[idx + 6 * k : idx + 6 * (k + 1)]) for k in range(16)]; idx += 96
+                fwht49 = [list(u[idx + 6 * k : idx + 6 * (k + 1)]) for k in range(16)]; idx += 96
+                return HadamardDiagResult(
+                    mode=u[2],
+                    en_mask=u[3],
+                    settle_cycles=settle_cycles,
+                    ack_ok=ack_ok,
+                    ack_miss=ack_miss,
+                    lat_last=lat_last,
+                    lat_min=lat_min,
+                    lat_max=lat_max,
+                    t20_word_cnt=t20_word_cnt,
+                    t20_sync_err=t20_sync_err,
+                    perm=perm,
+                    h_words=h_words,
+                    cap45=cap45,
+                    cap49=cap49,
+                    fwht45=fwht45,
+                    fwht49=fwht49,
+                    adc45_hiz=adc45_hiz,
+                    adc49_hiz=adc49_hiz,
                 )
         return None
 

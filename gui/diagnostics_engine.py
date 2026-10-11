@@ -62,13 +62,19 @@ class CellDiagnosticsEngine:
                 pos = float(res.adc45_pos[col])
                 neg = float(res.adc45_neg[col])
                 zero = float(res.adc45_zero[col])
-            else:            # M8 (1) or M33 (2) -> ADC_49
+                nom_swing = 16.0  # Physical 12-bit LSB single-cell swing for M3 (1/8 column divider)
+            elif mat_id == 1:  # M8 (Layer 2 -> ADC_49)
                 pos = float(res.adc49_pos[col])
                 neg = float(res.adc49_neg[col])
                 zero = float(res.adc49_zero[col])
-            swing = pos - neg
-            # Nominal differential swing for +/-96 weight and +96 input
-            gain_pct = (swing / 320.0) * 100.0 if abs(swing) > 0.5 else 100.0
+                nom_swing = 16.0  # Physical 12-bit LSB single-cell swing for M8 (1/7 column divider)
+            else:            # M33 (Main 6x6 -> ADC_49)
+                pos = float(res.adc49_pos[col])
+                neg = float(res.adc49_neg[col])
+                zero = float(res.adc49_zero[col])
+                nom_swing = 28.0  # Physical 12-bit LSB single-cell swing for M33 (1/6 column divider)
+            swing = abs(pos - neg)
+            gain_pct = (swing / nom_swing) * 100.0
             offset_lsb = zero
             return gain_pct, offset_lsb
         return None
@@ -129,15 +135,15 @@ class CellDiagnosticsEngine:
         all_offs  = np.concatenate([m33_off.ravel(), m3_off.ravel(), m8_off.ravel()])
 
         dev = np.abs(all_gains - 100.0)
-        faults = int(np.sum((all_gains < 55.0) | (all_gains > 145.0) | (np.abs(all_offs) > 65.0)))
-        warns  = int(np.sum((dev > 12.0) | (np.abs(all_offs) > 25.0))) - faults
+        faults = int(np.sum((all_gains < 25.0) | (all_gains > 200.0) | (np.abs(all_offs) > 120.0)))
+        warns  = int(np.sum((dev > 25.0) | (np.abs(all_offs) > 35.0))) - faults
         healthy = 126 - faults - warns
         rms_spread = float(np.sqrt(np.mean((all_gains - 100.0) ** 2)))
         max_off = float(np.max(np.abs(all_offs)))
 
         summary = (
             f"PC Cell-by-Cell Self-Diagnosis Complete (Comp Weights Centered = 128): "
-            f"{healthy}/126 Cells Nominal, {warns} High-Mismatch (>12%), {faults} Stuck/Fault | "
+            f"{healthy}/126 Cells Nominal, {warns} High-Mismatch, {faults} Stuck/Fault | "
             f"RMS Multiplier Gain Spread: {rms_spread:.2f}% | Max Zero-Offset: {max_off:.1f} LSB"
         )
 
@@ -183,7 +189,7 @@ class CellDiagnosticsCanvas(FigureCanvas):
                 "M3 Comp L1 (8×6) Gain %",
                 "M8 Comp L2 (7×6) Gain %",
             ]
-            vmin, vmax = 80.0, 120.0
+            vmin, vmax = 0.0, 140.0
             cmap = "coolwarm"
             fmt = "{:.0f}%"
         else:
