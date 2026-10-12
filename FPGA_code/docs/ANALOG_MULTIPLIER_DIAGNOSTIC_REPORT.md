@@ -1,103 +1,4 @@
-# Analog Multiplier & Inverted MAML Hardware Diagnostic Report
-
-- **Timestamp:** `2026-10-11 14:45:24`
-- **Target Hardware:** Efinix Trion `T120F324` (Master SoC) + `T20F256` (Analog Matrix Controller) @ `192.168.1.50:5000`
-- **Firmware Version:** `T120_SOC_ETH_FW v2.0-MAML (Build 2026-10-11) | Status: T20 ONLINE [TAG=T20A, S-bus ACK 0x06]`
-- **Heater Safety Interlock:** `DISARMED` (`HEAT_1..4_EN = 0`)
-
----
-
-## 1. Stage 1 — Inter-FPGA Bridge (`T120 <-> T20`) & Application Handshake
-
-| Parameter | Observed Value |
-| :--- | :--- |
-| Initial `VERSION` Response | `T120_SOC_ETH_FW v2.0-MAML (Build 2026-10-11) | Status: T20 ONLINE [TAG=T20A, S-bus ACK 0x06]` |
-| Live Hardware Binary Protocol Active | `True` |
-| T20 S-Bus Watchdog OK | `False` |
-| T20 Hadamard `ACK` OK / Miss / Last Latency | `32` / `0` / `19 cycles` |
-
----
-
-## 2. Stage 2 — Differential ADC (`ADC_45` & `ADC_49`) Zero-Baseline & Noise Floor
-
-All `74HC595` R-2R DACs centered at differential zero (`code = 128`, `VR = 1.65V`) and Hadamard outputs in 3-state `Hi-Z` (`0x8000`).
-Sampled over **$N = 25$** independent 4-Phase Settle-Then-Sample bursts (`2.0 µs` quiet settle window).
-
-### 2.1 `ADC_45` — Intermediate Layer 1 Differential Outputs (`CH1..CH6`)
-
-| Channel | Mean Raw (`0..4095`) | Mean Signed (`raw - 2048`) | DC Offset (`mV`) | Temporal RMS Noise (`LSB`) | Temporal RMS Noise (`mV`) | Min / Max Signed (`LSB`) | Peak-to-Peak (`LSB`) |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `ADC45_CH1` | `2225.28` | `+177.28` | `+142.8 mV` | `0.72` | `0.58 mV` | `+176` / `+179` | `3` |
-| `ADC45_CH2` | `2099.64` | `+51.64` | `+41.6 mV` | `0.89` | `0.72 mV` | `+50` / `+53` | `3` |
-| `ADC45_CH3` | `2081.68` | `+33.68` | `+27.1 mV` | `0.88` | `0.71 mV` | `+32` / `+35` | `3` |
-| `ADC45_CH4` | `1873.84` | `-174.16` | `-140.3 mV` | `0.73` | `0.59 mV` | `-175` / `-173` | `2` |
-| `ADC45_CH5` | `1949.08` | `-98.92` | `-79.7 mV` | `0.74` | `0.60 mV` | `-101` / `-98` | `3` |
-| `ADC45_CH6` | `1903.40` | `-144.60` | `-116.5 mV` | `0.80` | `0.64 mV` | `-146` / `-142` | `4` |
-
-### 2.2 `ADC_49` — Final Summed Analog Matrix Outputs (`CH1..CH6`)
-
-| Channel | Mean Raw (`0..4095`) | Mean Signed (`raw - 2048`) | DC Offset (`mV`) | Temporal RMS Noise (`LSB`) | Temporal RMS Noise (`mV`) | Min / Max Signed (`LSB`) | Peak-to-Peak (`LSB`) |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `ADC49_CH1` | `615.72` | `-1432.28` | `-1153.9 mV` | `0.83` | `0.67 mV` | `-1434` / `-1431` | `3` |
-| `ADC49_CH2` | `645.80` | `-1402.20` | `-1129.7 mV` | `1.23` | `0.99 mV` | `-1404` / `-1400` | `4` |
-| `ADC49_CH3` | `448.00` | `-1600.00` | `-1289.1 mV` | `0.00` | `0.00 mV` | `-1600` / `-1600` | `0` |
-| `ADC49_CH4` | `493.64` | `-1554.36` | `-1252.3 mV` | `1.13` | `0.91 mV` | `-1557` / `-1552` | `5` |
-| `ADC49_CH5` | `450.00` | `-1598.00` | `-1287.5 mV` | `0.00` | `0.00 mV` | `-1598` / `-1598` | `0` |
-| `ADC49_CH6` | `661.04` | `-1386.96` | `-1117.4 mV` | `1.15` | `0.93 mV` | `-1389` / `-1385` | `4` |
-
----
-
-## 3. Stage 3 — Differential DAC Row Drive, Hadamard Permutation Invariance & `FWHT-16` Orthogonality
-
-### 3.1 Static Single-Channel DAC Sweep (`32` to `224`)
-
-| DAC Channel | `ADC_45` @ `128` (Signed LSB) | $\Delta\text{ADC}_{45}(224 - 32)$ | `ADC_49` @ `128` (Signed LSB) | $\Delta\text{ADC}_{49}(224 - 32)$ |
-| :--- | :--- | :--- | :--- | :--- |
-| `DAC_2 Row Drive R1 (Bank 0 Ch 0)` | `[179, 51, 35, -173, -99, -143]` | `[3, 3, 3, 1, -2, 3]` | `[-1431, -1400, -1600, -1554, -1598, -1387]` | `[-1, 5, 0, 1, 0, -1]` |
-| `DAC_2 Row Drive R6 (Bank 0 Ch 5)` | `[177, 52, 34, -174, -100, -144]` | `[-2, 2, 1, 0, -1, 0]` | `[-1435, -1403, -1600, -1554, -1598, -1387]` | `[-4, -15, 0, 3, 0, 2]` |
-| `W_15 M3 Weight R1 (Bank 1 Ch 0)` | `[155, 35, 21, -180, -84, -146]` | `[34, 16, -9, 3, -39, -13]` | `[-1439, -1362, -1601, -1562, -1598, -1415]` | `[9, -63, 2, 8, 0, 43]` |
-| `W_12 M8 Weight R1 (Bank 2 Ch 0)` | `[178, 52, 33, -173, -100, -145]` | `[10, 9, 11, -3, -22, 2]` | `[-1431, -1403, -1600, -1555, -1598, -1389]` | `[1, 0, 0, 1, 0, -1]` |
-| `W_34 M33 Weight R1 (Bank 3 Ch 0)` | `[177, 51, 34, -175, -100, -145]` | `[-28, -32, -38, -19, 19, -13]` | `[-1432, -1405, -1600, -1556, -1598, -1386]` | `[-33, 61, -2, -20, -1, 74]` |
-| `W_34 Trim-DAC 38 (Bank 3 Ch 6 / DAC7_W_34)` | `[176, 52, 36, -174, -99, -145]` | `[1, 2, 2, 0, 1, 2]` | `[-1432, -1401, -1600, -1557, -1598, -1387]` | `[-2, 2, 0, 1, 0, -1]` |
-
-### 3.2 Hadamard Permutation Invariance (`pi_inv` Hardware Scatter-Write + Return-to-Hi-Z `0x8000` Pulsing)
-
-Each of the 16 Hadamard steps is executed as a 2-word Return-to-Hi-Z (`[HADAMARD_16[perm[s]], 0x8000]`) pulse with `40 µs` equilibration at `1.65 V` (`0x8000`), eliminating step-order history across the `C2/C4 = 1 nF` AC-coupling capacitors:
-
-| Metric | Observed Value |
-| :--- | :--- |
-| H-Bus `ACK` OK / Miss / Latency `(min, max)` | `32` / `0` / `(19, 19) cycles` |
-| Random Permutation `1A` (`perm[0..15]`) | `[9, 11, 14, 7, 5, 8, 0, 4, 13, 3, 2, 1, 6, 10, 15, 12]` |
-| Random Permutation `1B` (`perm[0..15]`) | `[14, 11, 8, 1, 5, 9, 7, 6, 2, 4, 3, 12, 10, 13, 0, 15]` |
-| `Max |cap45(Mode 0) - cap45(Mode 1A)|` / `RMS` (96 samples) | **`4 LSB`** / **`1.76 LSB`** |
-| `Max |cap45(Mode 1A) - cap45(Mode 1B)|` / `RMS` (96 samples) | **`4 LSB`** / **`1.34 LSB`** |
-| `FWHT-16` Col 0 `[1..8]` — Mode 0 (Identity) | `[122, 120, 138, 164, 130, 136, -318, 216]` |
-| `FWHT-16` Col 0 `[1..8]` — Mode 1A (Permuted + HW `pi_inv`) | `[117, 119, 139, 161, 129, 139, -313, 223]` |
-| `FWHT-16` Col 0 `[1..8]` — Mode 1B (Permuted + HW `pi_inv`) | `[121, 115, 139, 165, 129, 143, -313, 217]` |
-| `FWHT-16` Col 0 `[1..8]` — Mode 2 (Permuted WITHOUT `pi_inv`, Scrambled Control) | `[-149, -127, -71, -65, -137, 53, -107, 201]` |
-
-### 3.3 `DAC_2` (Input Rows `0..5`) — `FWHT-16` Diagonal Orthogonality (`code 255 - code 0`)
-
-| Input Row Channel | $\Delta\text{FWHT}_{45}[1..8,\text{col }0]$ (`1/16 LSB` coherent sum) | Diagonal Peak $\Delta\text{FWHT}_{45}[\text{row}+1, \text{col }0]$ |
-| :---: | :--- | :---: |
-| `DAC_2[0]` | `[28, -2, -2, 2, 10, 4, -8, -10]` | **`+28`** |
-| `DAC_2[1]` | `[-8, 50, -4, 6, 4, 6, -16, -14]` | **`+50`** |
-| `DAC_2[2]` | `[1, 3, 47, 1, 1, -1, -17, -5]` | **`+47`** |
-| `DAC_2[3]` | `[-7, -3, -13, 55, 5, 5, -13, -7]` | **`+55`** |
-| `DAC_2[4]` | `[-5, 1, -5, 9, 43, -3, -13, -9]` | **`+43`** |
-| `DAC_2[5]` | `[-5, -3, -5, 1, 7, 37, -17, -5]` | **`+37`** |
-
-### 3.4 `W_15` ($M_3$ Weight Rows `0..7`) — `FWHT-16` Diagonal Orthogonality (`code 255 - code 0`)
-
-| Weight Row Channel | $\Delta\text{FWHT}_{45}[1..8,\text{col }0]$ (`1/16 LSB` coherent sum) | Diagonal Peak Across All 6 Columns `col 0..5` |
-| :---: | :--- | :--- |
-| `W_15[0]` | `[92, -56, -50, -40, -34, -30, -12, -50]` | **`[92, 98, 74, 41, 51, 43]`** |
-| `W_15[1]` | `[-70, 94, -72, -62, -40, -32, 14, -74]` | **`[94, 81, 68, 29, 34, 43]`** |
-| `W_15[2]` | `[-64, -76, 110, -64, -38, -34, 20, -62]` | **`[110, 96, 74, 37, 42, 39]`** |
-| `W_15[3]` | `[-41, -51, -67, 143, -37, -31, 5, -61]` | **`[143, 126, 84, 33, 53, 51]`** |
-| `W_15[4]` | `[-50, -56, -66, -76, 122, -40, 54, -72]` | **`[122, 122, 78, 17, 38, 49]`** |
-| `W_15[5]` | `[-50, -38, -40, -60, -38, 166, 56, -66]` | **`[166, 181, 117, 45, 55, 74]`** |
-| `W_15[6]` | `[-64, -74, -86, -102, -62, -64, -248, -130]` | **`[-248, -121, -125, -100, -38, -29]`** |
+\\
 | `W_15[7]` | `[-35, -37, -39, -49, -35, -33, -59, 167]` | **`[167, 138, 135, 71, 78, 79]`** |
 
 ### 3.5 `W_34` ($M_{33}$ Base Matrix Rows `0..5`) — Static Differential Response (`code 255 - code 0`)
@@ -215,7 +116,7 @@ Each of the 16 Hadamard steps is executed as a 2-word Return-to-Hi-Z (`[HADAMARD
 
 ### 8.2 Extended Matrix 3 (`M3` $\rightarrow$ Layer 1 Sigmoid $\rightarrow$ `ADC_45`) Multiplication Summary
 
-| Matrix 3 Crosspoint Cell | Quiescent Baseline `(X=0, W=0)` | Weight Span $\Delta\text{ADC}_W$ (`W=-96` $\rightarrow$ `+96`) | Input Gain $\Delta\text{ADC}_X$ at **$W = -96$** (`X=-120` $\rightarrow$ `+120`) | Input Gain $\Delta\text{ADC}_X$ at **$W = +48 / +96$** (`X=-120` $\rightarrow$ `+120`) |
+| Matrix 3 Crosspoint Cell | Quiescent Baseline `(DAC2=128, W=0)` | Weight Span $\Delta\text{ADC}_W$ (`W=-96` $\rightarrow$ `+96`) | Data Gain $\Delta\text{ADC}_{\text{Data}}$ at **$W = -96$** (`DAC2=8 [+8mV]` $\rightarrow$ `248 [+243mV]`) | Data Gain $\Delta\text{ADC}_{\text{Data}}$ at **$W = +48 / +96$** (`DAC2=8 [+8mV]` $\rightarrow$ `248 [+243mV]`) |
 | :--- | :---: | :---: | :---: | :---: |
 | **`Row 4, Col 1`** (`DAC_2[3]` $\rightarrow$ `ADC_45[0]`) | `2225` (`+177 LSB`, $1.793\text{ V}$) | **`+78 LSB`** (`2164` $\rightarrow$ `2242`) | **`+1 LSB`** (`2163` $\rightarrow$ `2164`) | **`+14 LSB`** (`2228` $\rightarrow$ `2242`) |
 | **`Row 5, Col 1`** (`DAC_2[4]` $\rightarrow$ `ADC_45[0]`) | `2224` (`+176 LSB`, $1.792\text{ V}$) | **`+76 LSB`** (`2186` $\rightarrow$ `2262`) | **`-1 LSB`** (`2187` $\rightarrow$ `2186`) | **`+10 LSB`** (`2252` $\rightarrow$ `2262`) |
@@ -223,4 +124,17 @@ Each of the 16 Hadamard steps is executed as a 2-word Return-to-Hi-Z (`[HADAMARD
 | **`Row 6, Col 3`** (`DAC_2[5]` $\rightarrow$ `ADC_45[2]`) | `2080` (`+32 LSB`, $1.676\text{ V}$) | **`+15 LSB`** (`2082` $\rightarrow$ `2097`) | **`+1 LSB`** (`2081` $\rightarrow$ `2082`) | **`+8 LSB`** (`2089` $\rightarrow$ `2097`) |
 | **All 6 Rows Combined** $\rightarrow$ `ADC_45[0]` | `2226` (`+178 LSB`, $1.793\text{ V}$) | **`+104 LSB`** (`2177` $\rightarrow$ `2281`) | **`+6 LSB`** (`2171` $\rightarrow$ `2177`) | **`+20..+23 LSB`** (`2261` $\rightarrow$ `2281`) |
 
-For the full fixed-$X$ / swept-$W$ tables and daily summary, see [`FPGA_code/docs/dev_status_2026-10-11.md`](dev_status_2026-10-11.md).
+### 8.3 Mandatory Signal & Table Notation Rule (Single-Ended `DAC_2` vs. Differential `W` & Hadamard `H`)
+- **Outside the matrix, ONLY Weight $W$ and Hadamard $H$ are differential:**
+  - **Weight $W$ (`W_15`, `W_12`, `W_34`):** Differential across the mirrored `P`-branch (`G_P`, `Q5/Q6`) and `N`-branch (`G_N`, `Q8/Q9`) half-cells (`W+ = 128 + W`, `W- = 128 - W` for signed $W \in [-127, +127]$).
+  - **Hadamard (`H+ / H-`):** Differential AC-coupled (`1 nF`) into `G_P` and `G_N`.
+- **Row Data Input (`DAC_2`, `IN_R1..6`) is STRICTLY SINGLE-ENDED UNIPOLAR (`0..255`):**
+  - Per Patent Fig. 12 and [`Design_Specification_Analog_Matrix_2T1C.pdf`](../../Design_Specification_Analog_Matrix_2T1C.pdf), each row data line is a single-ended wire shared by the Drains of both `Q5` and `Q8` with Source virtual ground $V_s = 1.650\text{ V}$:
+    - `DAC_2 = 0` (`1.650 V`) $\rightarrow$ **$V_{ds} = 0\text{ mV}$ (`0%` / Physical Zero Data Drive)**
+    - `DAC_2 = 8` (`1.658 V`) $\rightarrow$ **$V_{ds} = +8\text{ mV}$ (`3%` / Lowest Single-Ended Data Drive)**
+    - `DAC_2 = 128` (`1.775 V`) $\rightarrow$ **$V_{ds} = +125\text{ mV}$ (`50%` Mid-Scale Data Drive — NOT zero volts!)**
+    - `DAC_2 = 248` (`1.893 V`) $\rightarrow$ **$V_{ds} = +243\text{ mV}$ (`97%` Full-Scale Data Drive)**
+- **Rule for All Future GUI & CLI Tables:** Never use signed differential notation (`X = -120, 0, +120`) for Row Data `DAC_2`. Always display `DAC_2` using its unsigned code (`0..255`), drive percentage (`0%..100%`), and single-ended voltage ($V_{ds} = +8\text{ mV}, +125\text{ mV}, +243\text{ mV}$).
+
+For the full fixed-`DAC_2` / swept-$W$ tables and daily summary, see [`FPGA_code/docs/dev_status_2026-10-11.md`](dev_status_2026-10-11.md).
+

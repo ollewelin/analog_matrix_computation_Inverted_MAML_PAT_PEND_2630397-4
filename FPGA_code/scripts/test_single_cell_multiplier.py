@@ -91,17 +91,19 @@ def main() -> int:
     print(f"Connected to: {ver}")
     print(f"Target Cell : {mat_desc} | Row={args.row} (R{args.row+1}), Col={args.col} (C{args.col+1})")
 
-    # Mode A: Single (X, W) point (optionally held on board for oscilloscope)
+    # Mode A: Single (DAC_2, W) point (optionally held on board for oscilloscope)
     if args.x is not None or args.w is not None:
         x_val = max(-127, min(127, args.x if args.x is not None else args.x_step))
         w_val = max(-127, min(127, args.w if args.w is not None else 64))
+        dac2_code = 128 + x_val
+        vds_mv = (dac2_code / 255.0) * 250.0
         v = read_cell_at_xw(client, mat_id, args.row, args.col, x_val, w_val, hold=args.hold)
         print(
-            f"Single Point: In-Data DAC_2[{args.row}] X={x_val:+d} (code {128+x_val}) × "
-            f"Weight W={w_val:+d} (W+={128+w_val}, W-={128-w_val}) -> Output = {v:+d} LSB ({v*0.8057:+.1f} mV)"
+            f"Single Point: Single-Ended Data DAC_2[{args.row}]={dac2_code} (Vds={vds_mv:+.0f}mV, {dac2_code*100//255}%) × "
+            f"Diff Weight W={w_val:+d} (W+={128+w_val}, W-={128-w_val}) -> ADC Output = {v:+d} LSB ({v*0.8057:+.1f} mV)"
         )
         if args.hold:
-            print("STATUS: Holding (X, W) active on hardware DACs for oscilloscope probing.")
+            print("STATUS: Holding (DAC_2, W) active on hardware DACs for oscilloscope probing.")
         return 0
 
     weights = [max(-127, min(127, int(w.strip()))) for w in args.weights.split(",") if w.strip()]
@@ -109,25 +111,42 @@ def main() -> int:
     # Mode B: Custom list of In-Data Row values (--inputs)
     if args.inputs:
         x_list = [max(-127, min(127, int(x.strip()))) for x in args.inputs.split(",") if x.strip()]
-        print(f"In-Data Row : DAC_2[{args.row}] swept across X = {x_list} (DAC codes {[128+x for x in x_list]})")
-        hdr = f"{'Weight W':>10} | {'W+/W- DAC':>11} | " + " | ".join(f"X={x:+4d}({128+x:3d})" for x in x_list) + " |  Δ(MaxX-MinX)"
+        dac_codes = [128 + x for x in x_list]
+        print(
+            f"Single-Ended Data Row : DAC_2[{args.row}] swept across unsigned codes {dac_codes} "
+            f"(Vds = {[round(c*250.0/255.0) for c in dac_codes]} mV above 1.65V)"
+        )
+        hdr = (
+            f"{'Diff W':>10} | {'W+/W- DAC':>11} | "
+            + " | ".join(f"DAC2={128+x:3d}({(128+x)*250//255:3d}mV)" for x in x_list)
+            + " |  ΔADC(Max-Min)"
+        )
         print("-" * len(hdr))
         print(hdr)
         print("-" * len(hdr))
         for w in weights:
             vals = [read_cell_at_xw(client, mat_id, args.row, args.col, x, w, hold=False) for x in x_list]
             delta = vals[-1] - vals[0]
-            row_str = " | ".join(f"{v:+11d}" for v in vals)
+            row_str = " | ".join(f"{v:+15d}" for v in vals)
             print(f"{w:+10d} | {128+w:4d}/{128-w:<4d}   | {row_str} | {delta:+6d} ({delta*0.8057:+.1f}mV)")
         print("-" * len(hdr))
         return 0
 
-    # Mode C: Default 3-point In-Data Row sweep (-x_step, 0, +x_step)
+    # Mode C: Default 3-point Single-Ended In-Data Row sweep (Min, Mid=128, Max)
     x_amp = max(1, min(127, args.x_step))
-    print(f"In-Data Row : DAC_2[{args.row}] stepped X = -{x_amp} (code {128-x_amp}), 0 (code 128), +{x_amp} (code {128+x_amp})")
-    print("-" * 86)
-    print(f"{'Weight W':>10} | {'W+ / W- DAC':>13} | {f'X=-{x_amp} (LSB)':>13} | {'X=0 (LSB)':>11} | {f'X=+{x_amp} (LSB)':>13} | {'Δ(Up-Down)':>14}")
-    print("-" * 86)
+    c_low, c_mid, c_hi = 128 - x_amp, 128, 128 + x_amp
+    v_low, v_mid, v_hi = round(c_low * 250.0 / 255.0), 125, round(c_hi * 250.0 / 255.0)
+    print(
+        f"Single-Ended Data Row : DAC_2[{args.row}] stepped across codes "
+        f"{c_low} (+{v_low}mV), {c_mid} (+{v_mid}mV, 50%), {c_hi} (+{v_hi}mV)"
+    )
+    print("Note: Table values are measured ADC output offsets (LSB) relative to (DAC_2=128, W=0).")
+    print("-" * 96)
+    print(
+        f"{'Diff W':>10} | {'W+ / W- DAC':>13} | "
+        f"{f'DAC2={c_low}(+{v_low}mV)':>17} | {f'DAC2={c_mid}(+{v_mid}mV)':>17} | {f'DAC2={c_hi}(+{v_hi}mV)':>17} | {'ΔADC(Hi-Low)':>14}"
+    )
+    print("-" * 96)
 
     curve = client.run_single_cell_multiplier_curve(
         matrix_id=mat_id,
@@ -147,10 +166,10 @@ def main() -> int:
         d_lsb = pt["delta_up_down"]
         d_mv = d_lsb * 0.8057
         print(
-            f"{w:+10d} | {w_pos:5d} / {w_neg:<5d} | {pt['out_x_neg']:+13d} | "
-            f"{pt['out_x_zero']:+11d} | {pt['out_x_pos']:+13d} | {d_lsb:+6d} ({d_mv:+6.1f}mV)"
+            f"{w:+10d} | {w_pos:5d} / {w_neg:<5d} | {pt['out_x_neg']:+17d} | "
+            f"{pt['out_x_zero']:+17d} | {pt['out_x_pos']:+17d} | {d_lsb:+6d} ({d_mv:+6.1f}mV)"
         )
-    print("-" * 86)
+    print("-" * 96)
     return 0
 
 
