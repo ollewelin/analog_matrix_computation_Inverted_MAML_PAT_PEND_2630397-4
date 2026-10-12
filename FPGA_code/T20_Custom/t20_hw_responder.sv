@@ -22,7 +22,8 @@
 `default_nettype none
 
 module t20_hw_responder #(
-    parameter integer HAS_SOC = 0
+    parameter integer HAS_SOC   = 0,
+    parameter integer IS_GOLDEN = 0
 )(
     input  wire         clk9,
     input  wire         rstn,
@@ -60,6 +61,12 @@ module t20_hw_responder #(
     output logic        cfg_config,
     output logic        cfg_ena,
 
+    // SPI NOR Flash Pass-Through (U19, CH 0x01 OP 0x3)
+    output logic        fl_cs_n,
+    output logic        fl_clk,
+    output logic        fl_di,
+    input  wire         fl_do,
+
     // Heater 0.2 Hz PWM & Safety Interlock
     output logic        heater_armed,
     output logic [7:0]  heat_duty_0,
@@ -94,6 +101,16 @@ module t20_hw_responder #(
     logic [5:0]  g_mat3_n_pulse,   g_mat8_n_pulse,   g_mat33_n_pulse;
     logic [15:0] gate_pulse_cnt;
 
+    // SPI Flash hardware shift engine (CH 0x01 OP 0x3, up to 7 bytes per S-bus frame)
+    logic        spi_busy;
+    logic        spi_phase;
+    logic        spi_cs_keep;
+    logic [2:0]  spi_byte_idx;
+    logic [2:0]  spi_byte_total;
+    logic [2:0]  spi_bit_idx;
+    logic [7:0]  spi_tx_buf [0:6];
+    logic [7:0]  spi_rx_cur;
+
     assign g_mat3_p_out  = (gate_pulse_cnt != 16'd0) ? g_mat3_p_pulse  : g_mat3_p_static;
     assign g_mat3_n_out  = (gate_pulse_cnt != 16'd0) ? g_mat3_n_pulse  : g_mat3_n_static;
     assign g_mat8_p_out  = (gate_pulse_cnt != 16'd0) ? g_mat8_p_pulse  : g_mat8_p_static;
@@ -108,6 +125,10 @@ module t20_hw_responder #(
             fwd_to_soc <= 1'b0; en_mask <= 16'h7FFF; static_on <= 1'b0; static_vec <= 16'd0;
             good_cnt <= 16'd0; crc_err_cnt <= 16'd0; nak_sticky <= 1'b0;
             cfg_cbsel <= 2'b00; cfg_config <= 1'b0; cfg_ena <= 1'b0;
+            fl_cs_n <= 1'b1; fl_clk <= 1'b0; fl_di <= 1'b0;
+            spi_busy <= 1'b0; spi_phase <= 1'b0; spi_cs_keep <= 1'b0;
+            spi_byte_idx <= 3'd0; spi_byte_total <= 3'd0; spi_bit_idx <= 3'd0; spi_rx_cur <= 8'd0;
+            for (i = 0; i < 7; i = i + 1) spi_tx_buf[i] <= 8'd0;
             heater_armed <= 1'b0;
             heat_duty_0  <= 8'd0;
             heat_duty_1  <= 8'd0;
@@ -126,6 +147,35 @@ module t20_hw_responder #(
         end else begin
             tx_start   <= 1'b0;
             fwd_to_soc <= 1'b0;
+
+            // SPI NOR Flash shift state machine (Mode 0, MSB first, CLK9/2)
+            if (spi_busy) begin
+                if (!spi_phase) begin
+                    fl_clk                 <= 1'b1;
+                    spi_rx_cur[spi_bit_idx] <= fl_do;
+                    spi_phase              <= 1'b1;
+                end else begin
+                    fl_clk    <= 1'b0;
+                    spi_phase <= 1'b0;
+                    if (spi_bit_idx != 3'd0) begin
+                        spi_bit_idx <= spi_bit_idx - 3'd1;
+                        fl_di       <= spi_tx_buf[spi_byte_idx][spi_bit_idx - 3'd1];
+                    end else begin
+                        rsp[{1'b0, spi_byte_idx}] <= spi_rx_cur;
+                        if (spi_byte_idx + 3'd1 < spi_byte_total) begin
+                            spi_byte_idx <= spi_byte_idx + 3'd1;
+                            spi_bit_idx  <= 3'd7;
+                            fl_di        <= spi_tx_buf[spi_byte_idx + 3'd1][7];
+                        end else begin
+                            spi_busy <= 1'b0;
+                            fl_cs_n  <= ~spi_cs_keep;
+                            fl_di    <= 1'b0;
+                            tx_len   <= {8'd0, spi_byte_total};
+                            tx_start <= 1'b1;
+                        end
+                    end
+                end
+            end
 
             // Decrement column gate pulse timer if active
             if (gate_pulse_cnt != 16'd0) begin
@@ -152,8 +202,8 @@ module t20_hw_responder #(
                 tx_len   <= 11'd0;
 
                 if (rx_ch == 8'h04 && op == 4'h0) begin
-                    rsp[0]  <= "T"; rsp[1] <= "2"; rsp[2] <= "0"; rsp[3] <= "A";
-                    rsp[4]  <= 8'h02;
+                    rsp[0]  <= "T"; rsp[1] <= "2"; rsp[2] <= "0"; rsp[3] <= (IS_GOLDEN != 0) ? "G" : "A";
+                    rsp[4]  <= 8'h03;
                     rsp[5]  <= {3'd0, heater_armed, comp_led_on, mat33_led_on, static_on, HAS_SOC[0]};
                     rsp[6]  <= h_word_cnt[15:8];  rsp[7]  <= h_word_cnt[7:0];
                     rsp[8]  <= h_sync_err[15:8];  rsp[9]  <= h_sync_err[7:0];
@@ -184,6 +234,36 @@ module t20_hw_responder #(
                     rsp[0]     <= pay8[7:0];
                     tx_len     <= 11'd1;
                     tx_start   <= 1'b1;
+                end else if (rx_ch == 8'h01 && op == 4'h3) begin
+                    // CH 0x01 OP 0x3: SPI_FLASH_XFER (up to 7 bytes per S-bus frame)
+                    // pay8[2:0] = nbytes (0..7), pay8[4] = cs_keep_low
+                    // pay8[15:8] .. pay8[63:56] = TX bytes 0..6
+                    if (pay8[2:0] == 3'd0) begin
+                        spi_busy <= 1'b0;
+                        fl_cs_n  <= ~pay8[4];
+                        fl_clk   <= 1'b0;
+                        fl_di    <= 1'b0;
+                        rsp[0]   <= {7'd0, fl_do};
+                        tx_len   <= 11'd1;
+                        tx_start <= 1'b1;
+                    end else begin
+                        spi_tx_buf[0]  <= pay8[15:8];
+                        spi_tx_buf[1]  <= pay8[23:16];
+                        spi_tx_buf[2]  <= pay8[31:24];
+                        spi_tx_buf[3]  <= pay8[39:32];
+                        spi_tx_buf[4]  <= pay8[47:40];
+                        spi_tx_buf[5]  <= pay8[55:48];
+                        spi_tx_buf[6]  <= pay8[63:56];
+                        spi_byte_total <= pay8[2:0];
+                        spi_byte_idx   <= 3'd0;
+                        spi_bit_idx    <= 3'd7;
+                        spi_cs_keep    <= pay8[4];
+                        spi_phase      <= 1'b0;
+                        spi_busy       <= 1'b1;
+                        fl_cs_n        <= 1'b0;
+                        fl_clk         <= 1'b0;
+                        fl_di          <= pay8[15];
+                    end
                 end else if (rx_ch == 8'h05 && op == 4'h1) begin
                     // CH 0x05 OP 0x1: SET_HEATER (0.2 Hz PWM + Master Arm Interlock)
                     heater_armed <= pay8[0];

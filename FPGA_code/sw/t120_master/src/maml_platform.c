@@ -351,12 +351,12 @@ static void maml_refresh_all_columns(void) {
             if (g_tel.jumper_mode == JUMPER_OFF_NO_COMP) w = 0;
             w12[r] = off_to_dac_u8(-w);
         }
-        w12[7] = 128;
+        w12[7] = trim_code; /* Ref 38 TRIM_DAC on W_12 channel 8 */
         for (int r = 0; r < 6; r++) {
             w34[r] = off_to_dac_u8(-g_tel.w_m33[r][col]);
         }
-        w34[6] = trim_code;
-        w34[7] = trim_code;
+        w34[6] = 128; /* DAC2_D_ROW7 (TRIM_B1) */
+        w34[7] = 128; /* DAC2_D_ROW8 (TRIM_REF) */
 
         aio_load_weight_banks(w15, w12, w34);
         bsp_uDelay(5); /* Let MCP6024T DAC buffers settle before opening G_N switch */
@@ -376,12 +376,12 @@ static void maml_refresh_all_columns(void) {
             if (g_tel.jumper_mode == JUMPER_OFF_NO_COMP) w = 0;
             w12[r] = off_to_dac_u8(+w);
         }
-        w12[7] = 128;
+        w12[7] = trim_code; /* Ref 38 TRIM_DAC on W_12 channel 8 */
         for (int r = 0; r < 6; r++) {
             w34[r] = off_to_dac_u8(+g_tel.w_m33[r][col]);
         }
-        w34[6] = trim_code;
-        w34[7] = trim_code; /* Ref 38 trim-DAC */
+        w34[6] = 128; /* DAC2_D_ROW7 (TRIM_B1) */
+        w34[7] = 128; /* DAC2_D_ROW8 (TRIM_REF) */
 
         aio_load_weight_banks(w15, w12, w34);
         bsp_uDelay(5); /* Let MCP6024T DAC buffers settle before opening G_P switch */

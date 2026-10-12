@@ -186,7 +186,15 @@ module top_level (
     (* syn_peri_port = 0 *) input  wire        cfg_ERROR,
     (* syn_peri_port = 0 *) output logic [1:0] cfg_CBSEL,
     (* syn_peri_port = 0 *) output logic       cfg_CONFIG,
-    (* syn_peri_port = 0 *) output logic       cfg_ENA
+    (* syn_peri_port = 0 *) output logic       cfg_ENA,
+
+    // SPI NOR Flash U19 Pass-Through (P3/M3/L3/N1/K4/L2)
+    (* syn_peri_port = 0 *) output logic       FL_CS,
+    (* syn_peri_port = 0 *) output logic       FL_CLK,
+    (* syn_peri_port = 0 *) output logic       FL_DI,
+    (* syn_peri_port = 0 *) input  wire        FL_DO,
+    (* syn_peri_port = 0 *) output logic       FL_IO2,
+    (* syn_peri_port = 0 *) output logic       FL_IO3
 );
 
     // =========================================================================
@@ -344,7 +352,7 @@ module top_level (
     logic [5:0]  g_mat8_p,  g_mat8_n;
     logic [5:0]  g_mat33_p, g_mat33_n;
 
-    t20_hw_responder #(.HAS_SOC(0)) u_hw_responder (
+    t20_hw_responder #(.HAS_SOC(0), .IS_GOLDEN(0)) u_hw_responder (
         .clk9          (T20_CLK9),
         .rstn          (rstn_clk9),
         .frame_ok      (s_rx_frame_ok),
@@ -372,6 +380,10 @@ module top_level (
         .cfg_cbsel     (resp_cfg_cbsel),
         .cfg_config    (resp_cfg_config),
         .cfg_ena       (resp_cfg_ena),
+        .fl_cs_n       (FL_CS),
+        .fl_clk        (FL_CLK),
+        .fl_di         (FL_DI),
+        .fl_do         (FL_DO),
         .heater_armed  (heater_armed_clk9),
         .heat_duty_0   (heat_duty_0_clk9),
         .heat_duty_1   (heat_duty_1_clk9),
@@ -388,6 +400,9 @@ module top_level (
         .g_mat33_p_out (g_mat33_p),
         .g_mat33_n_out (g_mat33_n)
     );
+
+    assign FL_IO2 = 1'b1; // /WP deasserted
+    assign FL_IO3 = 1'b1; // /HOLD deasserted
 
     // =========================================================================
     // Differential Column Refresh Gate Pin Assignments

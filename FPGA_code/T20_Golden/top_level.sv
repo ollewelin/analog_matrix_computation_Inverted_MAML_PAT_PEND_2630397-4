@@ -78,45 +78,123 @@ module top_level (
     (* syn_peri_port = 0 *) output logic HEAT_3_EN,
     (* syn_peri_port = 0 *) output logic HEAT_4_EN,
 
-    // Matrix M3 Hadamard Differential Pairs
+    // Matrix M3 Hadamard Differential Pairs (Data + 3-State Output Enable OE)
     (* syn_peri_port = 0 *) output logic H_M3_N1,
+    (* syn_peri_port = 0 *) output logic H_M3_N1_OE,
     (* syn_peri_port = 0 *) output logic H_M3_N2,
+    (* syn_peri_port = 0 *) output logic H_M3_N2_OE,
     (* syn_peri_port = 0 *) output logic H_M3_N3,
+    (* syn_peri_port = 0 *) output logic H_M3_N3_OE,
     (* syn_peri_port = 0 *) output logic H_M3_N4,
+    (* syn_peri_port = 0 *) output logic H_M3_N4_OE,
     (* syn_peri_port = 0 *) output logic H_M3_N5,
+    (* syn_peri_port = 0 *) output logic H_M3_N5_OE,
     (* syn_peri_port = 0 *) output logic H_M3_N6,
+    (* syn_peri_port = 0 *) output logic H_M3_N6_OE,
     (* syn_peri_port = 0 *) output logic H_M3_N7,
+    (* syn_peri_port = 0 *) output logic H_M3_N7_OE,
     (* syn_peri_port = 0 *) output logic H_M3_N8,
+    (* syn_peri_port = 0 *) output logic H_M3_N8_OE,
     (* syn_peri_port = 0 *) output logic H_M3_P1,
+    (* syn_peri_port = 0 *) output logic H_M3_P1_OE,
     (* syn_peri_port = 0 *) output logic H_M3_P2,
+    (* syn_peri_port = 0 *) output logic H_M3_P2_OE,
     (* syn_peri_port = 0 *) output logic H_M3_P3,
+    (* syn_peri_port = 0 *) output logic H_M3_P3_OE,
     (* syn_peri_port = 0 *) output logic H_M3_P4,
+    (* syn_peri_port = 0 *) output logic H_M3_P4_OE,
     (* syn_peri_port = 0 *) output logic H_M3_P5,
+    (* syn_peri_port = 0 *) output logic H_M3_P5_OE,
     (* syn_peri_port = 0 *) output logic H_M3_P6,
+    (* syn_peri_port = 0 *) output logic H_M3_P6_OE,
     (* syn_peri_port = 0 *) output logic H_M3_P7,
+    (* syn_peri_port = 0 *) output logic H_M3_P7_OE,
     (* syn_peri_port = 0 *) output logic H_M3_P8,
+    (* syn_peri_port = 0 *) output logic H_M3_P8_OE,
 
-    // Matrix M8 Hadamard Differential Pairs
+    // Matrix M8 Hadamard Differential Pairs (Data + 3-State Output Enable OE)
     (* syn_peri_port = 0 *) output logic H_M8_N1,
+    (* syn_peri_port = 0 *) output logic H_M8_N1_OE,
     (* syn_peri_port = 0 *) output logic H_M8_N2,
+    (* syn_peri_port = 0 *) output logic H_M8_N2_OE,
     (* syn_peri_port = 0 *) output logic H_M8_N3,
+    (* syn_peri_port = 0 *) output logic H_M8_N3_OE,
     (* syn_peri_port = 0 *) output logic H_M8_N4,
+    (* syn_peri_port = 0 *) output logic H_M8_N4_OE,
     (* syn_peri_port = 0 *) output logic H_M8_N5,
+    (* syn_peri_port = 0 *) output logic H_M8_N5_OE,
     (* syn_peri_port = 0 *) output logic H_M8_N6,
+    (* syn_peri_port = 0 *) output logic H_M8_N6_OE,
     (* syn_peri_port = 0 *) output logic H_M8_N7,
+    (* syn_peri_port = 0 *) output logic H_M8_N7_OE,
     (* syn_peri_port = 0 *) output logic H_M8_P1,
+    (* syn_peri_port = 0 *) output logic H_M8_P1_OE,
     (* syn_peri_port = 0 *) output logic H_M8_P2,
+    (* syn_peri_port = 0 *) output logic H_M8_P2_OE,
     (* syn_peri_port = 0 *) output logic H_M8_P3,
+    (* syn_peri_port = 0 *) output logic H_M8_P3_OE,
     (* syn_peri_port = 0 *) output logic H_M8_P4,
+    (* syn_peri_port = 0 *) output logic H_M8_P4_OE,
     (* syn_peri_port = 0 *) output logic H_M8_P5,
+    (* syn_peri_port = 0 *) output logic H_M8_P5_OE,
     (* syn_peri_port = 0 *) output logic H_M8_P6,
+    (* syn_peri_port = 0 *) output logic H_M8_P6_OE,
     (* syn_peri_port = 0 *) output logic H_M8_P7,
+    (* syn_peri_port = 0 *) output logic H_M8_P7_OE,
+
+    // Differential 2T1C Column Refresh Gates (P = G+ positive cell, N = G- negative cell)
+    (* syn_peri_port = 0 *) output logic G_P1_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_N1_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_P2_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_N2_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_P3_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_N3_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_P4_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_N4_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_P5_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_N5_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_P6_MAT_3,
+    (* syn_peri_port = 0 *) output logic G_N6_MAT_3,
+
+    (* syn_peri_port = 0 *) output logic G_P1_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_N1_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_P2_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_N2_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_P3_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_N3_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_P4_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_N4_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_P5_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_N5_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_P6_MAT_8,
+    (* syn_peri_port = 0 *) output logic G_N6_MAT_8,
+
+    (* syn_peri_port = 0 *) output logic G_P1_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_N1_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_P2_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_N2_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_P3_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_N3_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_P4_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_N4_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_P5_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_N5_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_P6_MAT_33,
+    (* syn_peri_port = 0 *) output logic G_N6_MAT_33,
 
     // Internal Reconfiguration (CONFIG_CTRL0)
     (* syn_peri_port = 0 *) input  wire        cfg_ERROR,
     (* syn_peri_port = 0 *) output logic [1:0] cfg_CBSEL,
     (* syn_peri_port = 0 *) output logic       cfg_CONFIG,
-    (* syn_peri_port = 0 *) output logic       cfg_ENA
+    (* syn_peri_port = 0 *) output logic       cfg_ENA,
+
+    // SPI NOR Flash U19 Pass-Through (P3/M3/L3/N1/K4/L2)
+    (* syn_peri_port = 0 *) output logic       FL_CS,
+    (* syn_peri_port = 0 *) output logic       FL_CLK,
+    (* syn_peri_port = 0 *) output logic       FL_DI,
+    (* syn_peri_port = 0 *) input  wire        FL_DO,
+    (* syn_peri_port = 0 *) output logic       FL_IO2,
+    (* syn_peri_port = 0 *) output logic       FL_IO3
 );
 
     // =========================================================================
@@ -147,9 +225,9 @@ module top_level (
     end
 
     // =========================================================================
-    // H-bus Receiver (Hadamard 16-bit word engine)
+    // H-bus Receiver (Hadamard 16-bit word engine with 3-State OE)
     // =========================================================================
-    logic [15:0] pad_p, pad_n;
+    logic [15:0] pad_p, pad_n, pad_oe;
     logic        h_ack;
     logic [15:0] h_word_cnt;
     logic [15:0] h_sync_err;
@@ -168,6 +246,7 @@ module top_level (
         .static_vec   (static_vec),
         .pad_p        (pad_p),
         .pad_n        (pad_n),
+        .pad_oe       (pad_oe),
         .ack          (h_ack),
         .word_cnt     (h_word_cnt),
         .sync_err_cnt (h_sync_err)
@@ -176,39 +255,40 @@ module top_level (
     assign RX00_T20_P1 = h_ack;
     assign RX00_T20_N1 = 1'b0;  // spare H_STATUS
 
-    // Drive matrix M3 pads
-    assign H_M3_P1 = pad_p[0];
-    assign H_M3_N1 = pad_n[0];
-    assign H_M3_P2 = pad_p[1];
-    assign H_M3_N2 = pad_n[1];
-    assign H_M3_P3 = pad_p[2];
-    assign H_M3_N3 = pad_n[2];
-    assign H_M3_P4 = pad_p[3];
-    assign H_M3_N4 = pad_n[3];
-    assign H_M3_P5 = pad_p[4];
-    assign H_M3_N5 = pad_n[4];
-    assign H_M3_P6 = pad_p[5];
-    assign H_M3_N6 = pad_n[5];
-    assign H_M3_P7 = pad_p[6];
-    assign H_M3_N7 = pad_n[6];
-    assign H_M3_P8 = pad_p[7];
-    assign H_M3_N8 = pad_n[7];
+    // Drive matrix M3 pads (8 differential pairs: Data + OE)
+    // OE=1 during Hadamard table (+ or -), OE=0 (Hi-Z floating in middle) when leaving table
+    assign H_M3_P1 = pad_p[0]; assign H_M3_P1_OE = pad_oe[0];
+    assign H_M3_N1 = pad_n[0]; assign H_M3_N1_OE = pad_oe[0];
+    assign H_M3_P2 = pad_p[1]; assign H_M3_P2_OE = pad_oe[1];
+    assign H_M3_N2 = pad_n[1]; assign H_M3_N2_OE = pad_oe[1];
+    assign H_M3_P3 = pad_p[2]; assign H_M3_P3_OE = pad_oe[2];
+    assign H_M3_N3 = pad_n[2]; assign H_M3_N3_OE = pad_oe[2];
+    assign H_M3_P4 = pad_p[3]; assign H_M3_P4_OE = pad_oe[3];
+    assign H_M3_N4 = pad_n[3]; assign H_M3_N4_OE = pad_oe[3];
+    assign H_M3_P5 = pad_p[4]; assign H_M3_P5_OE = pad_oe[4];
+    assign H_M3_N5 = pad_n[4]; assign H_M3_N5_OE = pad_oe[4];
+    assign H_M3_P6 = pad_p[5]; assign H_M3_P6_OE = pad_oe[5];
+    assign H_M3_N6 = pad_n[5]; assign H_M3_N6_OE = pad_oe[5];
+    assign H_M3_P7 = pad_p[6]; assign H_M3_P7_OE = pad_oe[6];
+    assign H_M3_N7 = pad_n[6]; assign H_M3_N7_OE = pad_oe[6];
+    assign H_M3_P8 = pad_p[7]; assign H_M3_P8_OE = pad_oe[7];
+    assign H_M3_N8 = pad_n[7]; assign H_M3_N8_OE = pad_oe[7];
 
-    // Drive matrix M8 pads (7 rows)
-    assign H_M8_P1 = pad_p[8];
-    assign H_M8_N1 = pad_n[8];
-    assign H_M8_P2 = pad_p[9];
-    assign H_M8_N2 = pad_n[9];
-    assign H_M8_P3 = pad_p[10];
-    assign H_M8_N3 = pad_n[10];
-    assign H_M8_P4 = pad_p[11];
-    assign H_M8_N4 = pad_n[11];
-    assign H_M8_P5 = pad_p[12];
-    assign H_M8_N5 = pad_n[12];
-    assign H_M8_P6 = pad_p[13];
-    assign H_M8_N6 = pad_n[13];
-    assign H_M8_P7 = pad_p[14];
-    assign H_M8_N7 = pad_n[14];
+    // Drive matrix M8 pads (7 differential pairs: Data + OE)
+    assign H_M8_P1 = pad_p[8];  assign H_M8_P1_OE = pad_oe[8];
+    assign H_M8_N1 = pad_n[8];  assign H_M8_N1_OE = pad_oe[8];
+    assign H_M8_P2 = pad_p[9];  assign H_M8_P2_OE = pad_oe[9];
+    assign H_M8_N2 = pad_n[9];  assign H_M8_N2_OE = pad_oe[9];
+    assign H_M8_P3 = pad_p[10]; assign H_M8_P3_OE = pad_oe[10];
+    assign H_M8_N3 = pad_n[10]; assign H_M8_N3_OE = pad_oe[10];
+    assign H_M8_P4 = pad_p[11]; assign H_M8_P4_OE = pad_oe[11];
+    assign H_M8_N4 = pad_n[11]; assign H_M8_N4_OE = pad_oe[11];
+    assign H_M8_P5 = pad_p[12]; assign H_M8_P5_OE = pad_oe[12];
+    assign H_M8_N5 = pad_n[12]; assign H_M8_N5_OE = pad_oe[12];
+    assign H_M8_P6 = pad_p[13]; assign H_M8_P6_OE = pad_oe[13];
+    assign H_M8_N6 = pad_n[13]; assign H_M8_N6_OE = pad_oe[13];
+    assign H_M8_P7 = pad_p[14]; assign H_M8_P7_OE = pad_oe[14];
+    assign H_M8_N7 = pad_n[14]; assign H_M8_N7_OE = pad_oe[14];
 
     // =========================================================================
     // S-bus Receiver (T120 -> T20, 2 bits per clk9)
@@ -239,7 +319,7 @@ module top_level (
     );
 
     // =========================================================================
-    // S-bus Hardware Responder (Golden Image responder, 0x06 ACK / 0x15 NAK)
+    // S-bus Hardware Responder (0x06 ACK / 0x15 NAK + Analog Matrix CH 0x05)
     // =========================================================================
     logic        s_tx_start;
     logic [7:0]  s_tx_resp;
@@ -253,43 +333,211 @@ module top_level (
     logic [15:0] s_crc_err_cnt;
     logic        s_nak_sticky;
 
-    t20_hw_responder #(.HAS_SOC(0)) u_hw_responder (
-        .clk9        (T20_CLK9),
-        .rstn        (rstn_clk9),
-        .frame_ok    (s_rx_frame_ok),
-        .frame_err   (s_rx_frame_err),
-        .rx_ch       (s_rx_ch),
-        .rx_seqop    (s_rx_seqop),
-        .pay8        (s_rx_pay8),
-        .h_word_cnt  (h_word_cnt),
-        .h_sync_err  (h_sync_err),
-        .tx_busy     (s_tx_busy),
-        .tx_start    (s_tx_start),
-        .tx_resp     (s_tx_resp),
-        .tx_ch       (s_tx_ch),
-        .tx_seqop    (s_tx_seqop),
-        .tx_len      (s_tx_len),
-        .tx_pay_idx  (s_tx_pay_idx),
-        .tx_pay_byte (s_tx_pay_byte),
-        .fwd_to_soc  (),
-        .en_mask     (en_mask),
-        .static_on   (static_on),
-        .static_vec  (static_vec),
-        .good_cnt    (s_good_cnt),
-        .crc_err_cnt (s_crc_err_cnt),
-        .nak_sticky  (s_nak_sticky),
-        .cfg_cbsel   (resp_cfg_cbsel),
-        .cfg_config  (resp_cfg_config),
-        .cfg_ena     (resp_cfg_ena)
+    logic [1:0]  resp_cfg_cbsel;
+    logic        resp_cfg_config;
+    logic        resp_cfg_ena;
+
+    logic        heater_armed_clk9;
+    logic [7:0]  heat_duty_0_clk9;
+    logic [7:0]  heat_duty_1_clk9;
+    logic [7:0]  heat_duty_2_clk9;
+    logic [7:0]  heat_duty_3_clk9;
+    logic        wdog_ok_clk9_r1, wdog_ok_clk9;
+    logic [7:0]  pwm_step_clk9_r1, pwm_step_clk9;
+
+    logic        comp_led_on_reg;
+    logic        mat33_led_on_reg;
+
+    logic [5:0]  g_mat3_p,  g_mat3_n;
+    logic [5:0]  g_mat8_p,  g_mat8_n;
+    logic [5:0]  g_mat33_p, g_mat33_n;
+
+    t20_hw_responder #(.HAS_SOC(0), .IS_GOLDEN(1)) u_hw_responder (
+        .clk9          (T20_CLK9),
+        .rstn          (rstn_clk9),
+        .frame_ok      (s_rx_frame_ok),
+        .frame_err     (s_rx_frame_err),
+        .rx_ch         (s_rx_ch),
+        .rx_seqop      (s_rx_seqop),
+        .pay8          (s_rx_pay8),
+        .h_word_cnt    (h_word_cnt),
+        .h_sync_err    (h_sync_err),
+        .tx_busy       (s_tx_busy),
+        .tx_start      (s_tx_start),
+        .tx_resp       (s_tx_resp),
+        .tx_ch         (s_tx_ch),
+        .tx_seqop      (s_tx_seqop),
+        .tx_len        (s_tx_len),
+        .tx_pay_idx    (s_tx_pay_idx),
+        .tx_pay_byte   (s_tx_pay_byte),
+        .fwd_to_soc    (),
+        .en_mask       (en_mask),
+        .static_on     (static_on),
+        .static_vec    (static_vec),
+        .good_cnt      (s_good_cnt),
+        .crc_err_cnt   (s_crc_err_cnt),
+        .nak_sticky    (s_nak_sticky),
+        .cfg_cbsel     (resp_cfg_cbsel),
+        .cfg_config    (resp_cfg_config),
+        .cfg_ena       (resp_cfg_ena),
+        .fl_cs_n       (FL_CS),
+        .fl_clk        (FL_CLK),
+        .fl_di         (FL_DI),
+        .fl_do         (FL_DO),
+        .heater_armed  (heater_armed_clk9),
+        .heat_duty_0   (heat_duty_0_clk9),
+        .heat_duty_1   (heat_duty_1_clk9),
+        .heat_duty_2   (heat_duty_2_clk9),
+        .heat_duty_3   (heat_duty_3_clk9),
+        .wdog_ok_sync  (wdog_ok_clk9),
+        .pwm_step_sync (pwm_step_clk9),
+        .comp_led_on   (comp_led_on_reg),
+        .mat33_led_on  (mat33_led_on_reg),
+        .g_mat3_p_out  (g_mat3_p),
+        .g_mat3_n_out  (g_mat3_n),
+        .g_mat8_p_out  (g_mat8_p),
+        .g_mat8_n_out  (g_mat8_n),
+        .g_mat33_p_out (g_mat33_p),
+        .g_mat33_n_out (g_mat33_n)
     );
+
+    assign FL_IO2 = 1'b1; // /WP deasserted
+    assign FL_IO3 = 1'b1; // /HOLD deasserted
+
+    // =========================================================================
+    // Differential Column Refresh Gate Pin Assignments
+    // =========================================================================
+    assign G_P1_MAT_3  = g_mat3_p[0]; assign G_N1_MAT_3  = g_mat3_n[0];
+    assign G_P2_MAT_3  = g_mat3_p[1]; assign G_N2_MAT_3  = g_mat3_n[1];
+    assign G_P3_MAT_3  = g_mat3_p[2]; assign G_N3_MAT_3  = g_mat3_n[2];
+    assign G_P4_MAT_3  = g_mat3_p[3]; assign G_N4_MAT_3  = g_mat3_n[3];
+    assign G_P5_MAT_3  = g_mat3_p[4]; assign G_N5_MAT_3  = g_mat3_n[4];
+    assign G_P6_MAT_3  = g_mat3_p[5]; assign G_N6_MAT_3  = g_mat3_n[5];
+
+    assign G_P1_MAT_8  = g_mat8_p[0]; assign G_N1_MAT_8  = g_mat8_n[0];
+    assign G_P2_MAT_8  = g_mat8_p[1]; assign G_N2_MAT_8  = g_mat8_n[1];
+    assign G_P3_MAT_8  = g_mat8_p[2]; assign G_N3_MAT_8  = g_mat8_n[2];
+    assign G_P4_MAT_8  = g_mat8_p[3]; assign G_N4_MAT_8  = g_mat8_n[3];
+    assign G_P5_MAT_8  = g_mat8_p[4]; assign G_N5_MAT_8  = g_mat8_n[4];
+    assign G_P6_MAT_8  = g_mat8_p[5]; assign G_N6_MAT_8  = g_mat8_n[5];
+
+    assign G_P1_MAT_33 = g_mat33_p[0]; assign G_N1_MAT_33 = g_mat33_n[0];
+    assign G_P2_MAT_33 = g_mat33_p[1]; assign G_N2_MAT_33 = g_mat33_n[1];
+    assign G_P3_MAT_33 = g_mat33_p[2]; assign G_N3_MAT_33 = g_mat33_n[2];
+    assign G_P4_MAT_33 = g_mat33_p[3]; assign G_N4_MAT_33 = g_mat33_n[3];
+    assign G_P5_MAT_33 = g_mat33_p[4]; assign G_N5_MAT_33 = g_mat33_n[4];
+    assign G_P6_MAT_33 = g_mat33_p[5]; assign G_N6_MAT_33 = g_mat33_n[5];
+
+    // Analog LED Array Switches
+    assign COMP_LED_ON  = comp_led_on_reg;
+    assign MAT33_LED_ON = mat33_led_on_reg;
+
+    // =========================================================================
+    // 0.2 Hz 4-Channel Heater PWM Controller & Safety Watchdog (CLK_50MHZ)
+    // =========================================================================
+    // Period = 5.0 seconds = 250,000,000 ticks @ 50 MHz.
+    // 256 PWM steps -> 976,562 ticks per step (~19.53 ms/step).
+    // Staggered phases (+0, +64, +128, +192) minimize peak current draw.
+    // Watchdog: expires after 200,000,000 ticks (4.0 s) without S-bus frame_ok.
+    logic        frame_ok_toggle_clk9 = 1'b0;
+    always_ff @(posedge T20_CLK9 or negedge rstn_clk9) begin
+        if (!rstn_clk9) begin
+            frame_ok_toggle_clk9 <= 1'b0;
+            wdog_ok_clk9_r1      <= 1'b1;
+            wdog_ok_clk9         <= 1'b1;
+            pwm_step_clk9_r1     <= 8'd0;
+            pwm_step_clk9        <= 8'd0;
+        end else begin
+            if (s_rx_frame_ok)
+                frame_ok_toggle_clk9 <= ~frame_ok_toggle_clk9;
+            wdog_ok_clk9_r1  <= wdog_ok_50m;
+            wdog_ok_clk9     <= wdog_ok_clk9_r1;
+            pwm_step_clk9_r1 <= pwm_step_50m;
+            pwm_step_clk9    <= pwm_step_clk9_r1;
+        end
+    end
+
+    logic        fok_tog_r1, fok_tog_r2, fok_tog_r3;
+    logic [27:0] wdog_cnt_50m = 28'd0;
+    logic        wdog_ok_50m  = 1'b0;
+    logic [19:0] pwm_prescale_50m = 20'd0;
+    logic [7:0]  pwm_step_50m     = 8'd0;
+
+    logic        armed_50m_r1, armed_50m;
+    logic [7:0]  duty0_50m, duty1_50m, duty2_50m, duty3_50m;
+
+    wire [7:0] phase0 = pwm_step_50m;
+    wire [7:0] phase1 = pwm_step_50m + 8'd64;
+    wire [7:0] phase2 = pwm_step_50m + 8'd128;
+    wire [7:0] phase3 = pwm_step_50m + 8'd192;
+
+    always_ff @(posedge CLK_50MHZ or negedge rstn) begin
+        if (!rstn) begin
+            fok_tog_r1       <= 1'b0;
+            fok_tog_r2       <= 1'b0;
+            fok_tog_r3       <= 1'b0;
+            wdog_cnt_50m     <= 28'd0;
+            wdog_ok_50m      <= 1'b0;
+            pwm_prescale_50m <= 20'd0;
+            pwm_step_50m     <= 8'd0;
+            armed_50m_r1     <= 1'b0;
+            armed_50m        <= 1'b0;
+            duty0_50m        <= 8'd0;
+            duty1_50m        <= 8'd0;
+            duty2_50m        <= 8'd0;
+            duty3_50m        <= 8'd0;
+            HEAT_1_EN        <= 1'b0;
+            HEAT_2_EN        <= 1'b0;
+            HEAT_3_EN        <= 1'b0;
+            HEAT_4_EN        <= 1'b0;
+        end else begin
+            fok_tog_r1 <= frame_ok_toggle_clk9;
+            fok_tog_r2 <= fok_tog_r1;
+            fok_tog_r3 <= fok_tog_r2;
+
+            armed_50m_r1 <= heater_armed_clk9;
+            armed_50m    <= armed_50m_r1;
+            duty0_50m    <= heat_duty_0_clk9;
+            duty1_50m    <= heat_duty_1_clk9;
+            duty2_50m    <= heat_duty_2_clk9;
+            duty3_50m    <= heat_duty_3_clk9;
+
+            // S-bus frame watchdog (4.0 seconds @ 50 MHz = 200,000,000 ticks)
+            if (fok_tog_r2 ^ fok_tog_r3) begin
+                wdog_cnt_50m <= 28'd0;
+                wdog_ok_50m  <= 1'b1;
+            end else if (wdog_cnt_50m < 28'd200_000_000) begin
+                wdog_cnt_50m <= wdog_cnt_50m + 28'd1;
+            end else begin
+                wdog_ok_50m  <= 1'b0;
+            end
+
+            // 0.2 Hz PWM timebase: 976,562 ticks per step * 256 steps = 5.000 s
+            if (pwm_prescale_50m >= 20'd976_561) begin
+                pwm_prescale_50m <= 20'd0;
+                pwm_step_50m     <= pwm_step_50m + 8'd1;
+            end else begin
+                pwm_prescale_50m <= pwm_prescale_50m + 20'd1;
+            end
+
+            // Hardware interlock: heaters active ONLY when armed AND watchdog OK
+            if (armed_50m && wdog_ok_50m) begin
+                HEAT_1_EN <= (phase0 < duty0_50m);
+                HEAT_2_EN <= (phase1 < duty1_50m);
+                HEAT_3_EN <= (phase2 < duty2_50m);
+                HEAT_4_EN <= (phase3 < duty3_50m);
+            end else begin
+                HEAT_1_EN <= 1'b0;
+                HEAT_2_EN <= 1'b0;
+                HEAT_3_EN <= 1'b0;
+                HEAT_4_EN <= 1'b0;
+            end
+        end
+    end
 
     // =========================================================================
     // CONFIG_CTRL0 Reconfiguration Controller (Driven by CLK_50MHZ)
     // =========================================================================
-    logic [1:0] resp_cfg_cbsel;
-    logic       resp_cfg_config;
-    logic       resp_cfg_ena;
-
     // Cross reconfig trigger from T20_CLK9 into CLK_50MHZ domain
     logic resp_cfg_config_r1, resp_cfg_config_r2;
     logic [7:0] reconfig_timer = 8'd0;
@@ -362,22 +610,19 @@ module top_level (
         hb_cnt <= hb_cnt + 26'd1;
     end
 
-    assign T20_LED1 = hb_cnt[24];              // Golden Image Heartbeat (~1.5 Hz)
-    assign T20_LED2 = ~hb_cnt[24];             // Golden Image Counter-phase (LED1=HIGH -> LED2=LOW)
-    assign T20_LED3 = TX11_T20_P1;             // H_SYNC pulses
-    assign T20_LED4 = h_ack;                   // H_ACK pulse
+    // LED assignments for Custom Application:
+    // LED8: Blink/heartbeat from 50 MHz oscillator (~1.5 Hz)
+    // LED7: Traffic/activity from T20_CLK9 bus clock
+    // LED6: Active traffic on H-bus (TX11_T20_P1 sync / h_ack)
+    // LED1: Heater Armed indicator
+    assign T20_LED8 = hb_cnt[24];              // Heartbeat from 50 MHz clock
+    assign T20_LED7 = T20_CLK9;                // Traffic / bus clock indicator from T20_CLK9
+    assign T20_LED6 = TX11_T20_P1 | h_ack;     // H-bus active traffic indicator
     assign T20_LED5 = s_rx_frame_ok;           // S-bus RX frame received
-    assign T20_LED6 = s_tx_busy;               // S-bus TX active
-    assign T20_LED7 = |h_word_cnt;             // H words have been applied
-    assign T20_LED8 = |s_crc_err_cnt;          // CRC error indicator
-
-    // Peripheral tie-offs
-    assign COMP_LED_ON  = 1'b0;
-    assign MAT33_LED_ON = 1'b0;
-    assign HEAT_1_EN    = 1'b0;
-    assign HEAT_2_EN    = 1'b0;
-    assign HEAT_3_EN    = 1'b0;
-    assign HEAT_4_EN    = 1'b0;
+    assign T20_LED4 = s_tx_busy;               // S-bus TX active
+    assign T20_LED3 = |h_word_cnt;             // H words applied
+    assign T20_LED2 = 1'b1;                    // Off (distinguishes Custom from Golden Image)
+    assign T20_LED1 = armed_50m & wdog_ok_50m; // Heater Armed status on T20 LED1
 
     assign TX02_T20_N1  = 1'b0;
     assign TX02_T20_P1  = 1'b0;

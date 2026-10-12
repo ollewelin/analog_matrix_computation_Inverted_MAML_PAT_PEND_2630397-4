@@ -12,3 +12,11 @@ missing input net
 T120_CRESET_N
 
 4. 2026-10-07: Bug at Centertap 0-ohm to GND there should be 10nF to GND Eth Phy magnetics
+
+---
+Historical Pre-Fabrication Fixes (Already Fixed in Schematic & PCB Version 1.3.2):
+- 2026-09-04 (Fixed BEFORE PCB fabrication in Version 1.3.2 `EasyEDA/ProPrj_Inverted_MAML_6x6_2026-09-04.epro2`):
+  1) "Fix Bug 2026-09-04: TIA correct input to (-) instead of (+) and connect input (+) to common Vref (VR)"
+  2) "Fix Bug 2026-09-04: MCP6024 Pin 11 to (-) GND VSS, Pin 4 to (+) VDD"
+  NOTE: The text boxes in the schematic are historical timestamp notes recording when the bug was found and fixed prior to sending the board for manufacturing. Both the schematic (`ProPrj_Inverted_MAML_6x6_2026-09-04.epro2`, Version 1.3.2) and the physical PCB are 100% CORRECT. Do NOT use the older pre-fix draft `EasyEDA/Autoplace_matrix/Inverted_MAML_IMC.epru` for TIA/op-amp netlist inspection.
+

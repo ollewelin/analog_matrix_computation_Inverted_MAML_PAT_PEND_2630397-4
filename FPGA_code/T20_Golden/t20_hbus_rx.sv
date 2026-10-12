@@ -13,11 +13,12 @@
 // h_sync restarts the capture at any time, so a partial word never desynchronises.
 //
 // Pad mapping (row k = vec[k-1]): M3 rows 1..8 = vec[7:0], M8 rows 1..7 = vec[14:8].
-// Each row has an independent P and N pad:   en=0 -> P=0,N=0 (no perturbation)
-//                                            en=1, bit=1 -> P=1,N=0 (+)
-//                                            en=1, bit=0 -> P=0,N=1 (-)
-// en_mask and the static override are configuration (set over the S-bus, never
-// part of the timing path).
+// Bit 15 (vec[15]) is the Hadamard Table Active / Leave-Table Tri-State flag:
+//   - vec[15] == 0 (during Hadamard table) and en_mask[k] == 1:
+//       OE = 1, bit=1 -> P=1, N=0 (+)
+//       OE = 1, bit=0 -> P=0, N=1 (-)
+//   - vec[15] == 1 (leave Hadamard table) OR en_mask[k] == 0 OR before first word:
+//       OE = 0 (3-stated / Hi-Z floating in the analog middle so perturbation is 100% centered)
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -37,6 +38,7 @@ module t20_hbus_rx #(
 
     output logic [15:0] pad_p,
     output logic [15:0] pad_n,
+    output logic [15:0] pad_oe,
     output logic        ack,
 
     output logic [15:0] word_cnt,
@@ -46,16 +48,19 @@ module t20_hbus_rx #(
     logic [W-1:0] vec;
     logic [7:0]   cnt;
     logic         busy;
+    logic         has_word;
     logic         done_q, ack_pipe;
 
-    wire [15:0] vec16    = {{(16-W){1'b0}}, vec};
-    wire [15:0] eff_vec  = static_on ? static_vec : vec16;
+    wire [15:0] vec16   = {{(16-W){1'b0}}, vec};
+    wire [15:0] eff_vec = static_on ? static_vec : vec16;
+    wire [15:0] eff_oe  = ((has_word || static_on) && !eff_vec[15]) ? en_mask : 16'd0;
 
     always_ff @(posedge clk9 or negedge rstn) begin
         if (!rstn) begin
             sh <= '0; vec <= '0; cnt <= 8'd0; busy <= 1'b0;
+            has_word <= 1'b0;
             done_q <= 1'b0; ack_pipe <= 1'b0; ack <= 1'b0;
-            pad_p <= 16'd0; pad_n <= 16'd0;
+            pad_p <= 16'd0; pad_n <= 16'd0; pad_oe <= 16'd0;
             word_cnt <= 16'd0; sync_err_cnt <= 16'd0;
         end else begin
             done_q <= 1'b0;
@@ -69,6 +74,7 @@ module t20_hbus_rx #(
                 sh <= {sh[W-2:0], h_data};
                 if (cnt == W - 1) begin
                     vec      <= {sh[W-2:0], h_data};
+                    has_word <= 1'b1;
                     done_q   <= 1'b1;
                     busy     <= 1'b0;
                     word_cnt <= word_cnt + 16'd1;
@@ -77,9 +83,10 @@ module t20_hbus_rx #(
                 end
             end
 
-            // APPLY: pads follow the vector register one edge after it is loaded
-            pad_p <= eff_vec & en_mask;
-            pad_n <= ~eff_vec & en_mask;
+            // APPLY: pads and 3-state OE follow the vector register one edge after it is loaded
+            pad_oe <= eff_oe;
+            pad_p  <= eff_vec & eff_oe;
+            pad_n  <= ~eff_vec & eff_oe;
 
             ack_pipe <= done_q;
             ack      <= ack_pipe;
