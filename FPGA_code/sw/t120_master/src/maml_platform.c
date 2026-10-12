@@ -316,6 +316,8 @@ static uint16_t g_col_settle_us     = 100u;   /* 100 us per column (50 us G_N + 
 static uint32_t g_refresh_period_us = 10000u; /* 10.0 ms (100 Hz) autonomous refresh cycle */
 static uint32_t g_last_refresh_ticks = 0u;
 static uint8_t  g_focus_col          = 0u;
+static uint8_t  g_dac_row7_code      = 128u;  /* DAC2_D_ROW7 (w34[6], TRIM_B1) */
+static uint8_t  g_dac_row8_code      = 128u;  /* DAC2_D_ROW8 (w34[7], TRIM_REF) */
 
 static void maml_refresh_all_columns(void) {
     maml_sync_shadow_bytes();
@@ -355,8 +357,8 @@ static void maml_refresh_all_columns(void) {
         for (int r = 0; r < 6; r++) {
             w34[r] = off_to_dac_u8(-g_tel.w_m33[r][col]);
         }
-        w34[6] = 128; /* DAC2_D_ROW7 (TRIM_B1) */
-        w34[7] = 128; /* DAC2_D_ROW8 (TRIM_REF) */
+        w34[6] = g_dac_row7_code; /* DAC2_D_ROW7 (TRIM_B1) */
+        w34[7] = g_dac_row8_code; /* DAC2_D_ROW8 (TRIM_REF) */
 
         aio_load_weight_banks(w15, w12, w34);
         bsp_uDelay(5); /* Let MCP6024T DAC buffers settle before opening G_N switch */
@@ -380,8 +382,8 @@ static void maml_refresh_all_columns(void) {
         for (int r = 0; r < 6; r++) {
             w34[r] = off_to_dac_u8(+g_tel.w_m33[r][col]);
         }
-        w34[6] = 128; /* DAC2_D_ROW7 (TRIM_B1) */
-        w34[7] = 128; /* DAC2_D_ROW8 (TRIM_REF) */
+        w34[6] = g_dac_row7_code; /* DAC2_D_ROW7 (TRIM_B1) */
+        w34[7] = g_dac_row8_code; /* DAC2_D_ROW8 (TRIM_REF) */
 
         aio_load_weight_banks(w15, w12, w34);
         bsp_uDelay(5); /* Let MCP6024T DAC buffers settle before opening G_P switch */
@@ -899,13 +901,17 @@ static void maml_sample_hidden_offset(uint8_t basin_k) {
 
 static void aio_load_all_30_dacs(uint8_t code);
 
-/* Calibrate quiescent DC zero baseline with all 30 DACs at 128 and Hadamard Hi-Z */
+/* Calibrate quiescent DC zero baseline at x_ref = 0 (DAC_2 = 128) with M33 payload charged */
 static void maml_calibrate_zero_baseline(void) {
     t20_hadamard_tristate_center();
-    aio_load_all_30_dacs(128u);
-    bsp_uDelay(10);
-    maml_pulse_t20_col_gates(0x3Fu, T20_GATE_ALL_P | T20_GATE_ALL_N, 40u);
-    bsp_uDelay(40);
+    uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
+    aio_load_dac2(d2_mid);
+    memset(g_w_m3_q14, 0, sizeof(g_w_m3_q14));
+    memset(g_w_m8_q14, 0, sizeof(g_w_m8_q14));
+    for (int rep = 0; rep < 8; rep++) {
+        maml_refresh_all_columns();
+    }
+    bsp_uDelay(20);
 
     int32_t acc45[6] = {0, 0, 0, 0, 0, 0};
     int32_t acc49[6] = {0, 0, 0, 0, 0, 0};
@@ -994,10 +1000,10 @@ static void maml_execute_step(void) {
             memcpy(g_w_m3_q14, g_w0_m3_q14, sizeof(g_w_m3_q14));
             memcpy(g_w_m8_q14, g_w0_m8_q14, sizeof(g_w_m8_q14));
             maml_sample_hidden_offset(g_cur_basin_idx);
+            /* Lock a constant white-noise reference vector across the basin inner trajectory! */
+            maml_generate_new_white_noise_ref();
         }
 
-        /* Lock a constant white-noise reference vector across the ENTIRE refresh cycle! */
-        maml_generate_new_white_noise_ref();
         maml_shuffle_outer_slots();
         maml_refresh_all_columns();
 
@@ -1249,15 +1255,38 @@ static void maml_probe_charge_column(uint8_t matrix_id, uint8_t row, uint8_t col
     int16_t w_q14 = (int16_t)(w_signed << 7);
     if (col < 6u) {
         g_focus_col = col;
-        if (matrix_id == 0u && row < 8u) g_w_m3_q14[row][col]  = w_q14;
-        if (matrix_id == 1u && row < 7u) g_w_m8_q14[row][col]  = w_q14;
-        if (matrix_id == 2u && row < 6u) g_w_m33_q14[row][col] = w_q14;
+        if (matrix_id == 0u && row < 8u) {
+            g_w_m3_q14[row][col] = w_q14;
+        }
+        if (matrix_id == 1u && row < 7u) {
+            /* Matrix 8 rows 0..5 are driven by ACT(4)_D_ROW[0..5] (Layer 1 Matrix 3 outputs).
+             * Enable Layer 1 pass-through on M3[row][row] so DAC_2[row] drives ACT(4)_D_ROW[row]. */
+            if (row < 6u) {
+                g_w_m3_q14[row][row] = (int16_t)(96 << 7);
+            }
+            /* Bias an unused row of Matrix 33 ((row+3)%6, held at constant DAC_2=128) at +48
+             * so the shared single-supply COLTIA diff-amp (U1/U2$CBB15 -> ADC_49) stays above 0.0V
+             * in its linear region for both W < 0 and W > 0 on Matrix 8. */
+            uint8_t ped_row = (uint8_t)((row + 3u) % 6u);
+            g_w_m33_q14[ped_row][col] = (int16_t)(48 << 7);
+            g_w_m8_q14[row][col]      = w_q14;
+        }
+        if (matrix_id == 2u && row < 6u) {
+            /* Bias an unused row ((row+3)%6, held at constant DAC_2=128) at +48 so the
+             * single-supply COLTIA diff-amp (U1/U2$CBB15, R_ref->GND) stays above 0.0V
+             * for both W < 0 and W > 0. Cancels out identically in base49 and raw49. */
+            uint8_t ped_row = (uint8_t)((row + 3u) % 6u);
+            g_w_m33_q14[ped_row][col] = (int16_t)(48 << 7);
+            g_w_m33_q14[row][col]     = w_q14;
+        }
     }
 
-    /* Refresh all 6 columns across all 3 matrices twice back-to-back (2 * 50 us = 100 us = 10*tau_charge)
-     * so the 100 nF capacitor on (matrix_id, row, col) settles to >99.995% and all other cells hold 1.65V */
-    maml_refresh_all_columns();
-    maml_refresh_all_columns();
+    /* Physical charging time constant: R2 = 1 kOhm, C = 100 nF -> tau_charge = 100 us.
+     * Refresh 8 times back-to-back (8 * 50 us = 400 us = 4 * tau_charge, >98.2% settled)
+     * so the 100 nF capacitor on (matrix_id, row, col) settles cleanly to the target weight. */
+    for (int rep = 0; rep < 8; rep++) {
+        maml_refresh_all_columns();
+    }
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
 }
 
@@ -1288,6 +1317,8 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
 
     /* Measure quiescent column baseline at d2 = 128 (X = 0), w = 0 right after refresh */
     uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
+    g_dac_row7_code = 128u;
+    g_dac_row8_code = 128u;
     aio_load_dac2(d2_mid);
     maml_probe_charge_column(matrix_id, row, col, 0);
     bsp_uDelay(10);
@@ -1306,6 +1337,8 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
          *   the EXACT same relative time (10 us) after the refresh window!
          * -------------------------------------------------------------------- */
         /* 1. X = 0 (all DAC_2 = 128) at fixed weight W = w_fixed */
+        g_dac_row7_code = 128u;
+        g_dac_row8_code = 128u;
         aio_load_dac2(d2_mid);
         maml_probe_charge_column(matrix_id, row, col, (int32_t)w_fixed);
         bsp_uDelay(10);
@@ -1313,10 +1346,14 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
 
         /* 2. X = +x_amp on probed row (move input UP) at fixed weight W = w_fixed */
         uint8_t d2_pos[6] = {128, 128, 128, 128, 128, 128};
-        if (row < 6) {
+        g_dac_row7_code = 128u;
+        g_dac_row8_code = 128u;
+        if (row < 6u) {
             d2_pos[row] = off_to_dac_u8(+(int32_t)x_amp);
-        } else {
-            for (int i = 0; i < 6; i++) d2_pos[i] = off_to_dac_u8(+(int32_t)x_amp);
+        } else if (row == 6u) {
+            g_dac_row7_code = off_to_dac_u8(+(int32_t)x_amp);
+        } else if (row == 7u) {
+            g_dac_row8_code = off_to_dac_u8(+(int32_t)x_amp);
         }
         aio_load_dac2(d2_pos);
         maml_refresh_all_columns();
@@ -1325,10 +1362,14 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
 
         /* 3. X = -x_amp on probed row (move input DOWN) at fixed weight W = w_fixed */
         uint8_t d2_neg[6] = {128, 128, 128, 128, 128, 128};
-        if (row < 6) {
+        g_dac_row7_code = 128u;
+        g_dac_row8_code = 128u;
+        if (row < 6u) {
             d2_neg[row] = off_to_dac_u8(-(int32_t)x_amp);
-        } else {
-            for (int i = 0; i < 6; i++) d2_neg[i] = off_to_dac_u8(-(int32_t)x_amp);
+        } else if (row == 6u) {
+            g_dac_row7_code = off_to_dac_u8(-(int32_t)x_amp);
+        } else if (row == 7u) {
+            g_dac_row8_code = off_to_dac_u8(-(int32_t)x_amp);
         }
         aio_load_dac2(d2_neg);
         maml_refresh_all_columns();
@@ -1340,12 +1381,16 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
              * Leave g_w_m*_q14[row][col] = w_fixed so the 10.0 ms autonomous
              * refresh engine continuously refreshes (matrix_id, row, col) with
              * W = w_fixed and all other cells with W = 0! */
+            g_dac_row7_code = (row == 6u) ? off_to_dac_u8(+(int32_t)x_amp) : 128u;
+            g_dac_row8_code = (row == 7u) ? off_to_dac_u8(+(int32_t)x_amp) : 128u;
             aio_load_dac2(d2_pos);
             maml_refresh_all_columns();
             g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
             bsp_uDelay(10);
             aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
         } else {
+            g_dac_row7_code = 128u;
+            g_dac_row8_code = 128u;
             aio_load_dac2(d2_mid);
             memcpy(g_w_m3_q14,  saved_m3,  sizeof(saved_m3));
             memcpy(g_w_m8_q14,  saved_m8,  sizeof(saved_m8));
@@ -1359,10 +1404,14 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
          *   Hold Input DAC_2[row] = +x_amp and step Weight W = 0, +w_fixed, -w_fixed
          * -------------------------------------------------------------------- */
         uint8_t d2[6] = {128, 128, 128, 128, 128, 128};
-        if (row < 6) {
+        g_dac_row7_code = 128u;
+        g_dac_row8_code = 128u;
+        if (row < 6u) {
             d2[row] = off_to_dac_u8(+(int32_t)x_amp);
-        } else {
-            for (int i = 0; i < 6; i++) d2[i] = 192;
+        } else if (row == 6u) {
+            g_dac_row7_code = off_to_dac_u8(+(int32_t)x_amp);
+        } else if (row == 7u) {
+            g_dac_row8_code = off_to_dac_u8(+(int32_t)x_amp);
         }
         aio_load_dac2(d2);
         maml_probe_charge_column(matrix_id, row, col, 0);
@@ -1382,6 +1431,8 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
         aio_trigger_settled_adc_read(raw45_neg, raw49_neg);
 
         /* Restore weights after probing */
+        g_dac_row7_code = 128u;
+        g_dac_row8_code = 128u;
         aio_load_dac2(d2_mid);
         memcpy(g_w_m3_q14,  saved_m3,  sizeof(saved_m3));
         memcpy(g_w_m8_q14,  saved_m8,  sizeof(saved_m8));
@@ -1432,6 +1483,10 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
     for (int s = 0; s < 16; s++) {
         resp.h_words[s] = HADAMARD_16[resp.perm[s]] & 0x7FFFu;
     }
+
+    /* Refresh all 2T1C columns so every Hadamard diagnostic sweep starts with fresh capacitor charge */
+    maml_refresh_all_columns();
+    g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
 
     /* Configure T20 active mask & equilibrate in 3-State Hi-Z (0x8000) */
     t20_set_hadamard_mask(en_mask);
@@ -1693,13 +1748,17 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
 
         case MAML_CMD_STEP_ONCE:
             {
-                /* Force an immediate Outer-Loop (Ref 40) gather step when triggered from GUI */
+                /* Force an immediate 2-step Inner + Outer-Loop (Ref 41 + Ref 40) gather epoch */
                 uint8_t saved_mode = g_tel.run_mode;
                 uint16_t saved_n   = g_tel.inner_loop_n;
+                uint8_t saved_m    = g_tel.num_strata_m;
                 g_tel.run_mode     = MAML_MODE_BASE_TRAIN;
-                g_tel.inner_loop_n = 1;
+                g_tel.inner_loop_n = 10;
+                g_tel.num_strata_m = 2;
                 g_tel.cur_inner_step = 0;
-                maml_execute_step();
+                maml_execute_step(); /* Step 0 -> 5: measure g_grad_init at W_0 and adapt W_1 */
+                maml_execute_step(); /* Step 5 -> 10: measure g_grad_final at W_1 and update W_0 (Ref 40) */
+                g_tel.num_strata_m = saved_m;
                 g_tel.inner_loop_n = saved_n;
                 g_tel.run_mode     = saved_mode;
             }

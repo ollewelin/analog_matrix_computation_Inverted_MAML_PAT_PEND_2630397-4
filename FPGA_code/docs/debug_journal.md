@@ -204,3 +204,36 @@ Get ping working on **Architecture 1 (`FPGA_code/T120F324`)** while retaining it
   - `F2_RXC`: Fmax = 147.36 MHz (Slack: **+0.689 ns** to **+2.234 ns**)
   - Hold slacks: All strictly positive (**+0.086 ns** to **+20.956 ns**).
 - **Status:** **COMPLETE & FULLY FUNCTIONAL** without relying on negative-slack AXI/TSE cores.
+
+---
+
+## 8. 2T1C Column Gate Refresh (`100 Hz`, `50 µs`), Sawtooth Capacitor Verification & T20 S-Bus SPI Flash Transceiver (2026-10-12)
+
+### A. Oscilloscope Symptoms Observed on Live Analog Matrix Hardware
+1. **Initial Oscilloscope Finding:**
+   - All `100 nF` 2T1C gate storage capacitors (`C1..C84`, including the `330 kΩ` Reference Cells in Row 7) sat at a flat `2.5 V` DC with zero `100 Hz` refresh pulses and no RC decay characteristic.
+   - Probing `G+1_MAT(3)` and `G-1_MAT(3)` directly on the oscilloscope revealed that **both gate lines were stuck at `3.3 V` (`100% HIGH`) continuously**!
+2. **Intermediate Oscilloscope Finding (After Seeding Non-Zero Weights on T120):**
+   - Once non-zero weights (`seed_weights(1, 80)`) were loaded into T120, the `100 nF` capacitors showed a `2–3 ms` multi-step staircase ("jitter") followed by an `~8 ms` completely flat voltage plateau (`10 ms` total period = `100 Hz`), still with **zero RC decay**.
+   - **Physical Explanation:** T120 was stepping the Row Weight DACs (`W_15`, `W_12`, `W_34`) through the 12 half-columns (`Col 1..6`, `W-` then `W+`) during the first `~1.5–2 ms` of each `10 ms` frame and holding the last column's DAC code for the remaining `~8 ms`. Because T20's `G+` and `G-` pass-transistor gates were stuck at `3.3 V` (always ON), every `100 nF` storage capacitor was permanently shorted through its pass MOSFET (`Q3`/`Q4` or `Q6`/`Q9`) and `1 kΩ` series resistor to its Row DAC op-amp output (`MCP6024T`).
+
+### B. Root Causes Identified
+1. **Stale Saturday-Night Bitstream in T20's SPI Flash (`U19`):**
+   - T20's Winbond `W25Q64` SPI Flash (`U19`) still contained the bitstream flashed on Saturday night (`2026-10-10`), which was synthesized *before* the 36 `G_P1..6_MAT_3/8/33` and `G_N1..6_MAT_3/8/33` pins were added to `T20F256.peri.xml`. Because Efinity enables `--io_weak_pullup=on` on unassigned I/Os, all 36 unassigned gate pins were pulled continuously to `3.3 V`.
+2. **Efinity Working-Directory & Multi-Image Merger Pitfalls:**
+   - Running `efx_run.py` from the repository root instead of inside `FPGA_code/T20_Custom/` and `FPGA_code/T20_Golden/` caused Efinity Interface Designer (`efx_run_pt_unified.py`) to miss `./T20F256.peri.xml` and silently generate a bitstream with `gpio: 0 / 141 (0.0%)`. Running inside each project directory restored `gpio: 89 / 141 (63.12%)` and `control: 1 / 1 (100.0%)`.
+   - When `CONFIG_CTRL0` (`is_remote_update_enable="true"`) is enabled on `T20F256`, `FPGA_code/T20_multi_image.hex` must be generated via Efinity's `multi_image_merger.py -m selectable_flash_image -t internal` so that the `CBSEL[1:0]` boot offset vector table (`0x00000000` for Golden, `0x000a6000` for Custom) and header CRC are written into the bitstream header at `0x000140`.
+3. **Spare DAC Channel Routing in `maml_platform.c` (Schematic v1.3.2 Alignment):**
+   - Verified in `ProPrj_Inverted_MAML_6x6_2026-09-04.epro2` (`Inverted_MAML_6x6.epru`) that `w12[7]` (`W_12` Ch 8, `U33`/`U31` Pin 13/14) drives `TRIM_DAC` (`Ref 38`, 3.3V supply trim via `R144 = 68 kΩ`), whereas `w34[6]` and `w34[7]` (`W_34` Ch 7/8) drive `DAC2_D_ROW7` (`TRIM_B1`) and `DAC2_D_ROW8` (`TRIM_REF`). Swapped `w12[7]` and `w34[6..7]` in `maml_refresh_all_columns()` accordingly.
+
+### C. Fixes Implemented & Verified on Oscilloscope
+1. **Strict Column-by-Column Gate Refresh (`100 Hz`, `50 µs` Pulse Width):**
+   - Both `T20_Golden` (`0x00000000`) and `T20_Custom` (`0x000a6000`) now configure all 36 `G_P`/`G_N` pins as active-low (`0 V` at reset) outputs controlled by `t20_hw_responder.sv` (`CH 0x05, OP 0x4`).
+   - In `maml_refresh_all_columns()`, T120 steps through one column `col` (`col_bit = 1u << col`) and one polarity (`T20_GATE_ALL_N` then `T20_GATE_ALL_P`) at a time:
+     - Load Row Weight DACs (`W_15`, `W_12`, `W_34`) $\rightarrow$ wait `5 µs` op-amp settling $\rightarrow$ pulse single half-column gate HIGH (`3.3 V`) for `50 µs` (`100` `CLK9` cycles) $\rightarrow$ wait `55 µs` (`50 µs` pulse + `5 µs` guard after gate closure) before changing Row Weight DACs for the next half-column.
+2. **Hardware S-Bus SPI NOR Flash Transceiver (`CH 0x01, OP 0x3`):**
+   - Added T20's 6 SPI NOR Flash pins (`P3=FL_CS`, `M3=FL_CLK`, `L3=FL_DI`, `N1=FL_DO`, `K4=FL_IO2`, `L2=FL_IO3`) and a deterministic Mode-0 SPI byte transceiver (`CH 0x01, OP 0x3`) to `t20_hw_responder.sv` in both `T20_Golden` and `T20_Custom`, enabling future T20 SPI Flash updates and `CONFIG_CTRL0` reboots directly over the inter-FPGA S-bus.
+3. **Oscilloscope Confirmation After Power Cycle:**
+   - `G+` and `G-` gate pins sit cleanly at `0 V` and pulse `3.3 V` for `50 µs` at `100 Hz` (one column and one polarity at a time).
+   - Normal `1 MΩ` 2T1C cells exhibit a clean `100 Hz` RC sawtooth from `2.5 V` down to `2.1 V` across the `10 ms` hold window, and the `330 kΩ` Reference Cells exhibit the expected steeper RC sawtooth decay.
+

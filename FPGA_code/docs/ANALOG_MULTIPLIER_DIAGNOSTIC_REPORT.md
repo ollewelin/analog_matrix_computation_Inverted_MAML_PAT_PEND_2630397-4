@@ -138,3 +138,67 @@
 
 For the full fixed-`DAC_2` / swept-$W$ tables and daily summary, see [`FPGA_code/docs/dev_status_2026-10-11.md`](dev_status_2026-10-11.md).
 
+---
+
+## 9. Post-Fix Full Hardware Characterization (`2026-10-12`) — True Column-by-Column `50 µs` Gate Refresh (`100 Hz` Sawtooth Active)
+
+### 9.1 Before vs. After Comparison (`Matrix 3` Single-Cell Multiplier)
+After mapping and driving all 36 `G_P` and `G_N` pass-transistor gate pins on `T20` (`50 µs` `G_N` pulse followed by `50 µs` `G_P` pulse per column at `100 Hz`, eliminating the stuck-high `3.3 V` gate condition), each `100 nF` storage capacitor now holds its own column weight without being overwritten by neighboring columns:
+
+| Matrix 3 Cell | **Before Fix (`2026-10-11`)** Weight Span $\Delta\text{ADC}_W$ | **After Fix (`2026-10-12`)** Weight Span $\Delta\text{ADC}_W$ | **Before Fix** Slope at $W=-96$ / $+96$ | **After Fix** Two-Quadrant Slope $\Delta\text{ADC}_{\text{Data}}$ at $W=-96$ / $+96$ |Improvement Factor |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **`R4, C1`** | `+78 LSB` | **`+298 LSB`** (`-144` $\rightarrow$ `+154`) | `+1` / `+14 LSB` | **`-34 LSB` / `+29 LSB`** | **`3.8x` span + full negative slope** |
+| **`R5, C1`** | `+76 LSB` | **`+334 LSB`** (`-163` $\rightarrow$ `+171`) | `-1` / `+10 LSB` | **`-40 LSB` / `+39 LSB`** | **`4.4x` span + full negative slope** |
+| **`R4, C2`** | `+45 LSB` | **`+166 LSB`** (`-81` $\rightarrow$ `+85`) | `+2` / `+9 LSB` | **`-17 LSB` / `+16 LSB`** | **`3.7x` span + symmetric slope** |
+| **`R6, C3`** | `+15 LSB` | **`+213 LSB`** (`-108` $\rightarrow$ `+105`) | `+1` / `+8 LSB` | **`-22 LSB` / `+22 LSB`** | **`14.2x` span + symmetric slope** |
+
+### 9.2 Full 48-Cell `Matrix 3` (`8×6 -> ADC_45`) Characterization Table
+- **Data Rows `R1..R6` (`36 / 36` cells = `100%` working):**
+  - Weight span $\Delta\text{ADC}_W$ (`W = +96` vs `W = -96` at `DAC_2 = 128 [+125 mV]`): **`+133 LSB` to `+388 LSB` (`mean = +255.1 LSB`)**.
+  - Two-quadrant data multiplication slope $\Delta\text{ADC}_{\text{Data}}$ (`DAC_2 = 224 [+220 mV]` vs `DAC_2 = 32 [+31 mV]`):
+    - At $W = +96$: **36 / 36 cells positive**, **`+13 LSB` to `+39 LSB` (`mean = +24.8 LSB`)**.
+    - At $W = -96$: **36 / 36 cells negative**, **`-11 LSB` to `-40 LSB` (`mean = -24.4 LSB`)**.
+- **Row 7 (`R7`, `1 MΩ` Bias Row `DAC2_D_ROW7`):** `6 / 6` columns active, $\Delta\text{ADC}_W \in [-741, -358]\text{ LSB}$ (`mean = -488.2 LSB`).
+- **Row 8 (`R8`, `330 kΩ` Fast-Decay Reference Row `DAC2_D_ROW8`):** `6 / 6` columns active, $\Delta\text{ADC}_W \in [+645, +1256]\text{ LSB}$ (`mean = +969.7 LSB`).
+
+| M3 Row | `Col 1` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 2` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 3` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 4` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 5` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 6` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`R1`** | `-186..+202` (**`+388`**, `-37/+39`) | `-105..+109` (**`+214`**, `-20/+22`) | `-129..+129` (**`+258`**, `-25/+23`) | `-96..+100` (**`+196`**, `-19/+21`) | `-164..+167` (**`+331`**, `-32/+34`) | `-98..+102` (**`+200`**, `-20/+21`) |
+| **`R2`** | `-186..+197` (**`+383`**, `-38/+37`) | `-106..+107` (**`+213`**, `-22/+21`) | `-95..+95` (**`+190`**, `-19/+19`) | `-70..+69` (**`+139`**, `-13/+14`) | `-158..+162` (**`+320`**, `-31/+31`) | `-75..+76` (**`+151`**, `-14/+16`) |
+| **`R3`** | `-186..+197` (**`+383`**, `-37/+38`) | `-101..+101` (**`+202`**, `-20/+20`) | `-122..+124` (**`+246`**, `-25/+24`) | `-96..+98` (**`+194`**, `-19/+19`) | `-158..+156` (**`+314`**, `-31/+31`) | `-94..+93` (**`+187`**, `-19/+19`) |
+| **`R4`** | `-144..+154` (**`+298`**, `-34/+29`) | `-81..+85` (**`+166`**, `-17/+16`) | `-97..+101` (**`+198`**, `-19/+20`) | `-76..+78` (**`+154`**, `-15/+15`) | `-157..+159` (**`+316`**, `-30/+31`) | `-67..+66` (**`+133`**, `-11/+13`) |
+| **`R5`** | `-163..+171` (**`+334`**, `-40/+39`) | `-127..+134` (**`+261`**, `-26/+25`) | `-160..+164` (**`+324`**, `-31/+32`) | `-115..+119` (**`+234`**, `-23/+24`) | `-162..+166` (**`+328`**, `-31/+33`) | `-115..+116` (**`+231`**, `-22/+23`) |
+| **`R6`** | `-185..+195` (**`+380`**, `-36/+38`) | `-106..+107` (**`+213`**, `-21/+21`) | `-108..+105` (**`+213`**, `-22/+22`) | `-123..+127` (**`+250`**, `-24/+25`) | `-157..+161` (**`+318`**, `-31/+32`) | `-93..+92` (**`+185`**, `-18/+19`) |
+| **`R7`** | `-363..+378` (**`-741`**) | `-221..+230` (**`-451`**) | `-196..+203` (**`-399`**) | `-176..+183` (**`-359`**) | `-291..+301` (**`-592`**) | `-190..+197` (**`-387`**) |
+| **`R8`** | `-372..+396` (**`+768`**) | `-313..+332` (**`+645`**) | `-611..+640` (**`+1251`**) | `-458..+482` (**`+940`**) | `-586..+613` (**`+1199`**) | `-506..+529` (**`+1035`**) |
+
+---
+
+### 9.3 Full 36-Cell `Matrix 33` (`6×6 Primary Payload Matrix -> ADC_49`) Characterization Table
+With an unmodulated pedestal bias (`+48` on row `(row+3)%6` at constant `DAC_2 = 128`) keeping the single-supply `COLTIA` difference amplifier (`U1/U2$CBB15`, `0..3.3V`) centered at `+0.33 V` above `GND`:
+- **36 / 36 cells (`100%`)** swing cleanly in both negative (`W = -96`) and positive (`W = +96`) directions around `0 LSB`.
+- **Weight Span $\Delta\text{ADC}_W$ (`W = +96` vs `W = -96`):** **`+492 LSB` to `+1049 LSB` (`mean = +725.2 LSB` = `0.584 V`)**.
+- **Two-Quadrant Multiplication Slope $\Delta\text{ADC}_{\text{Data}}$:**
+  - At $W = +96$: **36 / 36 cells positive**, **`+15 LSB` to `+79 LSB` (`mean = +44.8 LSB`)**.
+  - At $W = -96$: **36 / 36 cells negative/inverted**, down to **`-86 LSB` (`mean = -33.6 LSB`)**.
+
+| M33 Row | `Col 1` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 2` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 3` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 4` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 5` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) | `Col 6` (`W=-96..+96`, $\Delta W$, $\Delta X_{-/+ }$) |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`R1`** | `-186..+361` (**`+547`**, `+0/+35`) | `-219..+458` (**`+677`**, `-8/+50`) | `-529..+520` (**`+1049`**, `-86/+76`) | `-312..+390` (**`+702`**, `-23/+47`) | `-167..+512` (**`+679`**, `+1/+31`) | `-370..+424` (**`+794`**, `-41/+48`) |
+| **`R2`** | `-216..+383` (**`+599`**, `-11/+38`) | `-242..+465` (**`+707`**, `-16/+49`) | `-511..+501` (**`+1012`**, `-80/+79`) | `-328..+411` (**`+739`**, `-29/+48`) | `-180..+502` (**`+682`**, `+0/+30`) | `-382..+429` (**`+811`**, `-46/+47`) |
+| **`R3`** | `-180..+360` (**`+540`**, `+0/+34`) | `-206..+452` (**`+658`**, `-4/+50`) | `-427..+434` (**`+861`**, `-64/+63`) | `-253..+325` (**`+578`**, `-10/+37`) | `-158..+509` (**`+667`**, `+0/+28`) | `-291..+334` (**`+625`**, `-22/+36`) |
+| **`R4`** | `-346..+242` (**`+588`**, `-41/+25`) | `-392..+308` (**`+700`**, `-46/+37`) | `-517..+493` (**`+1010`**, `-84/+71`) | `-363..+350` (**`+713`**, `-41/+39`) | `-514..+214` (**`+728`**, `-56/+16`) | `-414..+378` (**`+792`**, `-51/+44`) |
+| **`R5`** | `-336..+246` (**`+582`**, `-38/+26`) | `-388..+315` (**`+703`**, `-45/+38`) | `-495..+511` (**`+1006`**, `-75/+76`) | `-345..+328` (**`+673`**, `-39/+37`) | `-514..+212` (**`+726`**, `-56/+15`) | `-406..+375` (**`+781`**, `-49/+45`) |
+| **`R6`** | `-343..+242` (**`+585`**, `-39/+25`) | `-400..+312` (**`+712`**, `-47/+38`) | `-428..+418` (**`+846`**, `-61/+62`) | `-252..+240` (**`+492`**, `-19/+27`) | `-514..+217` (**`+731`**, `-57/+15`) | `-312..+292` (**`+604`**, `-28/+34`) |
+
+---
+
+### 9.4 Hadamard `FWHT-16` Parallel Demodulation & Hardware $\pi^{-1}$ Scatter-Write Verification
+- **Zero Timing Jitter:** `ack_ok = 32, ack_miss = 0, lat_min = 19, lat_max = 19, t20_sync_err = 0`.
+- **41.8x (`32.4 dB`) Active-to-Quiet Basis Isolation (`en_mask = 0x00FF`):**
+  - Active `Matrix 3` rows (`fwht45[m=1..7]`): **`[120, 288, 330, 320, 250, 118, 328] LSB` (`mean = 250.6 LSB`)**.
+  - Disabled `Matrix 8` rows (`fwht45[m=9..15]`): **`[12, 8, 6, 12, 2, 2, 0] LSB` (`mean = 6.0 LSB`)**.
+- **Hardware $\pi^{-1}$ Scatter-Write Verification (`Mode 1` vs `Mode 2`):**
+  - In `Mode 1` (random step permutation $\pi$ + hardware $\pi^{-1}$ scatter-write LUT enabled), the reordered capture RAM matches the unpermuted waveform structure (`cap45[0..7] = [53, 9, 6, 13, 7, 13, 1, 6]` vs `cap45[8..15] = [49, 9, 7, 14, 7, 13, 1, 7]`, within `1 LSB` on `m=1..7`) and keeps inactive basis leakage at **`4.4 LSB`**.
+  - In `Mode 2` (same random permutation $\pi$ with hardware $\pi^{-1}$ disabled), basis orthogonality collapses (`545 LSB` leakage into `m=8`), confirming the hardware `pi_inv` scatter-write LUT in `t120_analog_io_ctrl.sv`.
+
