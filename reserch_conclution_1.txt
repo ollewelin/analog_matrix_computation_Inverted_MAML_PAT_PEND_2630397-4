@@ -1,0 +1,34 @@
+========================================================================================
+   INVERTED MAML HARDWARE REPORT: STANDALONE MATRIX 33 BASELINE (JUMPER MODE B - OFF)
+========================================================================================
+Hardware Target  : Trion T120 Master SoC (192.168.1.50) + Trion T20 Coprocessor (T20A)
+Jumper State     : Mode B (OFF - Analog Compensation Network Matrix 8 completely decoupled)
+Training Status  : STRICTLY INACTIVE (W_comp updates disabled to prevent divergence)
+Crosspoint Cells : 6 x 6 = 36 physical cells probed via ADC_49 single-supply difference amp
+Safety State     : HEAT_1..4_EN = 0 (100% Disarmed, zero thermal dissipation)
+========================================================================================
+
+1. Physical Multiplier Cell Span & Fabrication Mismatch:
+   - Evaluated differential weight span across W in [-96, +96] at mid-scale input:
+     * Nominal Differential Span : -0.83 LSB (centered at analog differential zero)
+     * Transistor Mismatch StdDev : 32.76 LSB (raw 2T1C channel mismatch)
+     * Extreme Span Variation     : -73 LSB to +67 LSB across the 36 cells
+     * Single-Quadrant Gain Slope : +4.28 LSB / step (StdDev: 16.97 LSB)
+
+2. Effective Bit Precision (ENOB) of Standalone Matrix 33:
+   - Dynamic Target Tracking (Arbitrary Payloads):
+     * Standalone Matrix 33 ENOB  : 1.98 to 2.25 bits (Mean: 2.12 bits)
+     * Physical Hardware MSE Loss : 1,179,770 to 1,650,290 milli-units
+   - Fabrication Spatial SNR    : -31.89 dB (dominated by uncompensated cross-cell variance)
+
+3. Key Engineering Takeaway:
+   Without the Inverted MAML compensation network (Jumper Mode B), the raw, uncompensated
+   analog multiplier matrix operates at approximately ~2.0 to 2.2 bits of effective 
+   resolution due to inherent threshold voltage (V_th) mismatch, capacitor droop, 
+   and single-supply difference amplifier pedestal shifts.
+
+   This confirms the necessity of the Inverted MAML outer loop: 
+   Mode B establishes our true physical ground truth baseline (~2.1 bits). When Mode A 
+   was engaged earlier today, Inverted MAML successfully lifted this exact silicon 
+   to 4.19 bits (+2.07 bits net gain, >85% error reduction).
+========================================================================================

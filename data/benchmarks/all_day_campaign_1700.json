@@ -1,0 +1,1812 @@
+{
+  "campaign_start": "2026-10-13 07:20:01",
+  "target_stop": "2026-10-13 17:00:00",
+  "last_heartbeat": "2026-10-13 07:45:24",
+  "total_adaptation_steps": 737,
+  "best_compensated_enob": 4.19,
+  "lowest_mse_loss": 79687,
+  "cadence": "2.0 seconds (high-speed)",
+  "heater_safety": "LOCKED_OUT (0% duty, disarmed)",
+  "recent_history_rolling": [
+    {
+      "timestamp": "2026-10-13 07:41:09",
+      "outer_ep": 613,
+      "tot_ref": 533311,
+      "loss_milli": 102325,
+      "comp_enob": 3.99,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16366,
+        16378,
+        16376,
+        16379
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:41:11",
+      "outer_ep": 614,
+      "tot_ref": 533509,
+      "loss_milli": 98507,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16366,
+        16378,
+        16376,
+        16376
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:41:13",
+      "outer_ep": 615,
+      "tot_ref": 533706,
+      "loss_milli": 97856,
+      "comp_enob": 4.01,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16378,
+        16376,
+        16376
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:41:15",
+      "outer_ep": 616,
+      "tot_ref": 533904,
+      "loss_milli": 98311,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16367,
+        16376,
+        16376
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:41:17",
+      "outer_ep": 617,
+      "tot_ref": 534102,
+      "loss_milli": 123150,
+      "comp_enob": 3.88,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16367,
+        16355,
+        16376
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:41:19",
+      "outer_ep": 618,
+      "tot_ref": 534300,
+      "loss_milli": 101519,
+      "comp_enob": 3.99,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16367,
+        16355,
+        16374
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:41:21",
+      "outer_ep": 619,
+      "tot_ref": 534498,
+      "loss_milli": 107303,
+      "comp_enob": 3.96,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16367,
+        16355,
+        16374
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:23",
+      "outer_ep": 620,
+      "tot_ref": 534696,
+      "loss_milli": 92119,
+      "comp_enob": 4.07,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16377,
+        16355,
+        16374
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:25",
+      "outer_ep": 621,
+      "tot_ref": 534894,
+      "loss_milli": 96437,
+      "comp_enob": 4.02,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16377,
+        16372,
+        16374
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:27",
+      "outer_ep": 622,
+      "tot_ref": 535092,
+      "loss_milli": 94743,
+      "comp_enob": 4.04,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16377,
+        16372,
+        16370
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:29",
+      "outer_ep": 623,
+      "tot_ref": 535290,
+      "loss_milli": 88667,
+      "comp_enob": 4.1,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16377,
+        16372,
+        16370
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:31",
+      "outer_ep": 624,
+      "tot_ref": 535488,
+      "loss_milli": 99439,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16360,
+        16372,
+        16370
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:41:34",
+      "outer_ep": 625,
+      "tot_ref": 535686,
+      "loss_milli": 106200,
+      "comp_enob": 3.97,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16360,
+        16381,
+        16370
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:41:36",
+      "outer_ep": 626,
+      "tot_ref": 535884,
+      "loss_milli": 96664,
+      "comp_enob": 4.02,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16360,
+        16381,
+        16367
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:41:38",
+      "outer_ep": 627,
+      "tot_ref": 536082,
+      "loss_milli": 102780,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16360,
+        16381,
+        16367
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:41:40",
+      "outer_ep": 628,
+      "tot_ref": 536280,
+      "loss_milli": 92954,
+      "comp_enob": 4.06,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16381,
+        16367
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:42",
+      "outer_ep": 629,
+      "tot_ref": 536477,
+      "loss_milli": 101210,
+      "comp_enob": 3.99,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16366,
+        16367
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:44",
+      "outer_ep": 630,
+      "tot_ref": 536675,
+      "loss_milli": 107288,
+      "comp_enob": 3.96,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16366,
+        16369
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:41:46",
+      "outer_ep": 631,
+      "tot_ref": 536872,
+      "loss_milli": 96083,
+      "comp_enob": 4.03,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16368,
+        16378,
+        16366,
+        16369
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:41:48",
+      "outer_ep": 632,
+      "tot_ref": 537070,
+      "loss_milli": 101039,
+      "comp_enob": 3.99,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16368,
+        16357,
+        16366,
+        16369
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:50",
+      "outer_ep": 633,
+      "tot_ref": 537268,
+      "loss_milli": 112896,
+      "comp_enob": 3.93,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16368,
+        16357,
+        16368,
+        16369
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:52",
+      "outer_ep": 634,
+      "tot_ref": 537466,
+      "loss_milli": 86000,
+      "comp_enob": 4.13,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16368,
+        16357,
+        16368,
+        16371
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:54",
+      "outer_ep": 635,
+      "tot_ref": 537664,
+      "loss_milli": 96339,
+      "comp_enob": 4.03,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16357,
+        16368,
+        16371
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:41:56",
+      "outer_ep": 636,
+      "tot_ref": 537861,
+      "loss_milli": 107461,
+      "comp_enob": 3.96,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16375,
+        16368,
+        16371
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:41:58",
+      "outer_ep": 637,
+      "tot_ref": 538059,
+      "loss_milli": 108170,
+      "comp_enob": 3.96,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16375,
+        16378,
+        16371
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:00",
+      "outer_ep": 638,
+      "tot_ref": 538257,
+      "loss_milli": 92737,
+      "comp_enob": 4.06,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16375,
+        16378,
+        16375
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:02",
+      "outer_ep": 639,
+      "tot_ref": 538455,
+      "loss_milli": 96875,
+      "comp_enob": 4.02,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16375,
+        16378,
+        16375
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:04",
+      "outer_ep": 640,
+      "tot_ref": 538653,
+      "loss_milli": 87766,
+      "comp_enob": 4.11,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16378,
+        16375
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:06",
+      "outer_ep": 641,
+      "tot_ref": 538851,
+      "loss_milli": 98188,
+      "comp_enob": 4.01,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16377,
+        16375
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:08",
+      "outer_ep": 642,
+      "tot_ref": 539049,
+      "loss_milli": 111991,
+      "comp_enob": 3.94,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16377,
+        16372
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:10",
+      "outer_ep": 643,
+      "tot_ref": 539247,
+      "loss_milli": 94675,
+      "comp_enob": 4.04,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16378,
+        16377,
+        16372
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:12",
+      "outer_ep": 644,
+      "tot_ref": 539444,
+      "loss_milli": 106059,
+      "comp_enob": 3.97,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16374,
+        16377,
+        16372
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:14",
+      "outer_ep": 645,
+      "tot_ref": 539642,
+      "loss_milli": 88814,
+      "comp_enob": 4.1,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16374,
+        16369,
+        16372
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:16",
+      "outer_ep": 646,
+      "tot_ref": 539839,
+      "loss_milli": 88591,
+      "comp_enob": 4.1,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16374,
+        16369,
+        16369
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:19",
+      "outer_ep": 647,
+      "tot_ref": 540037,
+      "loss_milli": 88396,
+      "comp_enob": 4.11,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16374,
+        16369,
+        16369
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:21",
+      "outer_ep": 648,
+      "tot_ref": 540235,
+      "loss_milli": 97354,
+      "comp_enob": 4.01,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16379,
+        16369,
+        16369
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:23",
+      "outer_ep": 649,
+      "tot_ref": 540433,
+      "loss_milli": 90341,
+      "comp_enob": 4.09,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16379,
+        16374,
+        16369
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:25",
+      "outer_ep": 650,
+      "tot_ref": 540631,
+      "loss_milli": 105606,
+      "comp_enob": 3.97,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16379,
+        16374,
+        16379
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:27",
+      "outer_ep": 651,
+      "tot_ref": 540829,
+      "loss_milli": 98710,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16370,
+        16379,
+        16374,
+        16379
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:29",
+      "outer_ep": 652,
+      "tot_ref": 541027,
+      "loss_milli": 100286,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16370,
+        16374,
+        16374,
+        16379
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:31",
+      "outer_ep": 653,
+      "tot_ref": 541225,
+      "loss_milli": 103203,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16370,
+        16374,
+        16373,
+        16379
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:42:33",
+      "outer_ep": 654,
+      "tot_ref": 541422,
+      "loss_milli": 100304,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16370,
+        16374,
+        16373,
+        16359
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:35",
+      "outer_ep": 655,
+      "tot_ref": 541620,
+      "loss_milli": 95403,
+      "comp_enob": 4.04,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16378,
+        16374,
+        16373,
+        16359
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:37",
+      "outer_ep": 656,
+      "tot_ref": 541818,
+      "loss_milli": 96562,
+      "comp_enob": 4.02,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16378,
+        16379,
+        16373,
+        16359
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:42:39",
+      "outer_ep": 657,
+      "tot_ref": 542016,
+      "loss_milli": 89076,
+      "comp_enob": 4.1,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16378,
+        16379,
+        16360,
+        16359
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:41",
+      "outer_ep": 658,
+      "tot_ref": 542214,
+      "loss_milli": 92183,
+      "comp_enob": 4.07,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16378,
+        16379,
+        16360,
+        16361
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:43",
+      "outer_ep": 659,
+      "tot_ref": 542411,
+      "loss_milli": 104199,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16358,
+        16379,
+        16360,
+        16361
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:42:45",
+      "outer_ep": 660,
+      "tot_ref": 542609,
+      "loss_milli": 101127,
+      "comp_enob": 3.99,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16358,
+        16362,
+        16360,
+        16361
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:47",
+      "outer_ep": 661,
+      "tot_ref": 542807,
+      "loss_milli": 94416,
+      "comp_enob": 4.05,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16358,
+        16362,
+        16379,
+        16361
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:49",
+      "outer_ep": 662,
+      "tot_ref": 543005,
+      "loss_milli": 104261,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16358,
+        16362,
+        16379,
+        16372
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:51",
+      "outer_ep": 663,
+      "tot_ref": 543202,
+      "loss_milli": 97631,
+      "comp_enob": 4.01,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16360,
+        16362,
+        16379,
+        16372
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:53",
+      "outer_ep": 664,
+      "tot_ref": 543399,
+      "loss_milli": 93388,
+      "comp_enob": 4.06,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16360,
+        16371,
+        16379,
+        16372
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:55",
+      "outer_ep": 665,
+      "tot_ref": 543597,
+      "loss_milli": 87754,
+      "comp_enob": 4.11,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16360,
+        16371,
+        16374,
+        16372
+      ],
+      "spread": 1
+    },
+    {
+      "timestamp": "2026-10-13 07:42:57",
+      "outer_ep": 666,
+      "tot_ref": 543795,
+      "loss_milli": 93275,
+      "comp_enob": 4.06,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16360,
+        16371,
+        16374,
+        16374
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:42:59",
+      "outer_ep": 667,
+      "tot_ref": 543993,
+      "loss_milli": 95804,
+      "comp_enob": 4.03,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16376,
+        16371,
+        16374,
+        16374
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:02",
+      "outer_ep": 668,
+      "tot_ref": 544191,
+      "loss_milli": 93796,
+      "comp_enob": 4.05,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16376,
+        16375,
+        16374,
+        16374
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:04",
+      "outer_ep": 669,
+      "tot_ref": 544389,
+      "loss_milli": 93469,
+      "comp_enob": 4.06,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16376,
+        16375,
+        16366,
+        16374
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:06",
+      "outer_ep": 670,
+      "tot_ref": 544587,
+      "loss_milli": 119739,
+      "comp_enob": 3.9,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16376,
+        16375,
+        16366,
+        16381
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:08",
+      "outer_ep": 671,
+      "tot_ref": 544785,
+      "loss_milli": 125288,
+      "comp_enob": 3.87,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16376,
+        16375,
+        16366,
+        16381
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:10",
+      "outer_ep": 672,
+      "tot_ref": 544983,
+      "loss_milli": 115354,
+      "comp_enob": 3.92,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16376,
+        16370,
+        16366,
+        16381
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:12",
+      "outer_ep": 673,
+      "tot_ref": 545181,
+      "loss_milli": 86872,
+      "comp_enob": 4.12,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16376,
+        16370,
+        16378,
+        16381
+      ],
+      "spread": 1
+    },
+    {
+      "timestamp": "2026-10-13 07:43:14",
+      "outer_ep": 674,
+      "tot_ref": 545379,
+      "loss_milli": 89741,
+      "comp_enob": 4.09,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16376,
+        16370,
+        16378,
+        16368
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:16",
+      "outer_ep": 675,
+      "tot_ref": 545577,
+      "loss_milli": 119979,
+      "comp_enob": 3.9,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16367,
+        16370,
+        16378,
+        16368
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:18",
+      "outer_ep": 676,
+      "tot_ref": 545775,
+      "loss_milli": 99608,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16367,
+        16373,
+        16378,
+        16368
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:20",
+      "outer_ep": 677,
+      "tot_ref": 545973,
+      "loss_milli": 132229,
+      "comp_enob": 3.83,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16367,
+        16373,
+        16378,
+        16368
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:22",
+      "outer_ep": 678,
+      "tot_ref": 546170,
+      "loss_milli": 95233,
+      "comp_enob": 4.04,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16367,
+        16373,
+        16378,
+        16380
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:24",
+      "outer_ep": 679,
+      "tot_ref": 546368,
+      "loss_milli": 104396,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16373,
+        16378,
+        16380
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:26",
+      "outer_ep": 680,
+      "tot_ref": 546566,
+      "loss_milli": 98790,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16378,
+        16380
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:28",
+      "outer_ep": 681,
+      "tot_ref": 546764,
+      "loss_milli": 102462,
+      "comp_enob": 3.99,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16373,
+        16380
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:30",
+      "outer_ep": 682,
+      "tot_ref": 546962,
+      "loss_milli": 112667,
+      "comp_enob": 3.93,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16373,
+        16378
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:32",
+      "outer_ep": 683,
+      "tot_ref": 547160,
+      "loss_milli": 96391,
+      "comp_enob": 4.02,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16378,
+        16373,
+        16378
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:34",
+      "outer_ep": 684,
+      "tot_ref": 547358,
+      "loss_milli": 111909,
+      "comp_enob": 3.94,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16376,
+        16373,
+        16378
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:36",
+      "outer_ep": 685,
+      "tot_ref": 547556,
+      "loss_milli": 95697,
+      "comp_enob": 4.03,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16376,
+        16368,
+        16378
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:38",
+      "outer_ep": 686,
+      "tot_ref": 547754,
+      "loss_milli": 85861,
+      "comp_enob": 4.13,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16376,
+        16368,
+        16366
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:43:40",
+      "outer_ep": 687,
+      "tot_ref": 547952,
+      "loss_milli": 87065,
+      "comp_enob": 4.12,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16376,
+        16368,
+        16366
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:42",
+      "outer_ep": 688,
+      "tot_ref": 548150,
+      "loss_milli": 103872,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16380,
+        16368,
+        16366
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:44",
+      "outer_ep": 689,
+      "tot_ref": 548348,
+      "loss_milli": 103420,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16380,
+        16366,
+        16366
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:43:47",
+      "outer_ep": 690,
+      "tot_ref": 548546,
+      "loss_milli": 120565,
+      "comp_enob": 3.89,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16380,
+        16366,
+        16379
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:49",
+      "outer_ep": 691,
+      "tot_ref": 548744,
+      "loss_milli": 90229,
+      "comp_enob": 4.09,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16380,
+        16380,
+        16366,
+        16379
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:51",
+      "outer_ep": 692,
+      "tot_ref": 548942,
+      "loss_milli": 98387,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16380,
+        16370,
+        16366,
+        16379
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:53",
+      "outer_ep": 693,
+      "tot_ref": 549140,
+      "loss_milli": 89671,
+      "comp_enob": 4.09,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16380,
+        16370,
+        16381,
+        16379
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:55",
+      "outer_ep": 694,
+      "tot_ref": 549337,
+      "loss_milli": 86053,
+      "comp_enob": 4.13,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16380,
+        16370,
+        16381,
+        16369
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:43:57",
+      "outer_ep": 695,
+      "tot_ref": 549535,
+      "loss_milli": 103148,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16370,
+        16381,
+        16369
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:43:59",
+      "outer_ep": 696,
+      "tot_ref": 549733,
+      "loss_milli": 98344,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16380,
+        16381,
+        16369
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:01",
+      "outer_ep": 697,
+      "tot_ref": 549931,
+      "loss_milli": 103832,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16380,
+        16367,
+        16369
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:03",
+      "outer_ep": 698,
+      "tot_ref": 550129,
+      "loss_milli": 95356,
+      "comp_enob": 4.04,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16380,
+        16367,
+        16376
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:05",
+      "outer_ep": 699,
+      "tot_ref": 550327,
+      "loss_milli": 92782,
+      "comp_enob": 4.06,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16378,
+        16380,
+        16367,
+        16376
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:07",
+      "outer_ep": 700,
+      "tot_ref": 550524,
+      "loss_milli": 102757,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16378,
+        16375,
+        16367,
+        16376
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:09",
+      "outer_ep": 701,
+      "tot_ref": 550722,
+      "loss_milli": 94480,
+      "comp_enob": 4.04,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16378,
+        16375,
+        16379,
+        16376
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:11",
+      "outer_ep": 702,
+      "tot_ref": 550920,
+      "loss_milli": 89936,
+      "comp_enob": 4.09,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16378,
+        16375,
+        16379,
+        16361
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:18",
+      "outer_ep": 703,
+      "tot_ref": 551559,
+      "loss_milli": 110838,
+      "comp_enob": 3.94,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16375,
+        16379,
+        16361
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:20",
+      "outer_ep": 704,
+      "tot_ref": 551757,
+      "loss_milli": 86199,
+      "comp_enob": 4.13,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16379,
+        16379,
+        16361
+      ],
+      "spread": 1
+    },
+    {
+      "timestamp": "2026-10-13 07:44:22",
+      "outer_ep": 705,
+      "tot_ref": 551955,
+      "loss_milli": 95964,
+      "comp_enob": 4.03,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16379,
+        16375,
+        16361
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:24",
+      "outer_ep": 706,
+      "tot_ref": 552153,
+      "loss_milli": 87513,
+      "comp_enob": 4.12,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16379,
+        16375,
+        16375
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:26",
+      "outer_ep": 707,
+      "tot_ref": 552351,
+      "loss_milli": 98540,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16379,
+        16375,
+        16375
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:28",
+      "outer_ep": 708,
+      "tot_ref": 552549,
+      "loss_milli": 116154,
+      "comp_enob": 3.92,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16377,
+        16375,
+        16375
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:30",
+      "outer_ep": 709,
+      "tot_ref": 552747,
+      "loss_milli": 104391,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16377,
+        16373,
+        16375
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:32",
+      "outer_ep": 710,
+      "tot_ref": 552945,
+      "loss_milli": 111185,
+      "comp_enob": 3.94,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16377,
+        16373,
+        16372
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:34",
+      "outer_ep": 711,
+      "tot_ref": 553143,
+      "loss_milli": 94754,
+      "comp_enob": 4.04,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16377,
+        16373,
+        16372
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:41",
+      "outer_ep": 712,
+      "tot_ref": 553782,
+      "loss_milli": 95177,
+      "comp_enob": 4.04,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16373,
+        16372
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:43",
+      "outer_ep": 713,
+      "tot_ref": 553980,
+      "loss_milli": 100462,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16373,
+        16372
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:44:45",
+      "outer_ep": 714,
+      "tot_ref": 554178,
+      "loss_milli": 90746,
+      "comp_enob": 4.08,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16377,
+        16378,
+        16373,
+        16373
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 07:44:47",
+      "outer_ep": 715,
+      "tot_ref": 554376,
+      "loss_milli": 96716,
+      "comp_enob": 4.02,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16378,
+        16373,
+        16373
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:49",
+      "outer_ep": 716,
+      "tot_ref": 554573,
+      "loss_milli": 84486,
+      "comp_enob": 4.15,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16381,
+        16373,
+        16373
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:51",
+      "outer_ep": 717,
+      "tot_ref": 554770,
+      "loss_milli": 104306,
+      "comp_enob": 3.98,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16381,
+        16371,
+        16373
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:53",
+      "outer_ep": 718,
+      "tot_ref": 554968,
+      "loss_milli": 107787,
+      "comp_enob": 3.96,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16379,
+        16381,
+        16371,
+        16364
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:55",
+      "outer_ep": 719,
+      "tot_ref": 555166,
+      "loss_milli": 96721,
+      "comp_enob": 4.02,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16381,
+        16371,
+        16364
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 07:44:57",
+      "outer_ep": 720,
+      "tot_ref": 555364,
+      "loss_milli": 100602,
+      "comp_enob": 4.0,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16379,
+        16371,
+        16364
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:44:59",
+      "outer_ep": 721,
+      "tot_ref": 555562,
+      "loss_milli": 101618,
+      "comp_enob": 3.99,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16379,
+        16372,
+        16364
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:45:01",
+      "outer_ep": 722,
+      "tot_ref": 555759,
+      "loss_milli": 132080,
+      "comp_enob": 3.84,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16374,
+        16379,
+        16372,
+        16369
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:45:03",
+      "outer_ep": 723,
+      "tot_ref": 555957,
+      "loss_milli": 105349,
+      "comp_enob": 3.97,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16379,
+        16372,
+        16369
+      ],
+      "spread": 1
+    },
+    {
+      "timestamp": "2026-10-13 07:45:05",
+      "outer_ep": 724,
+      "tot_ref": 556155,
+      "loss_milli": 101220,
+      "comp_enob": 3.99,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16377,
+        16372,
+        16369
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:45:07",
+      "outer_ep": 725,
+      "tot_ref": 556353,
+      "loss_milli": 88678,
+      "comp_enob": 4.1,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16377,
+        16366,
+        16369
+      ],
+      "spread": 1
+    },
+    {
+      "timestamp": "2026-10-13 07:45:09",
+      "outer_ep": 726,
+      "tot_ref": 556551,
+      "loss_milli": 97565,
+      "comp_enob": 4.01,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16375,
+        16377,
+        16366,
+        16375
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:45:14",
+      "outer_ep": 727,
+      "tot_ref": 556994,
+      "loss_milli": 94462,
+      "comp_enob": 4.05,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16371,
+        16377,
+        16366,
+        16375
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:45:16",
+      "outer_ep": 728,
+      "tot_ref": 557192,
+      "loss_milli": 104512,
+      "comp_enob": 3.97,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16371,
+        16375,
+        16366,
+        16375
+      ],
+      "spread": 1
+    },
+    {
+      "timestamp": "2026-10-13 07:45:18",
+      "outer_ep": 729,
+      "tot_ref": 557390,
+      "loss_milli": 133707,
+      "comp_enob": 3.83,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16371,
+        16375,
+        16371,
+        16375
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:45:20",
+      "outer_ep": 730,
+      "tot_ref": 557587,
+      "loss_milli": 114768,
+      "comp_enob": 3.92,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16371,
+        16375,
+        16371,
+        16378
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:45:22",
+      "outer_ep": 731,
+      "tot_ref": 557784,
+      "loss_milli": 98066,
+      "comp_enob": 4.01,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16366,
+        16375,
+        16371,
+        16378
+      ],
+      "spread": 2
+    },
+    {
+      "timestamp": "2026-10-13 07:45:24",
+      "outer_ep": 732,
+      "tot_ref": 557981,
+      "loss_milli": 112224,
+      "comp_enob": 3.93,
+      "uncomp_enob": 2.67,
+      "hess": [
+        16366,
+        16366,
+        16371,
+        16378
+      ],
+      "spread": 2
+    }
+  ]
+}

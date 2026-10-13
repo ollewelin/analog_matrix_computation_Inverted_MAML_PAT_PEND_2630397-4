@@ -37,3 +37,5 @@ echo -n "JUMP_APP" | nc -u -w2 192.168.1.50 5000
 
 or
 python3 -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.sendto(b'JUMP_APP', ('192.168.1.50', 5000)); print(s.recvfrom(1024)[0].decode())"
+
+./gui/run_gui.py
