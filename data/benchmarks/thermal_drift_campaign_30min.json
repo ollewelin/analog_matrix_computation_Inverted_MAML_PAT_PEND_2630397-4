@@ -1,0 +1,517 @@
+{
+  "campaign_start": "2026-10-13 19:19:56",
+  "campaign_type": "30-Minute Thermal Transient (15m ON -> 15m OFF)",
+  "jumper_mode": "Mode A (Dual Sigmoid)",
+  "current_phase": "HEATING_ON",
+  "total_steps": 28,
+  "elapsed_min": 1.48,
+  "remaining_min": 28.52,
+  "best_comp_enob": 4.16,
+  "lowest_loss": 83674,
+  "rolling_records": [
+    {
+      "timestamp": "2026-10-13 19:19:56",
+      "elapsed_sec": 0.0,
+      "phase": "HEATING_ON",
+      "step": 1,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.16,
+      "loss_milli": 83674,
+      "hess": [
+        6485,
+        7264,
+        16382,
+        4741
+      ],
+      "spread": 11
+    },
+    {
+      "timestamp": "2026-10-13 19:20:00",
+      "elapsed_sec": 3.0,
+      "phase": "HEATING_ON",
+      "step": 2,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.1,
+      "loss_milli": 88964,
+      "hess": [
+        3637,
+        -379,
+        16383,
+        8899
+      ],
+      "spread": 5
+    },
+    {
+      "timestamp": "2026-10-13 19:20:03",
+      "elapsed_sec": 6.1,
+      "phase": "HEATING_ON",
+      "step": 3,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.0,
+      "loss_milli": 98377,
+      "hess": [
+        -1776,
+        -2206,
+        16383,
+        1870
+      ],
+      "spread": 6
+    },
+    {
+      "timestamp": "2026-10-13 19:20:06",
+      "elapsed_sec": 9.2,
+      "phase": "HEATING_ON",
+      "step": 4,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.99,
+      "loss_milli": 100645,
+      "hess": [
+        6094,
+        7740,
+        16383,
+        10316
+      ],
+      "spread": 5
+    },
+    {
+      "timestamp": "2026-10-13 19:20:09",
+      "elapsed_sec": 12.2,
+      "phase": "HEATING_ON",
+      "step": 5,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.99,
+      "loss_milli": 101843,
+      "hess": [
+        3624,
+        15184,
+        16383,
+        -5736
+      ],
+      "spread": 7
+    },
+    {
+      "timestamp": "2026-10-13 19:20:15",
+      "elapsed_sec": 15.3,
+      "phase": "HEATING_ON",
+      "step": 6,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.02,
+      "loss_milli": 97199,
+      "hess": [
+        -117,
+        -2155,
+        16383,
+        7385
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 19:20:18",
+      "elapsed_sec": 21.4,
+      "phase": "HEATING_ON",
+      "step": 7,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.95,
+      "loss_milli": 109798,
+      "hess": [
+        -3793,
+        8902,
+        16383,
+        6004
+      ],
+      "spread": 9
+    },
+    {
+      "timestamp": "2026-10-13 19:20:21",
+      "elapsed_sec": 24.5,
+      "phase": "HEATING_ON",
+      "step": 8,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.98,
+      "loss_milli": 102964,
+      "hess": [
+        -5366,
+        -1605,
+        16383,
+        -3543
+      ],
+      "spread": 6
+    },
+    {
+      "timestamp": "2026-10-13 19:20:24",
+      "elapsed_sec": 27.6,
+      "phase": "HEATING_ON",
+      "step": 9,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.97,
+      "loss_milli": 106009,
+      "hess": [
+        1547,
+        -3958,
+        16383,
+        7194
+      ],
+      "spread": 11
+    },
+    {
+      "timestamp": "2026-10-13 19:20:27",
+      "elapsed_sec": 30.6,
+      "phase": "HEATING_ON",
+      "step": 10,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.05,
+      "loss_milli": 93614,
+      "hess": [
+        -9122,
+        -7256,
+        16383,
+        -13496
+      ],
+      "spread": 8
+    },
+    {
+      "timestamp": "2026-10-13 19:20:30",
+      "elapsed_sec": 33.7,
+      "phase": "HEATING_ON",
+      "step": 11,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.06,
+      "loss_milli": 93098,
+      "hess": [
+        6433,
+        -7745,
+        16383,
+        -2780
+      ],
+      "spread": 12
+    },
+    {
+      "timestamp": "2026-10-13 19:20:33",
+      "elapsed_sec": 36.7,
+      "phase": "HEATING_ON",
+      "step": 12,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.02,
+      "loss_milli": 96516,
+      "hess": [
+        311,
+        -465,
+        16383,
+        3093
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 19:20:36",
+      "elapsed_sec": 39.8,
+      "phase": "HEATING_ON",
+      "step": 13,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.97,
+      "loss_milli": 104949,
+      "hess": [
+        4594,
+        7300,
+        16383,
+        4523
+      ],
+      "spread": 7
+    },
+    {
+      "timestamp": "2026-10-13 19:20:39",
+      "elapsed_sec": 42.9,
+      "phase": "HEATING_ON",
+      "step": 14,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.02,
+      "loss_milli": 96484,
+      "hess": [
+        5030,
+        -1466,
+        16383,
+        1830
+      ],
+      "spread": 9
+    },
+    {
+      "timestamp": "2026-10-13 19:20:42",
+      "elapsed_sec": 45.9,
+      "phase": "HEATING_ON",
+      "step": 15,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.03,
+      "loss_milli": 95818,
+      "hess": [
+        2381,
+        -595,
+        16383,
+        -1706
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 19:20:45",
+      "elapsed_sec": 49.0,
+      "phase": "HEATING_ON",
+      "step": 16,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.98,
+      "loss_milli": 103156,
+      "hess": [
+        -6088,
+        -9891,
+        16383,
+        3596
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 19:20:49",
+      "elapsed_sec": 52.1,
+      "phase": "HEATING_ON",
+      "step": 17,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.14,
+      "loss_milli": 84913,
+      "hess": [
+        3337,
+        4013,
+        16383,
+        2580
+      ],
+      "spread": 11
+    },
+    {
+      "timestamp": "2026-10-13 19:20:52",
+      "elapsed_sec": 55.1,
+      "phase": "HEATING_ON",
+      "step": 18,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.99,
+      "loss_milli": 100797,
+      "hess": [
+        963,
+        -5102,
+        16383,
+        3970
+      ],
+      "spread": 8
+    },
+    {
+      "timestamp": "2026-10-13 19:20:55",
+      "elapsed_sec": 58.2,
+      "phase": "HEATING_ON",
+      "step": 19,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.02,
+      "loss_milli": 96632,
+      "hess": [
+        7626,
+        -8349,
+        16383,
+        846
+      ],
+      "spread": 6
+    },
+    {
+      "timestamp": "2026-10-13 19:20:58",
+      "elapsed_sec": 61.3,
+      "phase": "HEATING_ON",
+      "step": 20,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.0,
+      "loss_milli": 99826,
+      "hess": [
+        -3023,
+        -3267,
+        16383,
+        -15742
+      ],
+      "spread": 9
+    },
+    {
+      "timestamp": "2026-10-13 19:21:04",
+      "elapsed_sec": 64.3,
+      "phase": "HEATING_ON",
+      "step": 21,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.14,
+      "loss_milli": 85155,
+      "hess": [
+        -5481,
+        12245,
+        16383,
+        -5521
+      ],
+      "spread": 6
+    },
+    {
+      "timestamp": "2026-10-13 19:21:07",
+      "elapsed_sec": 70.4,
+      "phase": "HEATING_ON",
+      "step": 22,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.97,
+      "loss_milli": 105506,
+      "hess": [
+        -10102,
+        -6435,
+        16383,
+        -461
+      ],
+      "spread": 3
+    },
+    {
+      "timestamp": "2026-10-13 19:21:10",
+      "elapsed_sec": 73.5,
+      "phase": "HEATING_ON",
+      "step": 23,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.87,
+      "loss_milli": 124796,
+      "hess": [
+        9898,
+        6327,
+        16383,
+        -6334
+      ],
+      "spread": 7
+    },
+    {
+      "timestamp": "2026-10-13 19:21:13",
+      "elapsed_sec": 76.6,
+      "phase": "HEATING_ON",
+      "step": 24,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.99,
+      "loss_milli": 100612,
+      "hess": [
+        10445,
+        -101,
+        16383,
+        -2479
+      ],
+      "spread": 5
+    },
+    {
+      "timestamp": "2026-10-13 19:21:16",
+      "elapsed_sec": 79.6,
+      "phase": "HEATING_ON",
+      "step": 25,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.98,
+      "loss_milli": 104177,
+      "hess": [
+        -9860,
+        -1350,
+        16383,
+        -2849
+      ],
+      "spread": 9
+    },
+    {
+      "timestamp": "2026-10-13 19:21:19",
+      "elapsed_sec": 82.7,
+      "phase": "HEATING_ON",
+      "step": 26,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.08,
+      "loss_milli": 91253,
+      "hess": [
+        2208,
+        5380,
+        16383,
+        -5653
+      ],
+      "spread": 4
+    },
+    {
+      "timestamp": "2026-10-13 19:21:22",
+      "elapsed_sec": 85.8,
+      "phase": "HEATING_ON",
+      "step": 27,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 4.07,
+      "loss_milli": 91825,
+      "hess": [
+        7412,
+        -12700,
+        16383,
+        -4395
+      ],
+      "spread": 8
+    },
+    {
+      "timestamp": "2026-10-13 19:21:25",
+      "elapsed_sec": 88.8,
+      "phase": "HEATING_ON",
+      "step": 28,
+      "heater_armed": 1,
+      "heater_duty": 255,
+      "uncomp_enob": 3.99,
+      "comp_enob": 3.99,
+      "loss_milli": 101342,
+      "hess": [
+        -5715,
+        94,
+        16383,
+        -5309
+      ],
+      "spread": 7
+    }
+  ]
+}
