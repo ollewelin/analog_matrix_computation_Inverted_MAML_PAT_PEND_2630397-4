@@ -58,3 +58,4 @@ To prevent pollution of the production master firmware branch, all test code and
 - `FPGA_code/sw/standalone_test_versions/LED_test_100_atomic_triades/src/triad_100_tables.h`
 
 The production codebase in `FPGA_code/sw/t120_master/` remains 100% clean and restored to git standard.
+
