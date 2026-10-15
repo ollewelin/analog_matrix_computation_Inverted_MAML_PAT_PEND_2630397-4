@@ -23,6 +23,11 @@ Working with analog computing is an act of balancing physics and precision. Very
 
 ### Status and Disclaimer
 2026-06-10: Nothing is yet tested (little simulated 2026-06). This is currently only a plan to build a test board with a 3x 6x6 matrix PCB at 500 kHz throughput, 8-bit R-2R DACs, 10-bit SAR ADCs, a Trion FPGA, and N-channel transistors.
+# Disclamer 2026-10-15 All measurement so far is made by AI agent and I have not get time to verify anything more then basics
+
+## DAC data line seems not good with my oscilloscope
+## I do NOT trust AI measurement data result. 2026-10-15  
+## Stay tuned if you are curious 
 
 #### Disclaimer: 
 The 
