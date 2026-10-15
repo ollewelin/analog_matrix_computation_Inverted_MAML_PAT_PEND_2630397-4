@@ -76,6 +76,23 @@ VS code and AI agent support
 ### Example timing report (125Mhz requirement passed)
 ![](Timing_report_T120_Soc_Eth.png)
 
+### Hardware Bringup & Oscilloscope Discovery: The 100 Hz Refresh Kickback
 
-    
-    
+During physical bench bringup of the 3x 6x6 matrix PCB, direct oscilloscope probing on the analog row lines (behind the op-amp buffers) revealed a critical analog phenomenon:
+
+![](Oscilloscope_Row_Kickback_276mV.jpg)
+
+#### Oscilloscope Observations:
+- **DAC output before buffer:** Clean, stable DC output from the R-2R ladders.
+- **Row line after op-amp buffer:** Periodic $\sim 276.6\text{ mV}_\text{pp}$ voltage humps repeating at $100\text{ Hz}$ ($10\text{ ms}$ period, $1.84\text{ V}$ peak).
+- **ADC readings:** Dynamic fluctuations caused by sampling during active recharge transients.
+
+#### Physics Root Cause:
+1. **Capacitive Gate-to-Drain Kickback ($C_{gd}$):**
+   When the column recharge transmission gates pulse on to refresh the $100\text{ nF}$ 2T1C storage capacitors, the rapid $dV/dt$ on the gate couples capacitively backwards through the DOX3134A MOSFET's parasitics ($C_{gd}$) directly into the analog row line.
+2. **Carrier Masking:**
+   The capacitive Hadamard perturbation is designed for small-signal modulation ($\pm 15.6\text{ mV}$). Because the unblanked refresh kickback is nearly $300\text{ mV}$, any continuous carrier-based gradient descent gets drowned in recharge noise if executed simultaneously.
+
+#### Key Learnings & Architecture Next Steps:
+- **Time-Gated Blanking:** Refresh and inference/carrier measurement must be strictly separated in time. ADC sampling and Hadamard modulation must only occur during the quiescent window between refresh pulses after op-amp settling.
+- **Slew-Rate Controlled Refresh:** Future revisions will soften the recharge gate drive edges to lower $dV/dt$, drastically minimizing charge injection into the summing lines.
