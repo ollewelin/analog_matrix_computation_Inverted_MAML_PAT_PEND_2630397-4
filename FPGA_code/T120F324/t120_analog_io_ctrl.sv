@@ -484,13 +484,14 @@ module t120_analog_io_ctrl (
         endcase
     endfunction
 
-    wire [3:0] dst_step = r_pi_inv_en ? pi_inv_lut : adc_cap_step;
+    wire [3:0] dst_step      = r_pi_inv_en ? pi_inv_lut : adc_cap_step;
     logic      quiet_freeze_q;
-    wire       hold_trig = (h_latch_strobe && r_auto_h_adc_en) || cmd_adc_trig;
+    wire       hold_trig     = (h_latch_strobe && r_auto_h_adc_en) || cmd_adc_trig;
+    wire       pipe_2us_mode = (r_settle_cycles <= 16'd4);
 
     always_comb begin
-        h_hold_busy      = adc_busy || hold_trig;
-        quiet_bus_freeze = quiet_freeze_q || hold_trig;
+        h_hold_busy      = pipe_2us_mode ? 1'b0 : (adc_busy || hold_trig);
+        quiet_bus_freeze = pipe_2us_mode ? 1'b0 : (quiet_freeze_q || hold_trig);
     end
 
     integer ai;

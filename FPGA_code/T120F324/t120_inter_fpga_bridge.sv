@@ -279,10 +279,10 @@ module t120_inter_fpga_bridge #(
         .step(h_step), .ack_ok(h_ack_ok), .ack_miss(h_ack_miss),
         .lat_last(h_lat_last), .lat_min(h_lat_min), .lat_max(h_lat_max),
         .step_strobe(h_step_strobe),
-        .latch_strobe(h_latch_strobe)
+        .latch_strobe(h_latch_strobe),
+        .sample_step(h_step_idx)
     );
     assign h_active   = h_running;
-    assign h_step_idx = h_step[3:0];
 
     // ------------------------------------------------------------------
     // T20 CRESET_N

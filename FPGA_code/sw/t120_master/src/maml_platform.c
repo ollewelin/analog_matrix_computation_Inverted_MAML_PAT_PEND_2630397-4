@@ -436,66 +436,80 @@ static void maml_shuffle_outer_slots(void) {
 }
 
 /* ============================================================================
- * Inner Randomization (16-step Hadamard permutation + hardware pi_inv LUT)
- * & 4-Phase Settle-Then-Sample Execution + 3-State Exit (step 16 = 0x8000)
+ * Contiguous 2x6 = 12-Pulse Hadamard Table (2.00 us per pulse = 24.00 us total)
+ *   - (+) Table (pulses 0..5, 12.00 us): 6 orthogonal non-DC Walsh-Hadamard rows
+ *   - (-) Table (pulses 6..11, 12.00 us): exact bitwise complement (~(+) & 0x7FFF)
+ *   - Step 12 (at t = 24.00 us): 0x8000 (Leave-Table Tri-State Hi-Z until next 10 ms refresh)
+ *   - ZERO tri-state gaps between the 12 pulses!
+ *   - ADC_45 & ADC_49 sample at the END of each 2.00 us pulse (t = 1.96 us)
+ *     right before the next pulse latches onto T20's physical pins at t = 2.00 us.
  * ============================================================================ */
-static void maml_run_permuted_hadamard_sweep(uint16_t en_mask) {
-    uint8_t perm[16];
-    for (int i = 0; i < 16; i++) perm[i] = (uint8_t)i;
-    for (int i = 15; i > 0; i--) {
-        uint32_t j = prng_next() % (uint32_t)(i + 1);
-        uint8_t tmp = perm[i];
-        perm[i] = perm[j];
-        perm[j] = tmp;
+static const uint16_t HADAMARD_2X6_POS[6] = {
+    0x2AAAu, /* p=0: basis 1 (+1/-1/+1/-1/+1/-1) */
+    0x1999u, /* p=1: basis 2 */
+    0x4CCCu, /* p=2: basis 3 */
+    0x0787u, /* p=3: basis 4 */
+    0x52D2u, /* p=4: basis 5 */
+    0x61E1u  /* p=5: basis 6 */
+};
+
+static void maml_run_2x6_hadamard_burst(uint16_t en_mask, int tristate_off, uint8_t sck_div) {
+    /* Configure T20 active matrix mask over S-bus at standard 2 MHz CLK9 */
+    T20_REG(T20_CLK_PERIOD) = 25u;
+    t20_set_hadamard_mask(en_mask);
+    t20_hadamard_tristate_center();
+
+    /* Identity scatter map: pulse t (0..11) writes directly to cap_ram[t] */
+    AIO_REG(AIO_PI_INV_LO) = 0x76543210u;
+    AIO_REG(AIO_PI_INV_HI) = 0xFEDCBA98u;
+
+    /* Load 2x6 = 12 contiguous 2.00 us pulses + 13th word (0x8000 Tri-State exit) */
+    for (int p = 0; p < 6; p++) {
+        uint16_t w_pos = tristate_off ? 0x8000u : (HADAMARD_2X6_POS[p] & 0x7FFFu);
+        uint16_t w_neg = tristate_off ? 0x8000u : ((~HADAMARD_2X6_POS[p]) & 0x7FFFu);
+        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * p)       = (uint32_t)w_pos;
+        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * (p + 6)) = (uint32_t)w_neg;
+    }
+    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 12) = 0x00008000u; /* Exit to Hi-Z at 24.00 us */
+    for (int k = 13; k < 16; k++) {
+        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * k) = 0x00008000u;
     }
 
-    /* Configure T20 active matrix mask (0x7F00 for M8 only, 0x00FF for M3 only) */
-    t20_set_hadamard_mask(en_mask);
+    /* Switch to Pipelined 2.00 us Contiguous Mode:
+     *   - T20_CLK_PERIOD = 5 (10.0 MHz CLK9, 100 ns cycle)
+     *   - T20_H_PERIOD   = 20 (20 CLK9 cycles = 2.000 us exact per pulse!)
+     *   - T20_H_COUNT    = 13 (12 active pulses = 24.000 us + step 12 = 0x8000 Hi-Z)
+     *   - r_settle_cycles = 1 (enables pipe_2us_mode, no CLK9 freeze), r_conv_cycles = 21 (locks S/H at 1.96 us) */
+    g_tel.settle_cycles = 100u; /* 100 sys_clk cycles = 2.00 us per pulse */
+    AIO_REG(AIO_SETTLE_CYCLES) = (21u << 16) | 1u;
+    if (sck_div < 1u) sck_div = 2u;
+    AIO_REG(AIO_CTRL) = (((uint32_t)(sck_div & 0x0Fu)) << 8) | 0xA9u;
 
-    /* Ensure Hadamard lines start in 3-State Hi-Z (0x8000) and equilibrate C_PTU (2.2nF) */
-    t20_hadamard_tristate_center();
-    bsp_uDelay(80);
+    T20_REG(T20_CLK_PERIOD) = 5u;
+    T20_REG(T20_H_COUNT)    = 13u;
+    T20_REG(T20_H_PERIOD)   = 20u;
+    T20_REG(T20_H_CTRL)     = (1u << 2) | (1u << 9); /* Clear counters */
+    T20_REG(T20_H_CTRL)     = (1u << 0) | (1u << 9); /* Fire single 24.00 us hardware burst! */
 
-    /* Configure Quiet Analog DC Settling Cycles based on Hadamard frequency (50..500 kHz) */
-    uint32_t f_khz = g_tel.hadamard_freq_khz;
-    if (f_khz < 50)  f_khz = 50;
-    if (f_khz > 500) f_khz = 500;
-    uint16_t settle_cyc = (uint16_t)((50000u + (f_khz >> 1)) / f_khz); /* 100 cyc (2.0 us) @ 500 kHz */
-    g_tel.settle_cycles = settle_cyc;
-    AIO_REG(AIO_SETTLE_CYCLES) = ((uint32_t)25u << 16) | settle_cyc;
-
-    /* Use sck_div=15 (280ns SCK HIGH) + r_adc_bit_align=2 (w[11:0] 12-bit) + hardware pi_inv */
-    AIO_REG(AIO_CTRL) = 0x00000FA9u;
-    T20_REG(T20_H_CTRL) = (1u << 2) | (1u << 9);
-
-    /* Return-to-Hi-Z (RTZ) permuted sweep:
-     * Each step s launches from 0x8000 (1.65V Hi-Z equilibrium) -> HADAMARD_16[perm[s]],
-     * settles for settle_cyc, samples ADC_45 & ADC_49 into cap_ram[perm[s]], and
-     * immediately returns to 0x8000 (Hi-Z) so C_PTU=2.2nF has zero memory of perm[s-1]! */
-    for (int s = 0; s < 16; s++) {
-        uint16_t h_word = HADAMARD_16[perm[s]] & 0x7FFFu; /* bit 15 = 0 (OE = 1) */
-        AIO_REG(AIO_PI_INV_LO) = (uint32_t)(perm[s] & 0x0Fu);
-        AIO_REG(AIO_PI_INV_HI) = 0u;
-        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 0) = (uint32_t)h_word;
-        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4) = 0x00008000u; /* Leave Table Hi-Z */
-
-        T20_REG(T20_H_COUNT)  = 2;
-        T20_REG(T20_H_PERIOD) = 24;
-        T20_REG(T20_H_CTRL)   = (1u << 0) | (1u << 9);
-
-        uint32_t timeout = 10000;
-        while ((((T20_REG(T20_H_STATUS) & 2u) == 0u) ||
-                (T20_REG(T20_H_STATUS) & 1u) ||
-                (AIO_REG(AIO_STATUS) & 0x06u)) && --timeout) {
-            bsp_uDelay(1);
-        }
-        /* Allow C_PTU=2.2nF AC-coupling capacitor to relax back to 1.65V Hi-Z baseline */
-        bsp_uDelay(40);
+    uint32_t timeout = 10000;
+    while ((((T20_REG(T20_H_STATUS) & 2u) == 0u) ||
+            (T20_REG(T20_H_STATUS) & 1u) ||
+            (AIO_REG(AIO_STATUS) & 0x06u)) && --timeout) {
+        bsp_uDelay(1);
     }
 
     g_tel.t20_h_ack_ok   = T20_REG(T20_H_ACK_OK);
     g_tel.t20_h_ack_miss = T20_REG(T20_H_ACK_MISS);
     g_tel.t20_h_lat_last = (uint16_t)T20_REG(T20_H_LAT_LAST);
+
+    /* Restore standard 2 MHz S-bus clock and 74HC595 DAC shift divider (sck_div=15) */
+    T20_REG(T20_CLK_PERIOD)    = 25u;
+    AIO_REG(AIO_SETTLE_CYCLES) = (25u << 16) | 100u;
+    AIO_REG(AIO_CTRL)          = 0x00000FA9u;
+}
+
+static void maml_run_permuted_hadamard_sweep(uint16_t en_mask) {
+    maml_run_2x6_hadamard_burst(en_mask, 0, 2u);
 }
 
 /* Read latest 6-channel signed Q1.11 ADC_45 & ADC_49 readings */
@@ -530,18 +544,18 @@ static void aio_trigger_settled_adc_read(int16_t adc45_out[6], int16_t adc49_out
 }
 
 /* ============================================================================
- * 16-Point Radix-2 Fast Walsh-Hadamard Transform (FWHT-16)
- *   Operates on the hardware-unpermuted Capture RAM (CAP_ADC45 or CAP_ADC49)
- *   using 32-bit guard accumulators and convergent round-to-nearest-even (§2).
- *   Note:
- *     - k = 0 (DC average across 16 steps) is normalized by 1/16 (>> 4).
- *     - k = 1..15 retain the full 16-step coherent sum (Q12.4, 1/16 LSB units)
- *       so sub-LSB Hadamard perturbations are preserved with +12 dB gain!
+ * 12-Pulse (2x6 (+) and (-)) Coherent Differential Hadamard Demodulator
+ *   - Pulses p = 0..5  : (+) Table response Y_pos[p][c]
+ *   - Pulses p = 6..11 : (-) Table response Y_neg[p][c]
+ *   - Differential pair dY[p][c] = Y_pos[p][c] - Y_neg[p][c] cancels DC offset
+ *     and capacitor discharge slope!
+ *   - Coherent correlation across p = 0..5 extracts row sensitivity:
+ *     sens_out[b + 1][c] = sum_{p=0..5} sign(HADAMARD_2X6_POS[p], bit b) * dY[p][c]
  * ============================================================================ */
 static void maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6]) {
-    int32_t buf[16][6];
+    int32_t buf[12][6];
 
-    for (int k = 0; k < 16; k++) {
+    for (int k = 0; k < 12; k++) {
         uint32_t addr = cap_base_off + (uint32_t)(k * 16);
         uint32_t w01  = AIO_REG(addr + 0x0);
         uint32_t w23  = AIO_REG(addr + 0x4);
@@ -554,27 +568,28 @@ static void maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6
         buf[k][5] = (int16_t)(w45 >> 16);
     }
 
-    /* 4-Stage Butterfly (N = 16): u + v, u - v */
-    for (int len = 1; len < 16; len <<= 1) {
-        int step = len << 1;
-        for (int i = 0; i < 16; i += step) {
-            for (int j = 0; j < len; j++) {
-                for (int c = 0; c < 6; c++) {
-                    int32_t u = buf[i + j][c];
-                    int32_t v = buf[i + j + len][c];
-                    buf[i + j][c]       = u + v;
-                    buf[i + j + len][c] = u - v;
-                }
-            }
-        }
+    /* k = 0: DC average across the 12 samples */
+    for (int c = 0; c < 6; c++) {
+        int32_t dc_sum = 0;
+        for (int k = 0; k < 12; k++) dc_sum += buf[k][c];
+        sens_out[0][c] = sat_q14(dc_sum / 12);
     }
 
-    for (int c = 0; c < 6; c++) {
-        sens_out[0][c] = sat_q14(rshift_rne(buf[0][c], 4));
-    }
-    for (int k = 1; k < 16; k++) {
+    /* k = 1..15: Coherent 2x6 differential correlation for bits b = 0..14
+     *   b = 0..7  (k = 1..8)  -> Matrix 3 rows 0..7
+     *   b = 8..14 (k = 9..15) -> Matrix 8 rows 0..6 */
+    for (int b = 0; b < 15; b++) {
         for (int c = 0; c < 6; c++) {
-            sens_out[k][c] = sat_q14(buf[k][c]);
+            int32_t corr = 0;
+            for (int p = 0; p < 6; p++) {
+                int32_t dy = buf[p][c] - buf[p + 6][c];
+                if ((HADAMARD_2X6_POS[p] >> b) & 1u) {
+                    corr += dy;
+                } else {
+                    corr -= dy;
+                }
+            }
+            sens_out[b + 1][c] = sat_q14(corr);
         }
     }
 }
@@ -946,8 +961,8 @@ void maml_platform_init(void) {
     g_tel.inner_loop_n       = 100; /* Default N = 100 inner loop iterations */
     g_tel.num_strata_m       = NUM_STRATA_DEFAULT;
     g_tel.settle_cycles      = 100;
-    g_tel.bit_prec_uncomp_centi = 422; /* 4.22 bits default uncompensated baseline */
-    g_tel.bit_prec_comp_centi   = 773; /* 7.73 bits default compensated baseline */
+    g_tel.bit_prec_uncomp_centi = 0; /* Strictly measured from live hardware */
+    g_tel.bit_prec_comp_centi   = 0; /* Strictly measured from live hardware */
 
     /* Initialize Primary Payload Matrix M33 with a deterministic orthogonal-like target matrix */
     const int8_t default_m33[6][6] = {
@@ -1200,6 +1215,41 @@ static void aio_load_all_30_dacs(uint8_t code) {
  * Periodic Background Tick (Synchronous Autonomous 10.0 ms Refresh Engine)
  * ============================================================================ */
 static uint8_t g_osc_phase = 0;
+static uint8_t g_alt_hadamard_on = 0;
+
+static void maml_apply_fixed_even_dac2(void) {
+    const uint8_t d2_even[6] = { 0u, 51u, 102u, 153u, 204u, 255u };
+    for (int i = 0; i < 6; i++) {
+        g_tel.x_ref[i] = (int16_t)((int32_t)d2_even[i] - 128);
+    }
+    aio_load_dac2(d2_even);
+}
+
+static void maml_seed_fixed_test_weights_once(uint32_t seed_val) {
+    g_prng_state = seed_val ? seed_val : 0x5A3C9E4Du;
+    g_comp_is_centered = 0;
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 6; c++) {
+            int32_t off = (int32_t)(prng_next() % 161u) - 80; /* [-80, +80] DAC LSBs */
+            g_w0_m3_q14[r][c] = (int16_t)(off << 7);
+            g_w_m3_q14[r][c]  = (int16_t)(off << 7);
+        }
+    }
+    for (int r = 0; r < 7; r++) {
+        for (int c = 0; c < 6; c++) {
+            int32_t off = (int32_t)(prng_next() % 161u) - 80; /* [-80, +80] DAC LSBs */
+            g_w0_m8_q14[r][c] = (int16_t)(off << 7);
+            g_w_m8_q14[r][c]  = (int16_t)(off << 7);
+        }
+    }
+    for (int r = 0; r < 6; r++) {
+        for (int c = 0; c < 6; c++) {
+            int32_t off = (int32_t)(prng_next() % 161u) - 80; /* [-80, +80] DAC LSBs */
+            g_w_m33_q14[r][c] = (int16_t)(off << 7);
+        }
+    }
+    maml_sync_shadow_bytes();
+}
 
 void maml_platform_tick(void) {
     g_wdog_refresh_cnt++;
@@ -1236,7 +1286,14 @@ void maml_platform_tick(void) {
     uint32_t period_ticks = g_refresh_period_us * 50u;
     if ((uint32_t)(now_ticks - g_last_refresh_ticks) >= period_ticks) {
         g_last_refresh_ticks = now_ticks;
-        if (g_tel.run_mode != MAML_MODE_IDLE) {
+        if (g_tel.run_mode == 3u) {
+            /* Alternating 10.0 ms ON/OFF 24.00 us (2x6) Hadamard test at 2.0 ms after refresh */
+            maml_apply_fixed_even_dac2();
+            maml_refresh_all_columns();
+            bsp_uDelay(2000);
+            g_alt_hadamard_on ^= 1u;
+            maml_run_2x6_hadamard_burst(0x7FFFu, g_alt_hadamard_on ? 0 : 1, 2u);
+        } else if (g_tel.run_mode != MAML_MODE_IDLE) {
             maml_execute_step();
         } else {
             maml_refresh_all_columns();
@@ -1457,7 +1514,11 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
 }
 
 /* ============================================================================
- * Hadamard Permutation, Hardware Scatter-Write (pi_inv) & FWHT-16 Diagnostics
+ * 2x6 Contiguous 24.00 us (12 x 2.00 us) Hadamard & Alternating ON/OFF Diagnostics
+ *   - mode 4: Seed fixed random weights once across M3/M8/M33 + set DAC_2 = {0,51,102,153,204,255}
+ *   - mode 5: Refresh -> wait 2.0 ms -> 24.00 us Hadamard OFF (Tri-State 0x8000, 12 x 2.00 us samples)
+ *   - mode 6: Refresh -> wait 2.0 ms -> 24.00 us Hadamard ON  (2x6 active table, sck_div=2 = 12.5 MHz)
+ *   - mode 7: Refresh -> wait 2.0 ms -> 24.00 us Hadamard ON  (2x6 active table, sck_div=1 = 25.0 MHz)
  * ============================================================================ */
 static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
                                    uint8_t *resp_buf, uint16_t resp_max) {
@@ -1469,89 +1530,38 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
     resp.mode     = mode;
     resp.en_mask  = en_mask;
 
-    /* Build permutation pi[0..15] */
     for (int i = 0; i < 16; i++) resp.perm[i] = (uint8_t)i;
-    if (mode != 0u) {
-        for (int i = 15; i > 0; i--) {
-            uint32_t j = prng_next() % (uint32_t)(i + 1);
-            uint8_t tmp  = resp.perm[i];
-            resp.perm[i] = resp.perm[j];
-            resp.perm[j] = tmp;
-        }
+    for (int p = 0; p < 6; p++) {
+        resp.h_words[p]     = HADAMARD_2X6_POS[p] & 0x7FFFu;
+        resp.h_words[p + 6] = (~HADAMARD_2X6_POS[p]) & 0x7FFFu;
+    }
+    for (int k = 12; k < 16; k++) {
+        resp.h_words[k] = 0x8000u;
     }
 
-    for (int s = 0; s < 16; s++) {
-        resp.h_words[s] = HADAMARD_16[resp.perm[s]] & 0x7FFFu;
+    if (mode == 4u) {
+        maml_seed_fixed_test_weights_once(0x5A3C9E4Du);
     }
 
-    /* Refresh all 2T1C columns so every Hadamard diagnostic sweep starts with fresh capacitor charge */
+    /* Hold DAC_2 fixed at evenly distributed values {0, 51, 102, 153, 204, 255} for modes 4..7 */
+    if (mode >= 4u) {
+        maml_apply_fixed_even_dac2();
+    }
+
+    /* Refresh all 2T1C columns with the fixed weights */
     maml_refresh_all_columns();
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
 
-    /* Configure T20 active mask & equilibrate in 3-State Hi-Z (0x8000) */
-    t20_set_hadamard_mask(en_mask);
-    t20_hadamard_tristate_center();
-    bsp_uDelay(80);
-
-    uint32_t f_khz = g_tel.hadamard_freq_khz;
-    if (f_khz < 50)  f_khz = 50;
-    if (f_khz > 500) f_khz = 500;
-    uint16_t settle_cyc = (uint16_t)((50000u + (f_khz >> 1)) / f_khz);
-    resp.settle_cycles = settle_cyc;
-    AIO_REG(AIO_SETTLE_CYCLES) = ((uint32_t)25u << 16) | settle_cyc;
-
-    T20_REG(T20_H_CTRL) = (1u << 2) | (1u << 9);
-
-    if (mode < 3u) {
-        /* Modes 0, 1, 2: Return-to-Hi-Z (0x8000) pre-equilibrated 2-word pulses
-         * so C2/C4=1nF launches every step s from 1.65V Hi-Z equilibrium!
-         * Use sck_div=15 (280 ns SCK high pulse) + r_adc_bit_align=2 (w[11:0] 12-bit). */
-        AIO_REG(AIO_CTRL) = 0x00000FA9u;
-        for (int s = 0; s < 16; s++) {
-            uint8_t dst = (mode == 2u) ? (uint8_t)s : resp.perm[s];
-            AIO_REG(AIO_PI_INV_LO) = (uint32_t)(dst & 0x0Fu);
-            AIO_REG(AIO_PI_INV_HI) = 0u;
-            *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 0) = (uint32_t)resp.h_words[s];
-            *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4) = 0x00008000u;
-
-            T20_REG(T20_H_COUNT)  = 2;
-            T20_REG(T20_H_PERIOD) = 24;
-            T20_REG(T20_H_CTRL)   = (1u << 0) | (1u << 9);
-
-            uint32_t timeout = 10000;
-            while ((((T20_REG(T20_H_STATUS) & 2u) == 0u) ||
-                    (T20_REG(T20_H_STATUS) & 1u) ||
-                    (AIO_REG(AIO_STATUS) & 0x06u)) && --timeout) {
-                bsp_uDelay(1);
-            }
-            bsp_uDelay(40);
-        }
-    } else {
-        /* Mode 3: Continuous 17-step NRZ burst (without 0x8000 between steps) */
-        AIO_REG(AIO_CTRL) = 0x000002A9u;
-        uint32_t inv_lo = 0, inv_hi = 0;
-        for (int s = 0; s < 8; s++) {
-            inv_lo |= ((uint32_t)(resp.perm[s] & 0x0Fu)) << (4 * s);
-            inv_hi |= ((uint32_t)(resp.perm[s + 8] & 0x0Fu)) << (4 * s);
-        }
-        AIO_REG(AIO_PI_INV_LO) = inv_lo;
-        AIO_REG(AIO_PI_INV_HI) = inv_hi;
-        for (int s = 0; s < 16; s++) {
-            *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * s) = (uint32_t)resp.h_words[s];
-        }
-        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 16) = 0x00008000u;
-
-        T20_REG(T20_H_COUNT)  = 17;
-        T20_REG(T20_H_PERIOD) = 24;
-        T20_REG(T20_H_CTRL)   = (1u << 0) | (1u << 9);
-
-        uint32_t timeout = 50000;
-        while ((((T20_REG(T20_H_STATUS) & 2u) == 0u) ||
-                (T20_REG(T20_H_STATUS) & 1u) ||
-                (AIO_REG(AIO_STATUS) & 0x06u)) && --timeout) {
-            bsp_uDelay(1);
-        }
+    /* Wait 2.0 ms (2000 us) after refresh so we sample on the flat/stable plateau */
+    if (mode >= 4u) {
+        t20_hadamard_tristate_center();
+        bsp_uDelay(2000);
     }
+
+    int tristate_off = (mode == 5u) ? 1 : 0;
+    uint8_t sck_div  = (mode == 7u) ? 1u : 2u;
+    maml_run_2x6_hadamard_burst(en_mask, tristate_off, sck_div);
+    resp.settle_cycles = 100u; /* 100 sys_clk cycles = 2.00 us per pulse */
 
     resp.ack_ok   = T20_REG(T20_H_ACK_OK);
     resp.ack_miss = T20_REG(T20_H_ACK_MISS);
@@ -1567,7 +1577,7 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
         resp.t20_sync_err = (uint16_t)(((sw2 << 8)  & 0xFF00u) | ((sw2 >> 8)  & 0x00FFu));
     }
 
-    /* Read Capture RAMs for ADC_45 and ADC_49 */
+    /* Read Capture RAMs for ADC_45 and ADC_49 (pulses 0..11 = 2x6 table) */
     for (int k = 0; k < 16; k++) {
         uint32_t a45 = AIO_CAP_ADC45_BASE + (uint32_t)(k * 16);
         uint32_t u01 = AIO_REG(a45 + 0x0);
@@ -1592,14 +1602,13 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
         resp.cap49[k][5] = (int16_t)(v45 >> 16);
     }
 
-    /* Demodulate both Capture RAMs via FWHT-16 */
+    /* Demodulate both Capture RAMs via 2x6 Coherent Differential Correlation */
     maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, resp.fwht45);
     maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, resp.fwht49);
 
     /* Read quiet 3-state (0x8000 Hi-Z) ADC values */
     aio_trigger_settled_adc_read(resp.adc45_hiz, resp.adc49_hiz);
 
-    /* Keep sck_div=15 (280 ns SCK high pulse) + r_adc_bit_align=2 (w[11:0]) */
     AIO_REG(AIO_CTRL) = 0x00000FA9u;
 
     memcpy(resp_buf, &resp, sizeof(resp));

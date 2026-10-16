@@ -66,7 +66,8 @@ module t120_hbus_seq #(
     output logic [15:0] lat_min,
     output logic [15:0] lat_max,
     output logic       step_strobe,
-    output logic       latch_strobe
+    output logic       latch_strobe,
+    output logic [3:0] sample_step
 );
     localparam [15:0] MIN_PERIOD = W + 4;
     localparam [16:0] DEPTH = (17'd1 << DL);
@@ -93,7 +94,7 @@ module t120_hbus_seq #(
             running <= 1'b0; done <= 1'b0; ack_miss_sticky <= 1'b0;
             step <= 16'd0; ack_ok <= 32'd0; ack_miss <= 32'd0;
             lat_last <= 16'd0; lat_min <= 16'hFFFF; lat_max <= 16'd0;
-            step_strobe <= 1'b0; latch_strobe <= 1'b0;
+            step_strobe <= 1'b0; latch_strobe <= 1'b0; sample_step <= 4'd0;
             start_pend <= 1'b0; stop_pend <= 1'b0;
             c <= 16'd0; shreg <= '0; cur_is_quiet <= 1'b1; latch_done <= 1'b0;
             cyc <= 16'd0; sync_cyc <= 16'd0;
@@ -124,11 +125,25 @@ module t120_hbus_seq #(
                         ack_miss_sticky <= 1'b1;
                     end
                 end
-                // At c == W + 3 rising edge, T20 is latching the new Hadamard state onto its pads.
-                // Pulse latch_strobe once per step so ext_hold_busy is active before c == W + 3 falling edge!
-                if (running && (c == W + 3) && !cur_is_quiet && !latch_done) begin
-                    latch_strobe <= 1'b1;
-                    latch_done   <= 1'b1;
+                if (period_eff == MIN_PERIOD) begin
+                    // Pipelined 2.00 us contiguous pulse mode (CLK9 = 10 MHz, 20 CLK9 cycles = 2.00 us):
+                    // Pulse (step - 1) was applied to T20 pads at (step - 1, c == 19) rise_ev
+                    // and ends at (step, c == 19) rise_ev (2.00 us later).
+                    // Trigger ADC acquisition at (step >= 1, c == 14) rise_ev (1.50 us into pulse)
+                    // so ADC_SH_CONV tracks for 440 ns and locks S/H (CONV 1->0) at 1.96 us,
+                    // right at the end of the 2.00 us pulse before the next pulse latches at 2.00 us!
+                    if (running && (step >= 16'd1) && (c == 16'd14) && !latch_done) begin
+                        latch_strobe <= 1'b1;
+                        latch_done   <= 1'b1;
+                        sample_step  <= step[3:0] - 4'd1;
+                    end
+                end else begin
+                    // Legacy freeze-CLK9 settle-then-sample mode
+                    if (running && (c == W + 3) && !cur_is_quiet && !latch_done) begin
+                        latch_strobe <= 1'b1;
+                        latch_done   <= 1'b1;
+                        sample_step  <= step[3:0];
+                    end
                 end
             end
 
