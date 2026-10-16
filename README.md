@@ -104,3 +104,57 @@ The `MCP6024T-I/SL` uses the industry-standard **14-pin SOIC Quad Op-Amp pinout*
 | **OPA4354AIDR** | Texas Instruments | SOIC-14 | **$\pm 100\text{ mA}$ per channel** | $100\text{ MHz}$ | $2.5\text{V} - 5.5\text{V}$ | High current + high speed ($150\text{ V/\mu s}$), fast capacitor charging |
 | **TS924IDT** | STMicroelectronics | SOIC-14 | **$\pm 80\text{ mA}$ per channel** | $4\text{ MHz}$ | $2.7\text{V} - 12\text{V}$ | Proven high-current Rail-to-Rail driver (drives down to $32\ \Omega$ loads without droop) |
 
+### Corrected Hadamard Carrier Modulation: 24 µs Contiguous Burst at 2.0 ms Post-Refresh
+
+Oscilloscope measurements initially revealed that the legacy Hadamard perturbation suffered from multi-hundred-microsecond pulse trains with unintended tri-state gaps between pulses. This distorted the measurement window across the analog memory capacitor decay curve.
+
+The Hadamard sequence was rebuilt in both RTL (`t120_hbus_seq.sv`, `t120_inter_fpga_bridge.sv`, `t120_analog_io_ctrl.sv`) and C firmware (`maml_platform.c`):
+1. **Contiguous 24.00 µs Table (2 x 6 = 12 pulses x 2.00 µs):** Zero tri-state gaps between pulses. 
+   - 6 pulses for the (+) orthogonal Hadamard basis (12.00 µs).
+   - 6 pulses for the complementary (-) basis (12.00 µs).
+2. **Deterministic Tri-State Boundary:** The outputs remain actively driven throughout the full 24.00 µs burst. On the 13th word (`0x8000`), the hardware immediately switches all pins to High-Z (tri-state) until the next 10 ms refresh period.
+3. **Optimized Timing Window (t = 2.0 ms Post-Refresh):** Executing the 24 µs burst early at t = 2.0 ms positions the measurement on the flat, stable plateau of the DAC and weight lines before capacitor leakage causes droop.
+4. **End-of-Pulse ADC Sampling (t = 1.96 µs):** Differential SAR ADCs (`XC2361A`, `ADC_45` & `ADC_49`) sample at the end of each 2.00 µs pulse right before the next pulse transition.
+
+#### Oscilloscope Verification: Corrected Hadamard Carrier Lines
+
+**First Hadamard Line Probed:**
+![](Hadamard_corrected_first_line.jpeg)
+
+**Another Hadamard Line Probed:**
+![](Hadamard_corrected_another_line.jpeg)
+
+#### Code Example: 2x6 Hadamard Matrix & Hardware Sequencer Configuration
+
+```c
+/* ============================================================================
+ * Contiguous 2x6 = 12-Pulse Hadamard Table (2.00 us per pulse = 24.00 us total)
+ *   - (+) Table (pulses 0..5, 12.00 us): 6 orthogonal non-DC Walsh-Hadamard rows
+ *   - (-) Table (pulses 6..11, 12.00 us): exact bitwise complement (~(+) & 0x7FFF)
+ *   - Step 12 (at t = 24.00 us): 0x8000 (Tri-State Hi-Z exit until next 10 ms cycle)
+ *   - ZERO tri-state gaps between the 12 pulses!
+ *   - ADC_45 & ADC_49 sample at t = 1.96 us (end of each 2.00 us pulse)
+ * ============================================================================ */
+static const uint16_t HADAMARD_2X6_POS[6] = {
+    0x2AAAu, /* p=0: basis row 1 */
+    0x1999u, /* p=1: basis row 2 */
+    0x4CCCu, /* p=2: basis row 3 */
+    0x0787u, /* p=3: basis row 4 */
+    0x52D2u, /* p=4: basis row 5 */
+    0x61E1u  /* p=5: basis row 6 */
+};
+
+/* Load contiguous 12 pulses + Hi-Z termination into T120 H-bus sequence RAM */
+for (int p = 0; p < 6; p++) {
+    uint16_t w_pos = HADAMARD_2X6_POS[p] & 0x7FFFu;
+    uint16_t w_neg = (~HADAMARD_2X6_POS[p]) & 0x7FFFu;
+    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * p)       = (uint32_t)w_pos;
+    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * (p + 6)) = (uint32_t)w_neg;
+}
+*(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 12) = 0x00008000u; /* Exit to Hi-Z */
+
+/* Configure 10.0 MHz T20_CLK9, 2.000 us pulse period, and 13 words */
+T20_REG(T20_CLK_PERIOD) = 5u;   /* 10.0 MHz CLK9 (100 ns period) */
+T20_REG(T20_H_PERIOD)   = 20u;  /* 20 cycles = 2.000 us exact pulse width */
+T20_REG(T20_H_COUNT)    = 13u;  /* 12 active pulses (24.00 us) + 1 Hi-Z word */
+```
