@@ -1251,6 +1251,27 @@ static void maml_seed_fixed_test_weights_once(uint32_t seed_val) {
     maml_sync_shadow_bytes();
 }
 
+static void maml_flip_all_weights_sign(void) {
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 6; c++) {
+            g_w0_m3_q14[r][c] = (int16_t)(-g_w0_m3_q14[r][c]);
+            g_w_m3_q14[r][c]  = (int16_t)(-g_w_m3_q14[r][c]);
+        }
+    }
+    for (int r = 0; r < 7; r++) {
+        for (int c = 0; c < 6; c++) {
+            g_w0_m8_q14[r][c] = (int16_t)(-g_w0_m8_q14[r][c]);
+            g_w_m8_q14[r][c]  = (int16_t)(-g_w_m8_q14[r][c]);
+        }
+    }
+    for (int r = 0; r < 6; r++) {
+        for (int c = 0; c < 6; c++) {
+            g_w_m33_q14[r][c] = (int16_t)(-g_w_m33_q14[r][c]);
+        }
+    }
+    maml_sync_shadow_bytes();
+}
+
 void maml_platform_tick(void) {
     g_wdog_refresh_cnt++;
     if ((g_wdog_refresh_cnt % 2000u) == 0) {
@@ -1287,12 +1308,18 @@ void maml_platform_tick(void) {
     if ((uint32_t)(now_ticks - g_last_refresh_ticks) >= period_ticks) {
         g_last_refresh_ticks = now_ticks;
         if (g_tel.run_mode == 3u) {
-            /* Alternating 10.0 ms ON/OFF 24.00 us (2x6) Hadamard test at 2.0 ms after refresh */
+            /* Time-Separated 10.0 ms ON/OFF 24.00 us (2x6) Hadamard test at 2.0 ms after refresh:
+             *   1) Sub-Window 1 (t = 2.000 ms): M3 Hadamard 24.00 us burst (en_mask = 0x00FF, M8 Tri-State)
+             *   2) 20 us quiet Tri-State separation (0x8000 Hi-Z)
+             *   3) Sub-Window 2 (t = 2.044 ms): M8 Hadamard 24.00 us burst (en_mask = 0x7F00, M3 Tri-State) */
             maml_apply_fixed_even_dac2();
             maml_refresh_all_columns();
             bsp_uDelay(2000);
             g_alt_hadamard_on ^= 1u;
-            maml_run_2x6_hadamard_burst(0x7FFFu, g_alt_hadamard_on ? 0 : 1, 2u);
+            int off_flag = g_alt_hadamard_on ? 0 : 1;
+            maml_run_2x6_hadamard_burst(0x00FFu, off_flag, 2u);
+            bsp_uDelay(20);
+            maml_run_2x6_hadamard_burst(0x7F00u, off_flag, 2u);
         } else if (g_tel.run_mode != MAML_MODE_IDLE) {
             maml_execute_step();
         } else {
@@ -1513,12 +1540,33 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
     return (uint16_t)sizeof(resp);
 }
 
+static void maml_read_cap_ram(uint32_t base_addr, int16_t dst[16][6]) {
+    for (int k = 0; k < 16; k++) {
+        uint32_t addr = base_addr + (uint32_t)(k * 16);
+        uint32_t u01  = AIO_REG(addr + 0x0);
+        uint32_t u23  = AIO_REG(addr + 0x4);
+        uint32_t u45  = AIO_REG(addr + 0x8);
+        dst[k][0] = (int16_t)(u01 & 0xFFFFu);
+        dst[k][1] = (int16_t)(u01 >> 16);
+        dst[k][2] = (int16_t)(u23 & 0xFFFFu);
+        dst[k][3] = (int16_t)(u23 >> 16);
+        dst[k][4] = (int16_t)(u45 & 0xFFFFu);
+        dst[k][5] = (int16_t)(u45 >> 16);
+    }
+}
+
 /* ============================================================================
- * 2x6 Contiguous 24.00 us (12 x 2.00 us) Hadamard & Alternating ON/OFF Diagnostics
- *   - mode 4: Seed fixed random weights once across M3/M8/M33 + set DAC_2 = {0,51,102,153,204,255}
- *   - mode 5: Refresh -> wait 2.0 ms -> 24.00 us Hadamard OFF (Tri-State 0x8000, 12 x 2.00 us samples)
- *   - mode 6: Refresh -> wait 2.0 ms -> 24.00 us Hadamard ON  (2x6 active table, sck_div=2 = 12.5 MHz)
- *   - mode 7: Refresh -> wait 2.0 ms -> 24.00 us Hadamard ON  (2x6 active table, sck_div=1 = 25.0 MHz)
+ * 2x6 Contiguous 24.00 us (12 x 2.00 us) Hadamard & Time-Separated Diagnostics
+ *   - mode 4 : Seed Weight Pattern A (+W) once across M3/M8/M33 + set DAC_2 = {0,51,102,153,204,255}
+ *   - mode 5 : Refresh -> wait 2.0 ms -> 24.00 us Hadamard OFF (Tri-State 0x8000, 12 x 2.00 us samples)
+ *   - mode 6 : Refresh -> wait 2.0 ms -> 24.00 us Hadamard ON  (2x6 active table, sck_div=2 = 12.5 MHz)
+ *   - mode 7 : Refresh -> wait 2.0 ms -> 24.00 us Hadamard ON  (2x6 active table, sck_div=1 = 25.0 MHz)
+ *   - mode 8 : Flip sign of ALL weights (M3, M8, M33: W <- -W) in-place, then run mode 6
+ *   - mode 9 : Time-Separated M3 (0x00FF) then M8 (0x7F00) Hadamard ON in one refresh cycle:
+ *                Sub-Window 1 (t = 2.000 ms, 24.00 us, mask 0x00FF): M3 active, M8 Tri-State -> cap45 & fwht45
+ *                20 us Tri-State gap (0x8000 Hi-Z)
+ *                Sub-Window 2 (t = 2.044 ms, 24.00 us, mask 0x7F00): M8 active, M3 Tri-State -> cap49 & fwht49
+ *   - mode 10: Time-Separated M3 then M8 Hadamard OFF (Tri-State 0x8000 in both sub-windows)
  * ============================================================================ */
 static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
                                    uint8_t *resp_buf, uint16_t resp_max) {
@@ -1541,14 +1589,16 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
 
     if (mode == 4u) {
         maml_seed_fixed_test_weights_once(0x5A3C9E4Du);
+    } else if (mode == 8u) {
+        maml_flip_all_weights_sign();
     }
 
-    /* Hold DAC_2 fixed at evenly distributed values {0, 51, 102, 153, 204, 255} for modes 4..7 */
+    /* Hold DAC_2 fixed at evenly distributed values {0, 51, 102, 153, 204, 255} for modes >= 4 */
     if (mode >= 4u) {
         maml_apply_fixed_even_dac2();
     }
 
-    /* Refresh all 2T1C columns with the fixed weights */
+    /* Refresh all 2T1C columns with the current fixed weights (+W or -W) */
     maml_refresh_all_columns();
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
 
@@ -1558,11 +1608,32 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
         bsp_uDelay(2000);
     }
 
-    int tristate_off = (mode == 5u) ? 1 : 0;
-    uint8_t sck_div  = (mode == 7u) ? 1u : 2u;
-    maml_run_2x6_hadamard_burst(en_mask, tristate_off, sck_div);
-    resp.settle_cycles = 100u; /* 100 sys_clk cycles = 2.00 us per pulse */
+    if (mode == 9u || mode == 10u) {
+        int off_flag = (mode == 10u) ? 1 : 0;
 
+        /* Sub-Window 1 (t = 2.000..2.024 ms): Perturb Matrix 3 ONLY (0x00FF, M8 in Tri-State Hi-Z) */
+        maml_run_2x6_hadamard_burst(0x00FFu, off_flag, 2u);
+        maml_read_cap_ram(AIO_CAP_ADC45_BASE, resp.cap45);
+        maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, resp.fwht45);
+
+        /* 20 us quiet Tri-State separation between M3 table and M8 table */
+        bsp_uDelay(20);
+
+        /* Sub-Window 2 (t = 2.044..2.068 ms): Perturb Matrix 8 ONLY (0x7F00, M3 in Tri-State Hi-Z) */
+        maml_run_2x6_hadamard_burst(0x7F00u, off_flag, 2u);
+        maml_read_cap_ram(AIO_CAP_ADC49_BASE, resp.cap49);
+        maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, resp.fwht49);
+    } else {
+        int tristate_off = (mode == 5u) ? 1 : 0;
+        uint8_t sck_div  = (mode == 7u) ? 1u : 2u;
+        maml_run_2x6_hadamard_burst(en_mask, tristate_off, sck_div);
+        maml_read_cap_ram(AIO_CAP_ADC45_BASE, resp.cap45);
+        maml_read_cap_ram(AIO_CAP_ADC49_BASE, resp.cap49);
+        maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, resp.fwht45);
+        maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, resp.fwht49);
+    }
+
+    resp.settle_cycles = 100u; /* 100 sys_clk cycles = 2.00 us per pulse */
     resp.ack_ok   = T20_REG(T20_H_ACK_OK);
     resp.ack_miss = T20_REG(T20_H_ACK_MISS);
     resp.lat_last = (uint16_t)T20_REG(T20_H_LAT_LAST);
@@ -1576,35 +1647,6 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
         resp.t20_word_cnt = (uint16_t)(((sw1 >> 16) & 0xFF00u) | ((sw1 >> 24) & 0x00FFu));
         resp.t20_sync_err = (uint16_t)(((sw2 << 8)  & 0xFF00u) | ((sw2 >> 8)  & 0x00FFu));
     }
-
-    /* Read Capture RAMs for ADC_45 and ADC_49 (pulses 0..11 = 2x6 table) */
-    for (int k = 0; k < 16; k++) {
-        uint32_t a45 = AIO_CAP_ADC45_BASE + (uint32_t)(k * 16);
-        uint32_t u01 = AIO_REG(a45 + 0x0);
-        uint32_t u23 = AIO_REG(a45 + 0x4);
-        uint32_t u45 = AIO_REG(a45 + 0x8);
-        resp.cap45[k][0] = (int16_t)(u01 & 0xFFFFu);
-        resp.cap45[k][1] = (int16_t)(u01 >> 16);
-        resp.cap45[k][2] = (int16_t)(u23 & 0xFFFFu);
-        resp.cap45[k][3] = (int16_t)(u23 >> 16);
-        resp.cap45[k][4] = (int16_t)(u45 & 0xFFFFu);
-        resp.cap45[k][5] = (int16_t)(u45 >> 16);
-
-        uint32_t a49 = AIO_CAP_ADC49_BASE + (uint32_t)(k * 16);
-        uint32_t v01 = AIO_REG(a49 + 0x0);
-        uint32_t v23 = AIO_REG(a49 + 0x4);
-        uint32_t v45 = AIO_REG(a49 + 0x8);
-        resp.cap49[k][0] = (int16_t)(v01 & 0xFFFFu);
-        resp.cap49[k][1] = (int16_t)(v01 >> 16);
-        resp.cap49[k][2] = (int16_t)(v23 & 0xFFFFu);
-        resp.cap49[k][3] = (int16_t)(v23 >> 16);
-        resp.cap49[k][4] = (int16_t)(v45 & 0xFFFFu);
-        resp.cap49[k][5] = (int16_t)(v45 >> 16);
-    }
-
-    /* Demodulate both Capture RAMs via 2x6 Coherent Differential Correlation */
-    maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, resp.fwht45);
-    maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, resp.fwht49);
 
     /* Read quiet 3-state (0x8000 Hi-Z) ADC values */
     aio_trigger_settled_adc_read(resp.adc45_hiz, resp.adc49_hiz);

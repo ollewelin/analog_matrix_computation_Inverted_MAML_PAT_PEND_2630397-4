@@ -39,3 +39,7 @@ or
 python3 -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.sendto(b'JUMP_APP', ('192.168.1.50', 5000)); print(s.recvfrom(1024)[0].decode())"
 
 ./gui/run_gui.py
+
+==============================
+python3 FPGA_code/scripts/program_t120.py
+python3 -c "import socket, struct; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.sendto(struct.pack('<IBBBHBHBbB', 0x4D414D4C, 0x11, 3, 3, 500, 25, 100, 10, 0, 14), ('192.168.1.50', 5000))"
