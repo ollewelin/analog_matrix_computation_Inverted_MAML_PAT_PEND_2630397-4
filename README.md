@@ -80,7 +80,7 @@ VS code and AI agent support
 
 During physical bench bringup of the 3x 6x6 matrix PCB, direct oscilloscope probing on the **DAC Data row lines and Weight charging lines** (behind the `MCP6024T-I/SL` buffer op-amps) revealed that the **output current capability of the DAC Data and Weight buffer op-amps is too low** (whereas the column TIA stages are not the primary bottleneck):
 
-![](Oscilloscope_Row_Kickback_276mV.jpg)
+![](Oscilloscope_OpAmp_Insufficient_Current_Drive_276mV.jpg)
 
 #### Oscilloscope Observations:
 - **R-2R DAC output before buffer:** Clean, stable DC output directly at the R-2R ladder.
@@ -158,3 +158,15 @@ T20_REG(T20_CLK_PERIOD) = 5u;   /* 10.0 MHz CLK9 (100 ns period) */
 T20_REG(T20_H_PERIOD)   = 20u;  /* 20 cycles = 2.000 us exact pulse width */
 T20_REG(T20_H_COUNT)    = 13u;  /* 12 active pulses (24.00 us) + 1 Hi-Z word */
 ```
+
+---
+
+### Manual Verification with Efinix Logic Analyzer (`la0` & GTKWave) — 2026-10-17
+
+To independently verify the bare-metal hardware signals without relying solely on software telemetry, a dedicated Efinity Logic Analyzer build (`FPGA_code/T120F324_LA`) was synthesized and manually checked in the Efinix Debugger GUI and GTKWave:
+
+![](Raw_ADC_45_ADC_49.png)
+
+- **Date:** 2026-10-17
+- **Manual Check Confirmed:** The Hadamard carrier wave function (`h_step_idx[3:0] = 0..B`, `h_word_m3_ptu[5:0]`, `hadamard_burst_act`, `hadamard_on_n_off`) and the corresponding bare-metal 12-bit deserialized SAR ADC responses on `ADC_45` (`adc45_ch0_raw` [M33+], `adc45_ch1_raw` [M3+], `adc45_ch2_raw` [M3-]) and `ADC_49` (`adc49_ch2_raw` [M8]) are confirmed directly in the Efinix Logic Analyzer hardware capture.
+
