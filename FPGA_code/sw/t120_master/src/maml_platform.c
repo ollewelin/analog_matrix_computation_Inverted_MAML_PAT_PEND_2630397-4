@@ -915,6 +915,8 @@ static void maml_sample_hidden_offset(uint8_t basin_k) {
 }
 
 static void aio_load_all_30_dacs(uint8_t code);
+static void maml_apply_fixed_even_dac2(void);
+static void maml_seed_fixed_test_weights_once(uint32_t seed_val);
 
 /* Calibrate quiescent DC zero baseline at x_ref = 0 (DAC_2 = 128) with M33 payload charged */
 static void maml_calibrate_zero_baseline(void) {
@@ -990,7 +992,9 @@ void maml_platform_init(void) {
     maml_shuffle_outer_slots();
     maml_generate_new_white_noise_ref();
     maml_center_compensation_weights();
-    maml_seed_weights(SEED_MODE_AUTO_GAIN, 28);
+    maml_seed_fixed_test_weights_once(0x5A3C9E4Du);
+    maml_apply_fixed_even_dac2();
+    g_tel.run_mode = 3u;
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
     t20_sync_heater_and_wdog();
     t20_sync_leds();

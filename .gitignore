@@ -1,5 +1,6 @@
 .vscode/
 FPGA_code/T120F324/.lock
+FPGA_code/T120F324_LA/.lock
 FPGA_code/docs/efinix_datasheets/
 
 # Efinity build & intermediate artifacts
@@ -7,9 +8,13 @@ FPGA_code/docs/efinix_datasheets/
 **/work_pnr/
 **/work_syn/
 **/work_pt/
+**/work_dbg/
 **/*.bin
 **/*.bak*
 **/FPGA_code/T120F324/RUNPNR_*
+**/FPGA_code/T120F324_LA/RUNPNR_*
+**/FPGA_code/T120F324_LA/debug_top.v
+**/FPGA_code/T120F324_LA/debug_TEMPLATE.v
 **/FPGA_code/ref_staging/
 
 # Efinity IP Manager auto-generated devkits and testbenches
@@ -27,6 +32,16 @@ FPGA_code/docs/efinix_datasheets/
 **/FPGA_code/T120F324/ip/RISC_mini/RISC_mini.v
 **/FPGA_code/T120F324/ip/RISC_mini/RISC_mini_tmpl.v
 **/FPGA_code/T120F324/ip/RISC_mini/RISC_mini_define.vh
+**/FPGA_code/T120F324_LA/apb3_2_axi4_lite.v
+**/FPGA_code/T120F324_LA/mac_rx2tx.v
+**/FPGA_code/T120F324_LA/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac.sv
+**/FPGA_code/T120F324_LA/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_tmpl.vhd
+**/FPGA_code/T120F324_LA/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_tmpl.sv
+**/FPGA_code/T120F324_LA/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_define.svh
+**/FPGA_code/T120F324_LA/ip/RISC_mini/RISC_mini_tmpl.vhd
+**/FPGA_code/T120F324_LA/ip/RISC_mini/RISC_mini.v
+**/FPGA_code/T120F324_LA/ip/RISC_mini/RISC_mini_tmpl.v
+**/FPGA_code/T120F324_LA/ip/RISC_mini/RISC_mini_define.vh
 
 # Staging and temporary references
 **/ref_staging/
