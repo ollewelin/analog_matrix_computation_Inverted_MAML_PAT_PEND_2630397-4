@@ -121,7 +121,7 @@ The Hadamard sequence was rebuilt in both RTL (`t120_hbus_seq.sv`, `t120_inter_f
    - 6 pulses for the (+) orthogonal Hadamard basis (12.00 µs).
    - 6 pulses for the complementary (-) basis (12.00 µs).
 2. **Deterministic Tri-State Boundary:** The outputs remain actively driven throughout the full 24.00 µs burst. On the 13th word (`0x8000`), the hardware immediately switches all pins to High-Z (tri-state) until the next 10 ms refresh period.
-3. **Optimized Timing Window (t = 2.0 ms Post-Refresh):** Executing the 24 µs burst early at t = 2.0 ms positions the measurement on the flat, stable plateau of the DAC and weight lines before capacitor leakage causes droop.
+3. **Optimized Timing Window (t = 2.0 ms Post-Refresh):** Executing the 24 µs burst early at t = 2.0 ms positions the measurement on the DAC data line was fairly flat at this test, stable plateau of the DAC and weight lines before capacitor leakage causes current droop what lead DAC OP driver to rise voltage to R-2R level at then end close to refresh pulses.
 4. **End-of-Pulse ADC Sampling (t = 1.96 µs):** Differential SAR ADCs (`XC2361A`, `ADC_45` & `ADC_49`) sample at the end of each 2.00 µs pulse right before the next pulse transition.
 
 #### Oscilloscope Verification: Corrected Hadamard Carrier Lines
