@@ -93,6 +93,11 @@ During physical bench bringup of the 3x 6x6 matrix PCB, direct oscilloscope prob
    - **Weight Charging Buffers (`W_M1(15)`, `W_M2(12)`, `W_A(34)`):** Charging the large $100\text{ nF}$ gate storage capacitors within the short refresh window demands high peak charging current ($I = C \cdot dV/dt$), which hits the current limit of the `MCP6024` buffer.
    - **Column TIAs:** Each column TIA only sinks the current of a single column into virtual ground ($1.65\text{ V}$), so the TIA is not the problem—the bottleneck is strictly on the **DAC Data and Weight buffer op-amps**.
 
+> **Designer's Note on Prototype Board v1.3.2 Schematic Phase & Stiff Voltage-Source Driver Bottom Line (2026-10-18):**
+> Looking back at the EasyEDA schematic design phase of the first prototype board (`v1.3.2`), I realized that I missed accounting for the fact that each Data line from `DAC(2)` actually has to drive the current for **both Matrix(3) and Matrix(33) simultaneously** in parallel. From my perspective, that was a design oversight—I sized the row buffer thinking of a 6-column driver load, whereas in reality I should have designed it for **at least 12 columns of simultaneous current drive capability** (plus Matrix 8 paths).
+>
+> **Bottom Line of Oscilloscope Findings:** The **copper traces on the PCB are completely fine**, and RF transmission-line "characteristic impedance" is not relevant for this slow-motion test PCB. What we actually need at **every DAC Weight driver output and every DAC Data driver output** is a **stiff voltage source with low output resistance ($R_\text{out}$) and high current-drive capability**—so the op-amp output stage can source both the steady-state 12-column load current and the transient `100 nF` refresh charging surges without voltage droop.
+
 #### Pin-Compatible High-Current SOIC-14 Upgrade Options (for DAC Data & Weight Buffers):
 The `MCP6024T-I/SL` uses the industry-standard **14-pin SOIC Quad Op-Amp pinout** (Pin 4 = $V_{DD}$ `+3.3V`, Pin 11 = $V_{SS}$ `GND`, Outputs on Pins 1, 7, 8, 14). Direct drop-in, pin-compatible replacements with much higher output current capability at $3.3\text{ V}$ for the DAC Data and Weight buffers include:
 
@@ -161,12 +166,44 @@ T20_REG(T20_H_COUNT)    = 13u;  /* 12 active pulses (24.00 us) + 1 Hi-Z word */
 
 ---
 
-### Manual Verification with Efinix Logic Analyzer (`la0` & GTKWave) — 2026-10-17
+### Weight Line Transient Loading During Refresh & 100 nF Memory Cell Probing — 2026-10-18
+
+To understand how the `100 nF` 2T1C gate storage capacitors interact with the Weight charging bus (`W_M1_ROW1`) during the refresh phase, two dual-channel oscilloscope measurements were captured on **2026-10-18** (`500 mV/div`, `2 ms/div`):
+
+- **Channel 2 (Blue):** Probed directly on the Matrix 3 Weight row line **`W_M1_ROW1`**.
+- **Channel 1 (Yellow):** Probed directly at the internal **`100 nF` memory capacitor storage node** (`\$1I15\\\$1I2\\\$2N1` and a second memory cell along the same row).
+
+![](EasyEDA/W_M1_ROW1_100nF_mem_cell_node.png)
+
+#### 1. First `100 nF` Memory Cell (`\$1I15\\\$1I2\\\$2N1`) vs. `W_M1_ROW1`:
+![](Blue_Weight_line_Yellow_100nF_mem_cell_1.jpeg)
+
+#### 2. Second `100 nF` Memory Cell on the Same Row vs. `W_M1_ROW1`:
+![](Blue_Weight_line_Yellow_100nF_mem_cell_2.jpeg)
+
+#### Key Findings & Low-Output-Resistance / High-Current-Drive Tricks at the Op-Amp Output Stage (2026-10-18):
+1. **PCB Copper Traces Are Fine — The Bottleneck Is Strictly Op-Amp Output Resistance ($R_\text{out}$) and Current Drive Strength:**
+   - The **Blue** trace (`W_M1_ROW1`) shows identical voltage dips when measured at different cell positions along the row (`Cell 1` vs. `Cell 2`), confirming that the **PCB copper trace itself has negligible resistance/drop and looks completely fine**.
+   - Instead, each time the column refresh switches turn on to charge the `100 nF` memory capacitors along the row, the charging current exceeds the linear sourcing capability of the **Weight DAC op-amp output stage**, pulling its output voltage down.
+   - The **Yellow** trace shows each `100 nF` memory capacitor jumping up to its charged voltage level during the refresh pulse (e.g., $\sim 2.50\text{ V}$ max in Cell 1, $\sim 2.28\text{ V}$ max in Cell 2) and then decaying by $\sim 300\text{ mV}_\text{pp}$ over the $10\text{ ms}$ cycle until the next refresh event.
+2. **Bottom-Line Solution — Stiff, Low-Output-Resistance ($R_\text{out}$) Driver Tricks at the Op-Amp Output Stage (All Weight & Data Lines):**
+   - Because the PCB copper routing is solid, the fix is focused entirely on making the **op-amp driver output stage a stiff voltage source with low output resistance ($R_\text{out} \to 0$) and high current drive** across all DAC Weight drivers and all DAC Data drivers:
+   - **Trick 1 — High-Current Pin-Compatible SOIC-14 Op-Amp Swap (`AD8534ARZ` / `OPA4310IDR`):** Replacing the weak `MCP6024T-I/SL` buffers with high-current ($\pm 150\text{--}250\text{ mA}$) quad op-amps directly provides the current-sourcing muscle needed to hold the output voltage stiff under the 12-column simultaneous load (`Matrix(3) + Matrix(33)`) and during capacitor refresh.
+   - **Trick 2 — Local `100 nF+` Charge-Reservoir Buffer Capacitor Right at the Op-Amp Output:** Adding a **local `100 nF` (or larger) energy reservoir capacitor** right at the op-amp driver output stage (with a small series isolation/damping resistor if needed for op-amp stability) acts as a local charge bucket so switching a decayed `100 nF` memory cell onto `W_M1_ROW1` does not pull down the op-amp output voltage.
+   - **Trick 3 — Inside-the-Loop Current Booster / Emitter-Follower Output Stage (for Next PCB Revision):** Placing a low-output-resistance current-booster / emitter-follower inside the op-amp feedback loop (or dedicating separate op-amp buffers per 6-column matrix instead of sharing one buffer across `Matrix(3)` and `Matrix(33)`) makes the driver output stage a rock-solid voltage source and **offloads the Inverted MAML compensation loop** so it only has to compensate for 2T1C cell physics.
+
+---
+
+### Manual Verification with Efinix Logic Analyzer (`la0` & GTKWave) — 2026-10-17 / 2026-10-18
 
 To independently verify the bare-metal hardware signals without relying solely on software telemetry, a dedicated Efinity Logic Analyzer build (`FPGA_code/T120F324_LA`) was synthesized and manually checked in the Efinix Debugger GUI and GTKWave:
 
+#### 1. Downsampled Capture Showing Full 12-Step Hadamard Burst (`0..B`) & Bare-Metal `ADC_45` / `ADC_49` Response (2026-10-17):
 ![](Raw_ADC_45_ADC_49.png)
 
-- **Date:** 2026-10-17
-- **Manual Check Confirmed:** The Hadamard carrier wave function (`h_step_idx[3:0] = 0..B`, `h_word_m3_ptu[5:0]`, `hadamard_burst_act`, `hadamard_on_n_off`) and the corresponding bare-metal 12-bit deserialized SAR ADC responses on `ADC_45` (`adc45_ch0_raw` [M33+], `adc45_ch1_raw` [M3+], `adc45_ch2_raw` [M3-]) and `ADC_49` (`adc49_ch2_raw` [M8]) are confirmed directly in the Efinix Logic Analyzer hardware capture.
+#### 2. Full-Speed `50 MHz` (`20 ns`) Sampling Showing Individual `25 MHz` SAR ADC SPI Clocks, MISO Bits & One-Shot Strobes (2026-10-18):
+![](Raw_ADC_45_ADC_49_full_speed_sampling.png)
+
+- **Dates:** 2026-10-17 & 2026-10-18
+- **Manual Check Confirmed:** Both the downsampled burst capture and the full-speed `50 MHz` (`Capture Mode = Always`) capture confirm the live Hadamard carrier wave function (`h_step_idx[3:0] = 0..B`, `h_word_m3_ptu[5:0]`, `hadamard_burst_act = 1`, `hadamard_on_n_off = 1`), the `10 MHz` `t20_clk9` bursts, the `25 MHz` `adc45_sck` / `adc45_conv` / `adc45_out1_sdo0` / `adc45_out2_sdo1` SPI frames, and the resulting 12-bit deserialized words on `ADC_45` (`adc45_ch0_raw`, `adc45_ch1_raw`, `adc45_ch2_raw`) and `ADC_49` (`adc49_ch2_raw`).
 

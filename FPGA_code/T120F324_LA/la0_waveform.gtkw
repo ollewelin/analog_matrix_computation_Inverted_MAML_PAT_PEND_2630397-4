@@ -1,11 +1,11 @@
-[dumpfile] "/tmp/tmpaslji772/la0tmp_continous.vcd"
-[dumpfile_mtime] "lör okt 17 20:36:45 2026"
-[dumpfile_size] 10491
+[dumpfile] "/tmp/tmpezvln4dk/la0tmp_continous.vcd"
+[dumpfile_mtime] "sön okt 18 09:13:22 2026"
+[dumpfile_size] 15661
 [savefile] "/home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324_LA/la0_waveform.gtkw"
 [timestart] 0
 [size] 1000 600
 [pos] -1 -1
-*0.000000 c 1024 3072 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*0.000000 c 15 2063 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [signals_width] 126
 [sst_expanded] 1
 @22
