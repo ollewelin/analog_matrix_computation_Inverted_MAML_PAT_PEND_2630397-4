@@ -28,6 +28,15 @@ Working with analog computing is an act of balancing physics and precision. Very
 - **2026-10-16:** Back on track — pure software simulations are now strictly banned. All focus shifts 100% to live bench measurements on the real physical PCB.
 - **2026-10-17:** Started physical measurement of the real Hadamard carrier wave modulation on hardware. Neural network training has not started yet; priority is strictly on validating analog matrix derivative responses first.
 - **2026-10-18:** In-depth bare-metal verification using an embedded Efinix Logic Analyzer directly on the FPGA. The project has moved past the "paper product" phase into real silicon physics on the scaled-up PCBA board, producing very interesting real-world data!
+- **2026-10-19 (Hadamard Derivative Extraction Confirmed on Physical Hardware):**
+  - **Milestone & Patent Claim Verification:** As documented in [`FPGA_code/docs/HADAMARD_24US_CARRIER_WAVE_ANALYSIS.pdf`](FPGA_code/docs/HADAMARD_24US_CARRIER_WAVE_ANALYSIS.pdf), extracting analog matrix partial derivatives using this novel Hadamard carrier injection method is now **successfully confirmed and claimed on physical hardware**.
+  - **Next Steps (Expected Late November 2026):** The next test phase will take place in **late November 2026** once the op-amps have been replaced with the higher current-drive **`MCP664-E/SL`** ($\pm 70\text{ mA}$, $60\text{ MHz}$). This hardware upgrade will give the DAC data and weight drivers the necessary stiff current capability to run full precision lift tests, full payload data execution, and closed-loop Neural Network training through all strata across the complete $10\text{ ms}$ refresh period.
+
+#### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
+![](Fig8_Hadamard_carrier_injection_circuit.png)
+
+*Fig 8 from patent application: Novel perturbation carrier injection circuit. Fast complementary Walsh-Hadamard codes (6) drive capacitive coupling nodes ($C_\text{PTU}$, 7) directly onto the 2T1C analog weight memory gates ($C_W$, 44), completely independent of the input data row drivers ($V_\text{in}$, 26). This novel injection topology enables high-SNR feedback and extraction of all column partial derivatives simultaneously in a single, tight 24 µs burst without disturbing steady-state weight retention or saturating matrix rows.*
+
 
 
 #### Disclaimer on Audiobooks: 
@@ -107,6 +116,7 @@ The `MCP6024T-I/SL` uses the industry-standard **14-pin SOIC Quad Op-Amp pinout*
 | Part Number | Manufacturer | Package | Output Current Capability | Bandwidth (GBW) | Supply Range | Key Advantage |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **MCP6024T-I/SL** *(Current)* | Microchip | SOIC-14 | Weak linear drive ($< 10\text{ mA}$ before drop) | $10\text{ MHz}$ | $2.5\text{V} - 5.5\text{V}$ | Drops $\sim 250\text{ mV}$ on DAC Data & Weight lines |
+| **MCP664-E/SL** *(Top Favorite)* | Microchip | SOIC-14 | **$\pm 70\text{ mA}$ per channel** | **$60\text{ MHz}$** ($32\text{ V/\mu s}$) | $2.5\text{V} - 5.5\text{V}$ | **Prime favorite:** Pin-compatible direct drop-in from same family, very fast settling, $70\text{ mA}$ drive holds stiff DAC data/weight rails without droop |
 | **AD8534ARZ** | Analog Devices | SOIC-14 | **$\pm 250\text{ mA}$ per channel** | $3\text{ MHz}$ | $2.7\text{V} - 6.0\text{V}$ | Massive current drive, Rail-to-Rail I/O, built for heavy capacitive/resistive loads |
 | **OPA4310IDR** | Texas Instruments | SOIC-14 | **$\pm 150\text{ mA}$ per channel** | $3\text{ MHz}$ | $1.5\text{V} - 5.5\text{V}$ | Very strong $3.3\text{ V}$ linear drive, Rail-to-Rail I/O, thermal protection |
 | **OPA4354AIDR** | Texas Instruments | SOIC-14 | **$\pm 100\text{ mA}$ per channel** | $100\text{ MHz}$ | $2.5\text{V} - 5.5\text{V}$ | High current + high speed ($150\text{ V/\mu s}$), fast capacitor charging |
