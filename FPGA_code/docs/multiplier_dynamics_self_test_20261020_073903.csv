@@ -1,0 +1,5 @@
+label,matrix_id,row,col,adc_w_neg64,adc_w_0,adc_w_pos64,consecutive_cycle_delta
+M33 Cell R1C1,2,0,0,-429,19,303,723
+M33 Cell R3C3,2,2,2,-213,6,301,498
+M3  Cell R1C1,0,0,0,5,12,5,-15
+M8  Cell R1C1,1,0,0,-3,23,-28,-33

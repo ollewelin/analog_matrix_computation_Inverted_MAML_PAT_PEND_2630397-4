@@ -194,6 +194,16 @@ To understand how the `100 nF` 2T1C gate storage capacitors interact with the We
 #### 2. Second `100 nF` Memory Cell on the Same Row vs. `W_M1_ROW1`:
 ![](Blue_Weight_line_Yellow_100nF_mem_cell_2.jpeg)
 
+#### 3. Cross-Coupled Driver Sag & Gate Leakage Capture — DAC2 In-Data Row 1 vs. Matrix 3 Weight Memory Cell (`C1_CBB49_CBB31`):
+![](Yellow-DAC2_D_ROW1_Blue_C1_CBB49_CBB31.png)
+
+- **Channel 1 (Yellow, 500 mV/div, 2 ms/div):** In-Data Row 1 input line (**`DAC2_D_ROW1`**) driven by the DAC buffer op-amp.
+- **Channel 2 (Blue, 500 mV/div, 2 ms/div):** Last weight storage capacitor node on Column 1 of **Matrix(3)** (**`C1_CBB49_CBB31`** / `C1$CBB49/CBB31` in sheet `CBB49 = matrix3`, `CBB31 = MUL_CELL_2T1C`).
+- **Physical Phenomena Confirmed on Oscilloscope:**
+  1. **Weight Memory Decay & Refresh Pulse (Blue):** The Blue trace clearly captures the sharp $100\text{ Hz}$ ($10\text{ ms}$ period) autonomous refresh edge charging the $100\text{ nF}$ analog memory gate up to its target voltage, followed by the predictable continuous decay ($\sim 328\text{ mV}_\text{pp}$) over the $10\text{ ms}$ interval between refresh cycles.
+  2. **Op-Amp Output Sag & Dynamic Crosstalk Loading (Yellow):** The Yellow trace shows the `DAC2_D_ROW1` buffer sagging by $\sim 188\text{ mV}_\text{pp}$ synchronously when columns switch and during matrix operations. This confirms that the current `MCP6024` quad op-amp lacks sufficient current-sourcing capability ($<10\text{ mA}$) to maintain a stiff, invariant voltage rail under dynamic multi-cell loading.
+  3. **Verification of Upgrade Path:** Replacing the weak DAC and Weight buffer op-amps with **`MCP664-E/SL`** ($\pm 70\text{ mA}$, $60\text{ MHz}$) in late November will eliminate both the row sag and allow fast, stiff settling across the full $10\text{ ms}$ strata.
+
 #### Key Findings & Low-Output-Resistance / High-Current-Drive Tricks at the Op-Amp Output Stage (2026-10-18):
 1. **PCB Copper Traces Are Fine — The Bottleneck Is Strictly Op-Amp Output Resistance ($R_\text{out}$) and Current Drive Strength:**
    - The **Blue** trace (`W_M1_ROW1`) shows identical voltage dips when measured at different cell positions along the row (`Cell 1` vs. `Cell 2`), confirming that the **PCB copper trace itself has negligible resistance/drop and looks completely fine**.

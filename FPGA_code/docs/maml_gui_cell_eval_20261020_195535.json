@@ -1,0 +1,162 @@
+{
+  "title": "MAML Cell Evaluator Hardware Log",
+  "timestamp": "2026-10-20T19:55:35.162738",
+  "consecutive_history": [
+    {
+      "timestamp": "2026-10-20T18:27:22.599225",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": 96,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -402,
+      "val_b": 290,
+      "delta": 692
+    },
+    {
+      "timestamp": "2026-10-20T19:36:26.476962",
+      "matrix_id": 1,
+      "row": 0,
+      "col": 0,
+      "x_val": -65,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": 12,
+      "val_b": 5,
+      "delta": -7
+    },
+    {
+      "timestamp": "2026-10-20T19:36:29.166980",
+      "matrix_id": 1,
+      "row": 0,
+      "col": 0,
+      "x_val": -65,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -1,
+      "val_b": 26,
+      "delta": 27
+    },
+    {
+      "timestamp": "2026-10-20T19:36:30.213417",
+      "matrix_id": 1,
+      "row": 0,
+      "col": 0,
+      "x_val": -65,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -9,
+      "val_b": 25,
+      "delta": 34
+    },
+    {
+      "timestamp": "2026-10-20T19:52:54.578018",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": -127,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -299,
+      "val_b": 218,
+      "delta": 517
+    },
+    {
+      "timestamp": "2026-10-20T19:52:58.072028",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": -127,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -319,
+      "val_b": 248,
+      "delta": 567
+    },
+    {
+      "timestamp": "2026-10-20T19:52:59.550991",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": -127,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -306,
+      "val_b": 212,
+      "delta": 518
+    },
+    {
+      "timestamp": "2026-10-20T19:53:00.443897",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": -127,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -305,
+      "val_b": 246,
+      "delta": 551
+    },
+    {
+      "timestamp": "2026-10-20T19:53:01.316153",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": -127,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -301,
+      "val_b": 233,
+      "delta": 534
+    },
+    {
+      "timestamp": "2026-10-20T19:53:02.173865",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": -127,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -335,
+      "val_b": 260,
+      "delta": 595
+    },
+    {
+      "timestamp": "2026-10-20T19:53:02.989415",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": -127,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -300,
+      "val_b": 233,
+      "delta": 533
+    },
+    {
+      "timestamp": "2026-10-20T19:53:04.122322",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": -127,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -343,
+      "val_b": 213,
+      "delta": 556
+    },
+    {
+      "timestamp": "2026-10-20T19:53:05.437618",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "x_val": -127,
+      "w_a": -64,
+      "w_b": 64,
+      "val_a": -285,
+      "val_b": 251,
+      "delta": 536
+    }
+  ]
+}

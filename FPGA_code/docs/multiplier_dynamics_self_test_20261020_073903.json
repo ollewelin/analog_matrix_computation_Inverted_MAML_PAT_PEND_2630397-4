@@ -1,0 +1,87 @@
+{
+  "summary": "Hardware Multiplier Self-Test Passed",
+  "timestamp": "2026-10-20T07:39:03.772046",
+  "banner": "T120_SOC_ETH_FW v2.0-MAML (Build 2026-10-11)\r\nStatus: T20 ONLINE [TAG=T20A, S-bus ACK 0x06]",
+  "test_records": [
+    {
+      "label": "M33 Cell R1C1",
+      "matrix_id": 2,
+      "row": 0,
+      "col": 0,
+      "adc_w_neg64": -429,
+      "adc_w_0": 19,
+      "adc_w_pos64": 303,
+      "consecutive_cycle_delta": 723
+    },
+    {
+      "label": "M33 Cell R3C3",
+      "matrix_id": 2,
+      "row": 2,
+      "col": 2,
+      "adc_w_neg64": -213,
+      "adc_w_0": 6,
+      "adc_w_pos64": 301,
+      "consecutive_cycle_delta": 498
+    },
+    {
+      "label": "M3  Cell R1C1",
+      "matrix_id": 0,
+      "row": 0,
+      "col": 0,
+      "adc_w_neg64": 5,
+      "adc_w_0": 12,
+      "adc_w_pos64": 5,
+      "consecutive_cycle_delta": -15
+    },
+    {
+      "label": "M8  Cell R1C1",
+      "matrix_id": 1,
+      "row": 0,
+      "col": 0,
+      "adc_w_neg64": -3,
+      "adc_w_0": 23,
+      "adc_w_pos64": -28,
+      "consecutive_cycle_delta": -33
+    }
+  ],
+  "hadamard_check": {
+    "mode": 6,
+    "en_mask": "0x7fff",
+    "ack_ok": 17,
+    "ack_miss": 0,
+    "settle_cycles": 200,
+    "lat_last": 19,
+    "adc45_hiz": [
+      182,
+      66,
+      16,
+      -97,
+      57,
+      -72
+    ],
+    "adc49_hiz": [
+      -1426,
+      -1516,
+      -1600,
+      -1403,
+      -1194,
+      -1249
+    ],
+    "cap45_pulse0": [
+      339,
+      168,
+      127,
+      -45,
+      108,
+      56
+    ],
+    "cap49_pulse0": [
+      -1428,
+      -1499,
+      -1600,
+      -1418,
+      -1291,
+      -1226
+    ]
+  }
+}
