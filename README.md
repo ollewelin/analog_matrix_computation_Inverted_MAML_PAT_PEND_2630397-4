@@ -230,3 +230,17 @@ To independently verify the bare-metal hardware signals without relying solely o
 - **Dates:** 2026-10-17 & 2026-10-18
 - **Manual Check Confirmed:** Both the downsampled burst capture and the full-speed `50 MHz` (`Capture Mode = Always`) capture confirm the live Hadamard carrier wave function (`h_step_idx[3:0] = 0..B`, `h_word_m3_ptu[5:0]`, `hadamard_burst_act = 1`, `hadamard_on_n_off = 1`), the `10 MHz` `t20_clk9` bursts, the `25 MHz` `adc45_sck` / `adc45_conv` / `adc45_out1_sdo0` / `adc45_out2_sdo1` SPI frames, and the resulting 12-bit deserialized words on `ADC_45` (`adc45_ch0_raw`, `adc45_ch1_raw`, `adc45_ch2_raw`) and `ADC_49` (`adc49_ch2_raw`).
 
+---
+
+### Single-Cell Multiplier Dynamic Evaluator GUI & Real-Time 3D Response — 2026-10-20
+
+To characterize individual crosspoint Dual-2T1C multiplier cells without simulations, a dedicated hardware evaluation suite (`gui/maml_cell_evaluator_gui.py` and `FPGA_code/scripts/test_multiplier_time_dynamics.py`) was introduced to command the live T120 SoC bare-metal registers over UDP:
+
+![](Test_GUI.png)
+
+- **Pure Physical Measurement (Anti-Simulation Enforcement):** All grid points and voltage curves are sampled 100% directly from the real analog silicon via the 12-bit ADCs (`ADC_45` / `ADC_49`). Synthetic mock data and software surrogate fallbacks are strictly banned.
+- **Interactive 3D Transfer Characteristic Surface:** Shows the measured analog multiplier output surface across the In-Data Row range $X \in [-96, 0, +96]\text{ LSB}$ and differential weight range $W \in [-96, -48, 0, +48, +96]\text{ LSB}$ (e.g. `M33 Row 0 Col 0`).
+- **Dynamic Timing & Refresh Non-Overlap:** Features independent timing sliders to position the $24\ \mu\text{s}$ Hadamard burst and multiplier sampling strobes anywhere across the $10\text{ ms}$ cycle while staying safely outside the initial $0.0\text{--}1.0\text{ ms}$ refresh window.
+- **Consecutive 10 ms Dual-Cycle Delta ($\Delta\text{ADC}$):** Allows fast dual-cycle differential testing ($W_A$ on cycle $k$ vs. $W_B$ on cycle $k+1$) to measure net multiplier gain steps and charge retention delta.
+- **Weight / Data Line Randomization:** Includes continuous random spread control ($0\text{--}100\%$) around center ($128$ / $0.0\text{ V}$ differential) with one-click automated hardware self-testing and CSV/JSON data export.
+
