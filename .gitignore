@@ -1,6 +1,7 @@
 .vscode/
 FPGA_code/T120F324/.lock
 FPGA_code/T120F324_LA/.lock
+FPGA_code/T120F324_LA_ContinuousADC/.lock
 FPGA_code/docs/efinix_datasheets/
 
 # Efinity build & intermediate artifacts
@@ -15,6 +16,9 @@ FPGA_code/docs/efinix_datasheets/
 **/FPGA_code/T120F324_LA/RUNPNR_*
 **/FPGA_code/T120F324_LA/debug_top.v
 **/FPGA_code/T120F324_LA/debug_TEMPLATE.v
+**/FPGA_code/T120F324_LA_ContinuousADC/RUNPNR_*
+**/FPGA_code/T120F324_LA_ContinuousADC/debug_top.v
+**/FPGA_code/T120F324_LA_ContinuousADC/debug_TEMPLATE.v
 **/FPGA_code/ref_staging/
 
 # Efinity IP Manager auto-generated devkits and testbenches
@@ -42,6 +46,30 @@ FPGA_code/docs/efinix_datasheets/
 **/FPGA_code/T120F324_LA/ip/RISC_mini/RISC_mini.v
 **/FPGA_code/T120F324_LA/ip/RISC_mini/RISC_mini_tmpl.v
 **/FPGA_code/T120F324_LA/ip/RISC_mini/RISC_mini_define.vh
+**/FPGA_code/T120F324_LA_ContinuousADC/apb3_2_axi4_lite.v
+**/FPGA_code/T120F324_LA_ContinuousADC/mac_rx2tx.v
+**/FPGA_code/T120F324_LA_ContinuousADC/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac.sv
+**/FPGA_code/T120F324_LA_ContinuousADC/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_tmpl.vhd
+**/FPGA_code/T120F324_LA_ContinuousADC/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_tmpl.sv
+**/FPGA_code/T120F324_LA_ContinuousADC/ip/rgmii_eth_efx_tsemac/rgmii_eth_efx_tsemac_define.svh
+**/FPGA_code/T120F324_LA_ContinuousADC/ip/RISC_mini/RISC_mini_tmpl.vhd
+**/FPGA_code/T120F324_LA_ContinuousADC/ip/RISC_mini/RISC_mini.v
+**/FPGA_code/T120F324_LA_ContinuousADC/ip/RISC_mini/RISC_mini_tmpl.v
+**/FPGA_code/T120F324_LA_ContinuousADC/ip/RISC_mini/RISC_mini_define.vh
+
+# Universal Efinity IP & Logic Analyzer proprietary guard (protects all subdirectories)
+**/debug_top.v
+**/debug_TEMPLATE.v
+**/RUNPNR_*
+**/.lock
+**/ip/**/RISC_mini.v
+**/ip/**/RISC_mini_tmpl.*
+**/ip/**/RISC_mini_define.vh
+**/ip/**/rgmii_eth_efx_tsemac.sv
+**/ip/**/rgmii_eth_efx_tsemac_tmpl.*
+**/ip/**/rgmii_eth_efx_tsemac_define.svh
+**/apb3_2_axi4_lite.v
+**/mac_rx2tx.v
 
 # Staging and temporary references
 **/ref_staging/
@@ -56,4 +84,8 @@ FPGA_code/docs/efinix_datasheets/
 # Simulation dumps and binaries
 **/sim/*.vvp
 **/*.vcd
+# Python bytecode and caches
+**/__pycache__/
+*.pyc
+
 .gemini/

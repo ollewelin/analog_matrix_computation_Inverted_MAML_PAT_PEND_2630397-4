@@ -314,6 +314,7 @@ static void maml_pulse_t20_col_gates(uint8_t col_mask_6b, uint8_t mat_pn_mask, u
  * ============================================================================ */
 static uint16_t g_col_settle_us     = 100u;   /* 100 us per column (50 us G_N + 50 us G_P) */
 static uint32_t g_refresh_period_us = 10000u; /* 10.0 ms (100 Hz) autonomous refresh cycle */
+static uint32_t g_hadamard_delay_us = 2000u;  /* Programmable Hadamard 24us position (0..9500 us) */
 static uint32_t g_last_refresh_ticks = 0u;
 static uint8_t  g_focus_col          = 0u;
 static uint8_t  g_dac_row7_code      = 128u;  /* DAC2_D_ROW7 (w34[6], TRIM_B1) */
@@ -417,7 +418,10 @@ static void maml_generate_new_white_noise_ref(void) {
         for (int i = 0; i < 6; i++) {
             acc += (int32_t)g_tel.w_m33[i][j] * (int32_t)g_tel.x_ref[i];
         }
-        g_tel.z_target[j] = (int16_t)rshift_rne(acc, 8);
+        int32_t z_scaled = rshift_rne(acc * 15, 8);
+        if (z_scaled > 2047)  z_scaled = 2047;
+        if (z_scaled < -2048) z_scaled = -2048;
+        g_tel.z_target[j] = (int16_t)z_scaled;
     }
 }
 
@@ -1015,11 +1019,14 @@ static void maml_execute_step(void) {
          * Duty cycle is 100% back-to-back across all M strata per refresh cycle!
          * -------------------------------------------------------------------- */
         if (g_tel.cur_inner_step == 0 && g_cur_basin_idx < NUM_BASINS) {
-            /* Start of Inner Loop (Ref 41) for Basin k: reset W <- W_0 and sample hidden offset */
-            memcpy(g_w_m3_q14, g_w0_m3_q14, sizeof(g_w_m3_q14));
-            memcpy(g_w_m8_q14, g_w0_m8_q14, sizeof(g_w_m8_q14));
-            maml_sample_hidden_offset(g_cur_basin_idx);
-            /* Lock a constant white-noise reference vector across the basin inner trajectory! */
+            /* If g_hid_amp_dac > 0: MAML meta-learning with basin hopping.
+             * If g_hid_amp_dac == 0: Pure inner loop neural network training (no outer reset!) */
+            if (g_hid_amp_dac > 0) {
+                memcpy(g_w_m3_q14, g_w0_m3_q14, sizeof(g_w_m3_q14));
+                memcpy(g_w_m8_q14, g_w0_m8_q14, sizeof(g_w_m8_q14));
+                maml_sample_hidden_offset(g_cur_basin_idx);
+            }
+            /* Lock a constant white-noise reference vector across the inner trajectory! */
             maml_generate_new_white_noise_ref();
         }
 
@@ -1033,6 +1040,9 @@ static void maml_execute_step(void) {
         for (uint8_t s = 0; s < m; s++) {
             uint8_t slot = g_slot_perm[s];
             g_tel.cur_stratum_slot = slot;
+            if (m == 1 && g_hadamard_delay_us > 0) {
+                bsp_uDelay(g_hadamard_delay_us);
+            }
             maml_measure_and_extract_gradients(slot, gm3, gm8);
             for (int r = 0; r < 8; r++)
                 for (int c = 0; c < 6; c++)
@@ -1075,58 +1085,55 @@ static void maml_execute_step(void) {
             g_tel.w0_loss_milli = g_tel.loss_total_milli;
         }
 
-        g_tel.cur_inner_step += 5;
+        g_tel.cur_inner_step += (m == 1) ? 1u : 5u;
         if (g_tel.cur_inner_step >= g_tel.inner_loop_n) {
-            /* ----------------------------------------------------------------
-             * Outer Loop (Ref 40): Memory-Safe Dot-Product Second Derivative!
-             *   Never forms the P x P Hessian; uses scalar dot product
-             *   g_init . g_final to push inner-loop valleys ("groparna")
-             *   together toward the Base Model center W_0!
-             * ---------------------------------------------------------------- */
-            int64_t dot_prod = 0;
-            int64_t norm_sq  = 1024;
-            for (int r = 0; r < 8; r++) {
-                for (int c = 0; c < 6; c++) {
-                    dot_prod += (int64_t)g_grad_init_m3[r][c] * (int64_t)g_grad_final_m3[r][c];
-                    norm_sq  += (int64_t)g_grad_init_m3[r][c] * (int64_t)g_grad_init_m3[r][c];
+            if (g_hid_amp_dac > 0) {
+                /* Outer Loop (Ref 40): Memory-Safe Dot-Product Second Derivative!
+                 * Applied only when outer MAML meta-learning is active (w_hid_mag > 0) */
+                int64_t dot_prod = 0;
+                int64_t norm_sq  = 1024;
+                for (int r = 0; r < 8; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        dot_prod += (int64_t)g_grad_init_m3[r][c] * (int64_t)g_grad_final_m3[r][c];
+                        norm_sq  += (int64_t)g_grad_init_m3[r][c] * (int64_t)g_grad_init_m3[r][c];
+                    }
                 }
-            }
-            for (int r = 0; r < 7; r++) {
-                for (int c = 0; c < 6; c++) {
-                    dot_prod += (int64_t)g_grad_init_m8[r][c] * (int64_t)g_grad_final_m8[r][c];
-                    norm_sq  += (int64_t)g_grad_init_m8[r][c] * (int64_t)g_grad_init_m8[r][c];
+                for (int r = 0; r < 7; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        dot_prod += (int64_t)g_grad_init_m8[r][c] * (int64_t)g_grad_final_m8[r][c];
+                        norm_sq  += (int64_t)g_grad_init_m8[r][c] * (int64_t)g_grad_init_m8[r][c];
+                    }
                 }
-            }
-            int16_t d_align_q14 = sat_q14((int32_t)((dot_prod << 14) / norm_sq));
-            g_tel.basin_hess_dot[g_cur_basin_idx] = d_align_q14;
+                int16_t d_align_q14 = sat_q14((int32_t)((dot_prod << 14) / norm_sq));
+                g_tel.basin_hess_dot[g_cur_basin_idx] = d_align_q14;
 
-            /* Apply second-derivative curvature correction to Base Model W_0 */
-            for (int r = 0; r < 8; r++) {
-                for (int c = 0; c < 6; c++) {
-                    int32_t dg = (int32_t)g_grad_final_m3[r][c] - (int32_t)g_grad_init_m3[r][c];
-                    int32_t h_corr = rshift_rne((int32_t)d_align_q14 * dg, 15);
-                    int32_t g_meta = (int32_t)g_grad_final_m3[r][c] - h_corr;
-                    int32_t pull   = ((int32_t)g_w0_m3_q14[r][c] - (int32_t)g_w_m3_q14[r][c]) >> 3;
-                    int32_t delta  = rshift_rne(g_meta * (int32_t)g_lr_outer_q16, 12) + pull;
-                    g_w0_m3_q14[r][c] = sat_q14((int32_t)g_w0_m3_q14[r][c] - delta);
+                /* Apply second-derivative curvature correction to Base Model W_0 */
+                for (int r = 0; r < 8; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        int32_t dg = (int32_t)g_grad_final_m3[r][c] - (int32_t)g_grad_init_m3[r][c];
+                        int32_t h_corr = rshift_rne((int32_t)d_align_q14 * dg, 15);
+                        int32_t g_meta = (int32_t)g_grad_final_m3[r][c] - h_corr;
+                        int32_t pull   = ((int32_t)g_w0_m3_q14[r][c] - (int32_t)g_w_m3_q14[r][c]) >> 3;
+                        int32_t delta  = rshift_rne(g_meta * (int32_t)g_lr_outer_q16, 12) + pull;
+                        g_w0_m3_q14[r][c] = sat_q14((int32_t)g_w0_m3_q14[r][c] - delta);
+                    }
                 }
-            }
-            for (int r = 0; r < 7; r++) {
-                for (int c = 0; c < 6; c++) {
-                    int32_t dg = (int32_t)g_grad_final_m8[r][c] - (int32_t)g_grad_init_m8[r][c];
-                    int32_t h_corr = rshift_rne((int32_t)d_align_q14 * dg, 15);
-                    int32_t g_meta = (int32_t)g_grad_final_m8[r][c] - h_corr;
-                    int32_t pull   = ((int32_t)g_w0_m8_q14[r][c] - (int32_t)g_w_m8_q14[r][c]) >> 3;
-                    int32_t delta  = rshift_rne(g_meta * (int32_t)g_lr_outer_q16, 12) + pull;
-                    g_w0_m8_q14[r][c] = sat_q14((int32_t)g_w0_m8_q14[r][c] - delta);
+                for (int r = 0; r < 7; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        int32_t dg = (int32_t)g_grad_final_m8[r][c] - (int32_t)g_grad_init_m8[r][c];
+                        int32_t h_corr = rshift_rne((int32_t)d_align_q14 * dg, 15);
+                        int32_t g_meta = (int32_t)g_grad_final_m8[r][c] - h_corr;
+                        int32_t pull   = ((int32_t)g_w0_m8_q14[r][c] - (int32_t)g_w_m8_q14[r][c]) >> 3;
+                        int32_t delta  = rshift_rne(g_meta * (int32_t)g_lr_outer_q16, 12) + pull;
+                        g_w0_m8_q14[r][c] = sat_q14((int32_t)g_w0_m8_q14[r][c] - delta);
+                    }
                 }
+                g_cur_basin_idx = (g_cur_basin_idx + 1u) % NUM_BASINS;
             }
-
-            maml_update_3d_landscape_coords();
 
             g_tel.cur_inner_step = 0;
-            g_cur_basin_idx = (g_cur_basin_idx + 1u) % NUM_BASINS;
             g_tel.outer_loop_epoch++;
+            maml_update_3d_landscape_coords();
         } else {
             maml_update_3d_landscape_coords();
         }
@@ -1150,9 +1157,11 @@ static void maml_execute_step(void) {
         uint8_t slot = g_slot_perm[g_slot_cursor];
         g_tel.cur_stratum_slot = slot;
 
-        /* Wait proportional to slot index & Hadamard frequency scaling */
-        uint32_t slot_delay_us = (uint32_t)slot * (uint32_t)g_tel.settle_cycles;
-        if (slot_delay_us > 0 && slot_delay_us < 5000) {
+        /* Single-point deterministic time delay (e.g. 2500 us or 3000 us) when num_strata_m == 1 */
+        uint32_t slot_delay_us = (g_tel.num_strata_m == 1 && g_hadamard_delay_us > 0) ?
+                                 g_hadamard_delay_us :
+                                 ((uint32_t)slot * (uint32_t)g_tel.settle_cycles);
+        if (slot_delay_us > 0 && slot_delay_us <= 9500) {
             bsp_uDelay(slot_delay_us);
         }
 
@@ -1311,23 +1320,24 @@ void maml_platform_tick(void) {
     uint32_t period_ticks = g_refresh_period_us * 50u;
     if ((uint32_t)(now_ticks - g_last_refresh_ticks) >= period_ticks) {
         g_last_refresh_ticks = now_ticks;
-        if (g_tel.run_mode == 3u) {
-            /* Time-Separated 10.0 ms ON/OFF 24.00 us (2x6) Hadamard test at 2.0 ms after refresh:
-             *   1) Sub-Window 1 (t = 2.000 ms): M3 Hadamard 24.00 us burst (en_mask = 0x00FF, M8 Tri-State)
-             *   2) 20 us quiet Tri-State separation (0x8000 Hi-Z)
-             *   3) Sub-Window 2 (t = 2.044 ms): M8 Hadamard 24.00 us burst (en_mask = 0x7F00, M3 Tri-State) */
-            maml_apply_fixed_even_dac2();
-            maml_refresh_all_columns();
-            bsp_uDelay(2000);
-            g_alt_hadamard_on ^= 1u;
-            int off_flag = g_alt_hadamard_on ? 0 : 1;
-            maml_run_2x6_hadamard_burst(0x00FFu, off_flag, 2u);
+
+        /* Execute the 100 Hz (10.0 ms) column refresh across all matrices */
+        maml_refresh_all_columns();
+
+        /* Always run the 24 us Hadamard carrier burst at the programmable delay */
+        if (g_tel.run_mode != MAML_MODE_BASE_TRAIN && g_tel.run_mode != MAML_MODE_OPERATIONAL) {
+            uint32_t delay_us = g_hadamard_delay_us;
+            if (delay_us > 9500u) delay_us = 9500u;
+            if (delay_us > 0) {
+                bsp_uDelay(delay_us);
+            }
+            /* Coherent 24.00 us Hadamard burst (Matrix 3 then Matrix 8) */
+            maml_run_2x6_hadamard_burst(0x00FFu, 0, 2u);
             bsp_uDelay(20);
-            maml_run_2x6_hadamard_burst(0x7F00u, off_flag, 2u);
+            maml_run_2x6_hadamard_burst(0x7F00u, 0, 2u);
+            t20_hadamard_tristate_center();
         } else if (g_tel.run_mode != MAML_MODE_IDLE) {
             maml_execute_step();
-        } else {
-            maml_refresh_all_columns();
         }
     }
 }
@@ -1370,12 +1380,17 @@ static void maml_probe_charge_column(uint8_t matrix_id, uint8_t row, uint8_t col
     }
 
     /* Physical charging time constant: R2 = 1 kOhm, C = 100 nF -> tau_charge = 100 us.
-     * Refresh 8 times back-to-back (8 * 50 us = 400 us = 4 * tau_charge, >98.2% settled)
-     * so the 100 nF capacitor on (matrix_id, row, col) settles cleanly to the target weight. */
-    for (int rep = 0; rep < 8; rep++) {
-        maml_refresh_all_columns();
+     * Refresh across all columns so (matrix_id, row, col) charges cleanly to target weight. */
+    maml_refresh_all_columns();
+}
+
+static void maml_wait_10ms_refresh_tick(void) {
+    uint32_t period_ticks = g_refresh_period_us * 50u;
+    while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks) {
+        /* Wait cleanly for the 100 Hz timer boundary */
     }
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
+    maml_refresh_all_columns();
 }
 
 static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t col,
@@ -1688,6 +1703,9 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
         case MAML_CMD_SET_CONFIG:
             if (req_len >= 15) {
                 g_tel.run_mode          = req[5];
+                if (g_tel.run_mode != MAML_MODE_IDLE) {
+                    g_comp_is_centered = 0;
+                }
                 g_tel.jumper_mode       = (req[6] >= 1 && req[6] <= 3) ? req[6] : JUMPER_USE_SIG2;
                 g_tel.hadamard_freq_khz = (uint16_t)req[7] | ((uint16_t)req[8] << 8);
                 if (g_tel.hadamard_freq_khz < 50)  g_tel.hadamard_freq_khz = 50;
@@ -1701,7 +1719,14 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 if (g_tel.inner_loop_n > 500) g_tel.inner_loop_n = 500;
                 g_tel.num_strata_m      = (req[12] >= 1 && req[12] <= 16) ? req[12] : NUM_STRATA_DEFAULT;
                 g_tel.trim_dac_38       = (int8_t)req[13];
-                g_hid_amp_dac           = req[14] ? req[14] : 14;
+                g_hid_amp_dac           = req[14];
+
+                /* Optional byte 15-16: Programmable Hadamard timing delay in microseconds (0..9500 us) */
+                if (req_len >= 17) {
+                    uint16_t had_dly = (uint16_t)req[15] | ((uint16_t)req[16] << 8);
+                    g_hadamard_delay_us = (had_dly <= 9500u) ? had_dly : 9500u;
+                }
+
                 maml_refresh_all_columns();
                 aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
             }

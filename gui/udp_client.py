@@ -415,6 +415,7 @@ class MamlUdpClient:
         seed_mode: int,
         w_hid_mag: int,
         trim_hid_mag: int,
+        hadamard_delay_us: int = 2000,
     ) -> None:
         t = self.sim_telemetry
         t.mode = mode
@@ -429,12 +430,12 @@ class MamlUdpClient:
         t.w_hid_mag = 0 if mode == 2 else w_hid_mag
         t.trim_hid_mag = trim_hid_mag
 
-        # Matches MAML_CMD_SET_CONFIG in maml_platform.c (req_len >= 15):
+        # Matches MAML_CMD_SET_CONFIG in maml_platform.c (req_len >= 17):
         # req[5]=run_mode, req[6]=jumper_mode, req[7..8]=hadamard_freq_khz,
         # req[9]=max_meas_duty_pct, req[10..11]=inner_loop_n, req[12]=num_strata_m,
-        # req[13]=trim_dac_38, req[14]=g_hid_amp_dac
+        # req[13]=trim_dac_38, req[14]=g_hid_amp_dac, req[15..16]=hadamard_delay_us
         payload = struct.pack(
-            "<BBHBHBbb",
+            "<BBHBHBbbH",
             t.mode,
             t.jumper_mode,
             t.hadamard_khz,
@@ -443,6 +444,7 @@ class MamlUdpClient:
             10,
             max(-127, min(127, int(t.trim_hid_mag))),
             max(1, min(64, int(t.w_hid_mag))),
+            max(0, min(9500, int(hadamard_delay_us))),
         )
         self._send_binary(MAML_CMD_SET_CONFIG, payload)
 

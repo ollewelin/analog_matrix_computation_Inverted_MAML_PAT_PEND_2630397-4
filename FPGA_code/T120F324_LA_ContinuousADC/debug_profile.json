@@ -1,0 +1,137 @@
+{
+    "debug_cores": [
+        {
+            "name": "la0",
+            "type": "la",
+            "uuid": "29024bad0ef545319a42750d2a504819",
+            "probes": [
+                {
+                    "name": "ce_10mhz_1shot",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "ce_2mhz_1shot",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc_done_1shot",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "h_latch_1shot",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "hadamard_burst_act",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "hadamard_on_n_off",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "hadamard_mat3_on",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "hadamard_mat8_on",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "h_step_idx",
+                    "width": 4,
+                    "probe_type": 1
+                },
+                {
+                    "name": "h_word_m3_ptu",
+                    "width": 6,
+                    "probe_type": 1
+                },
+                {
+                    "name": "h_word_tristate",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "h_sync_tx11p",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "h_data_tx11n",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "t20_clk9",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc45_conv",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc45_sck",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc45_out1_sdo0",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc45_out2_sdo1",
+                    "width": 1,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc45_ch0_raw",
+                    "width": 12,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc45_ch1_raw",
+                    "width": 12,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc45_ch2_raw",
+                    "width": 12,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc45_ch1_sig",
+                    "width": 12,
+                    "probe_type": 1
+                },
+                {
+                    "name": "adc49_ch2_raw",
+                    "width": 12,
+                    "probe_type": 1
+                }
+            ],
+            "data_depth": 2048,
+            "trigin_en": false,
+            "trigout_en": false,
+            "capture_control": true,
+            "input_pipeline": 1,
+            "auto_inserted": false
+        }
+    ],
+    "session": {
+        "debug_widget": [],
+        "wizard": {}
+    },
+    "jtag_user": "USER1"
+}

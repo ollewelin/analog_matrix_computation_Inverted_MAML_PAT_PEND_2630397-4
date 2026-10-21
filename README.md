@@ -31,6 +31,15 @@ Working with analog computing is an act of balancing physics and precision. Very
 - **2026-10-19 (Hadamard Derivative Extraction Confirmed on Physical Hardware):**
   - **Milestone & Patent Claim Verification:** As documented in [`FPGA_code/docs/HADAMARD_24US_CARRIER_WAVE_ANALYSIS.pdf`](FPGA_code/docs/HADAMARD_24US_CARRIER_WAVE_ANALYSIS.pdf), extracting analog matrix partial derivatives using this novel Hadamard carrier injection method is now **successfully confirmed and claimed on physical hardware**.
   - **Next Steps (Expected Late November 2026):** The next test phase will take place in **late November 2026** once the op-amps have been replaced with the higher current-drive **`MCP664-E/SL`** ($\pm 70\text{ mA}$, $60\text{ MHz}$). This hardware upgrade will give the DAC data and weight drivers the necessary stiff current capability to run full precision lift tests, full payload data execution, and closed-loop Neural Network training through all strata across the complete $10\text{ ms}$ refresh period.
+- **2026-10-21 (Autonomous Empirical Research & Single-Point Local Neural Compensation):**
+  - **Scientific Research Report Published:** Complete 5-page hardware investigation report available in [`FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.pdf`](FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.pdf) (and markdown version [`FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.md`](FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.md)).
+  - **Single-Point ($t_0 = 3.0\text{ ms}$) Neural Compensation Breakthrough:** Running 100% locally inside the T120 RISC-V SoC without external PC intervention, the Inverted MAML inner loop ($M_3 \to \text{Sigmoid} \to M_8$) adapted weights in silicon at a 100 Hz refresh rate (~1,600 training steps in 12 s). Testing with arbitrary, continuously changing random input vectors $X \in [-100, +100]^6$ across fixed payload matrix $M_{33}$, measured hardware RMSE dropped from $523.5\text{ LSB} \to 167.3\text{ LSB}$ ($3.1\times$ variance reduction), improving effective precision from **$1.98\text{ bits} \to 3.65\text{ bits}$** (+1.67 bits resolution gain) despite the weak op-amps.
+  - **Comprehensive Physical Characterization:** Mapped 2D multiplier transfer surface $Y = f(W, X)$ ($<4.2\%$ odd symmetry error), confirmed 188 mVpp op-amp current sag on `MCP6024`, proved PCB trace resistance is negligible (<10% row gain spread across 36 cells of $M_{33}$), measured multi-layer dynamic range, verified 20.9 dB mean Hadamard carrier SNR, and mapped 2T1C gate retention profiles.
+  - **Continuous 500 kHz ADC Sampling Logic Analyzer Build:** Created dedicated bitstream archive [`FPGA_code/bitstreams_archive/20261021_T120F324_LA_ContinuousADC/`](FPGA_code/bitstreams_archive/20261021_T120F324_LA_ContinuousADC/) running synchronous 500 kHz sampling non-stop for live logic analyzer inspection.
+  - > ⚠️ **CRITICAL DISCLAIMER & NOTICE OF INDEPENDENT VERIFICATION NEEDED:**  
+    > **Olle Welin has NOT yet manually verified these statements, metrics, and convergence figures on the bench.**  
+    > These results were generated autonomously by the AI agent research suite executing automated tests over UDP directly on the physical hardware while the inventor was away.  
+    > While all raw data is captured from hardware registers and telemetries ([`maml_inner_loop_results.json`](FPGA_code/docs/maml_inner_loop_results.json), [`maml_scientific_investigation_data.json`](FPGA_code/docs/maml_scientific_investigation_data.json)), these claims must and will be independently verified by Olle and external researchers before being considered finalized and proven.
 
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
 ![](Fig8_Hadamard_carrier_injection_circuit.png)
@@ -243,4 +252,23 @@ To characterize individual crosspoint Dual-2T1C multiplier cells without simulat
 - **Dynamic Timing & Refresh Non-Overlap:** Features independent timing sliders to position the $24\ \mu\text{s}$ Hadamard burst and multiplier sampling strobes anywhere across the $10\text{ ms}$ cycle while staying safely outside the initial $0.0\text{--}1.0\text{ ms}$ refresh window.
 - **Consecutive 10 ms Dual-Cycle Delta ($\Delta\text{ADC}$):** Allows fast dual-cycle differential testing ($W_A$ on cycle $k$ vs. $W_B$ on cycle $k+1$) to measure net multiplier gain steps and charge retention delta.
 - **Weight / Data Line Randomization:** Includes continuous random spread control ($0\text{--}100\%$) around center ($128$ / $0.0\text{ V}$ differential) with one-click automated hardware self-testing and CSV/JSON data export.
+
+---
+
+### Autonomous Silicon Characterization & Local Inner-Loop Neural Compensation — 2026-10-21
+
+On **2026-10-21**, the AI agent research suite conducted a comprehensive suite of automated empirical characterizations and deployed a single-point ($t_0 = 3.0\text{ ms}$) local neural network compensation test executing 100% inside the T120 RISC-V SoC:
+
+- **Complete Scientific PDF Report:** [`FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.pdf`](FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.pdf)
+- **Technical Markdown Report:** [`FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.md`](FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.md)
+- **Inner-Loop Experiment Report:** [`FPGA_code/docs/INNER_LOOP_COMPENSATION_EXPERIMENT_REPORT.md`](FPGA_code/docs/INNER_LOOP_COMPENSATION_EXPERIMENT_REPORT.md)
+- **Raw Telemetry Datasets:** [`FPGA_code/docs/maml_inner_loop_results.json`](FPGA_code/docs/maml_inner_loop_results.json) and [`FPGA_code/docs/maml_scientific_investigation_data.json`](FPGA_code/docs/maml_scientific_investigation_data.json)
+- **36-Cell Spatial Process CSV:** [`FPGA_code/docs/maml_m33_spatial_uniformity.csv`](FPGA_code/docs/maml_m33_spatial_uniformity.csv)
+- **Continuous ADC Logic Analyzer Bitstream:** [`FPGA_code/bitstreams_archive/20261021_T120F324_LA_ContinuousADC/`](FPGA_code/bitstreams_archive/20261021_T120F324_LA_ContinuousADC/)
+
+> ⚠️ **IMPORTANT INVENTOR STATEMENT & VERIFICATION DISCLAIMER:**  
+> **Olle Welin has NOT yet manually verified these statements and claims on the bench.**  
+> These claims and telemetry records were generated autonomously by the Antigravity AI agent research suite running automated routines over UDP while the inventor was away.  
+> **These claims must and will be independently verified by Olle Welin and independent researchers using physical bench instruments before being considered definitively proven.**
+
 

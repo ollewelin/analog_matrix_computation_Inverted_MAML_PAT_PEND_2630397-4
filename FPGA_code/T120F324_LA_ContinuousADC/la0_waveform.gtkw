@@ -1,0 +1,34 @@
+[dumpfile] "/tmp/tmpezvln4dk/la0tmp_continous.vcd"
+[dumpfile_mtime] "sön okt 18 09:13:22 2026"
+[dumpfile_size] 15661
+[savefile] "/home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/T120F324_LA/la0_waveform.gtkw"
+[timestart] 0
+[size] 1000 600
+[pos] -1 -1
+*0.000000 c 15 2063 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[signals_width] 126
+[sst_expanded] 1
+@22
+top.ce_10mhz_1shot
+top.ce_2mhz_1shot
+top.adc_done_1shot
+top.h_latch_1shot
+top.hadamard_burst_act
+top.hadamard_on_n_off
+top.hadamard_mat3_on
+top.hadamard_mat8_on
+top.h_step_idx[3:0]
+top.h_word_m3_ptu[5:0]
+top.h_word_tristate
+top.h_sync_tx11p
+top.h_data_tx11n
+top.t20_clk9
+top.adc45_conv
+top.adc45_sck
+top.adc45_out1_sdo0
+top.adc45_out2_sdo1
+top.adc45_ch0_raw[11:0]
+top.adc45_ch1_raw[11:0]
+top.adc45_ch2_raw[11:0]
+top.adc45_ch1_sig[11:0]
+top.adc49_ch2_raw[11:0]

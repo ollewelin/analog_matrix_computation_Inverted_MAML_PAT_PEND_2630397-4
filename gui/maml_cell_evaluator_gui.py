@@ -4,7 +4,8 @@ Single-Cell Multiplier Dynamic Evaluator GUI
 ===========================================
 Interactive graphical interface for single Dual-2T1C multiplier cell characterization,
 dynamic time-window probing across the 10 ms cycle, consecutive-cycle dual-weight
-comparison, and real-time 3D hardware measurement response visualization.
+comparison, real-time 3D hardware measurement response visualization, and full
+Hadamard carrier wave extraction & data export.
 
 STRICT ANTI-SIMULATION POLICY:
   All numbers, response surfaces, and delta bars are derived exclusively from live
@@ -45,6 +46,7 @@ from PyQt5.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QMainWindow,
     QProgressBar,
@@ -52,6 +54,9 @@ from PyQt5.QtWidgets import (
     QSlider,
     QSpinBox,
     QSplitter,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -124,9 +129,10 @@ class MultiplierDynamicsWindow(QMainWindow):
         self.port = port
         self.client = MamlUdpClient(host=host, port=port, timeout=0.35)
         self.consecutive_history: List[Dict[str, Any]] = []
+        self.last_hadamard_dump: Optional[Dict[str, Any]] = None
 
         self.setWindowTitle("Inverted MAML - Single-Cell Multiplier Dynamic Evaluator (Pure Hardware)")
-        self.resize(1280, 850)
+        self.resize(1340, 890)
         self._setup_style()
         self._init_ui()
         self._check_connection()
@@ -181,6 +187,13 @@ class MultiplierDynamicsWindow(QMainWindow):
             QPushButton#btnCompare:hover {
                 background-color: #047857;
             }
+            QPushButton#btnHadamard {
+                background-color: #7c3aed;
+                border-color: #a78bfa;
+            }
+            QPushButton#btnHadamard:hover {
+                background-color: #6d28d9;
+            }
             QSlider::groove:horizontal {
                 height: 6px;
                 background: #2a2a36;
@@ -204,13 +217,29 @@ class MultiplierDynamicsWindow(QMainWindow):
                 padding: 4px 8px;
                 color: #ffffff;
             }
-            QTextEdit {
+            QTextEdit, QTableWidget {
                 background-color: #0b0b0e;
                 border: 1px solid #23232d;
                 border-radius: 4px;
                 color: #76ff03;
                 font-family: 'Consolas', 'Courier New', monospace;
                 font-size: 11px;
+            }
+            QTabWidget::pane {
+                border: 1px solid #2a2a36;
+                background: #121216;
+            }
+            QTabBar::tab {
+                background: #1f1f28;
+                color: #a0a0a0;
+                padding: 6px 14px;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }
+            QTabBar::tab:selected {
+                background: #2a2a38;
+                color: #00e5ff;
+                font-weight: bold;
             }
         """)
 
@@ -286,25 +315,30 @@ class MultiplierDynamicsWindow(QMainWindow):
         tg_layout = QGridLayout(time_group)
         tg_layout.addWidget(QLabel("Hadamard 24µs Window:"), 0, 0)
         self.slider_had_pos = QSlider(Qt.Horizontal)
-        self.slider_had_pos.setRange(10, 95)  # 1.0 ms to 9.5 ms (100 us steps)
-        self.slider_had_pos.setValue(20)      # default 2.0 ms
+        self.slider_had_pos.setRange(0, 95)  # 0.0 ms to 9.5 ms (100 us steps)
+        self.slider_had_pos.setValue(20)     # default 2.0 ms
         self.lbl_had_val = QLabel("2.0 ms")
-        self.slider_had_pos.valueChanged.connect(lambda v: self.lbl_had_val.setText(f"{v/10.0:.1f} ms"))
+        self.slider_had_pos.valueChanged.connect(self.on_hadamard_slider_changed)
         tg_layout.addWidget(self.slider_had_pos, 0, 1)
         tg_layout.addWidget(self.lbl_had_val, 0, 2)
 
         tg_layout.addWidget(QLabel("Multiplier Snapshot Time:"), 1, 0)
         self.slider_mult_pos = QSlider(Qt.Horizontal)
-        self.slider_mult_pos.setRange(10, 95)
-        self.slider_mult_pos.setValue(50)     # default 5.0 ms
+        self.slider_mult_pos.setRange(0, 95)
+        self.slider_mult_pos.setValue(50)    # default 5.0 ms
         self.lbl_mult_val = QLabel("5.0 ms")
         self.slider_mult_pos.valueChanged.connect(lambda v: self.lbl_mult_val.setText(f"{v/10.0:.1f} ms"))
         tg_layout.addWidget(self.slider_mult_pos, 1, 1)
         tg_layout.addWidget(self.lbl_mult_val, 1, 2)
 
-        lbl_timing_note = QLabel("Note: Non-overlapping with 24µs burst; Refresh window 0.0..1.0 ms avoided.")
+        btn_run_hadamard = QPushButton("Capture & Dump Live Hadamard 24µs Waveform")
+        btn_run_hadamard.setObjectName("btnHadamard")
+        btn_run_hadamard.clicked.connect(self.on_capture_hadamard)
+        tg_layout.addWidget(btn_run_hadamard, 2, 0, 1, 3)
+
+        lbl_timing_note = QLabel("Note: 100 Hz continuous refresh strictly preserved; Hadamard moves anywhere 0..9.5ms.")
         lbl_timing_note.setStyleSheet("color: #9e9e9e; font-size: 10px;")
-        tg_layout.addWidget(lbl_timing_note, 2, 0, 1, 3)
+        tg_layout.addWidget(lbl_timing_note, 3, 0, 1, 3)
         left_layout.addWidget(time_group)
 
         # 4. Consecutive 10 ms Cycle Dual-Weight Comparison
@@ -354,7 +388,7 @@ class MultiplierDynamicsWindow(QMainWindow):
         btn_self_test.clicked.connect(self.on_run_self_test)
         ug_layout.addWidget(btn_self_test, 2, 0)
 
-        btn_export = QPushButton("Export Results (JSON & CSV)")
+        btn_export = QPushButton("Export Results (Full Data Dump JSON & CSV)")
         btn_export.clicked.connect(self.on_export_data)
         ug_layout.addWidget(btn_export, 2, 1, 1, 2)
 
@@ -365,14 +399,28 @@ class MultiplierDynamicsWindow(QMainWindow):
         left_layout.addWidget(util_group)
         left_layout.addStretch()
 
-        # Right Column: 3D Visualization Canvas & Live Hardware Console
+        # Right Column: Tabbed View (3D Surface & Hadamard Carrier Dump Table) + Live Console
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(4, 4, 4, 4)
 
-        # 3D Response Surface
+        self.tab_widget = QTabWidget()
+
+        # Tab 1: 3D Response Surface
         self.canvas3d = MultiplierResponse3DCanvas(self, width=6, height=4.5)
-        right_layout.addWidget(self.canvas3d, stretch=3)
+        self.tab_widget.addTab(self.canvas3d, "3D Physical Multiplier Transfer Surface")
+
+        # Tab 2: Live Hadamard 24 µs Carrier Sampling Dump Table
+        self.table_hadamard = QTableWidget(12, 12)
+        self.table_hadamard.setHorizontalHeaderLabels([
+            "ADC45_C1", "ADC45_C2", "ADC45_C3", "ADC45_C4", "ADC45_C5", "ADC45_C6",
+            "ADC49_C1", "ADC49_C2", "ADC49_C3", "ADC49_C4", "ADC49_C5", "ADC49_C6",
+        ])
+        self.table_hadamard.setVerticalHeaderLabels([f"Pulse {p} ({p*2}µs)" for p in range(12)])
+        self.table_hadamard.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tab_widget.addTab(self.table_hadamard, "Hadamard 24µs Raw 12-Pulse ADC Captures")
+
+        right_layout.addWidget(self.tab_widget, stretch=3)
 
         # Hardware Console Output
         right_layout.addWidget(QLabel("Live Physical Hardware Console (Anti-Simulation):"))
@@ -395,6 +443,20 @@ class MultiplierDynamicsWindow(QMainWindow):
                 self.lbl_status.setText(f"Hardware ONLINE: {banner.strip()[:42]}...")
                 self.lbl_status.setStyleSheet("color: #76ff03; font-weight: bold;")
                 self.log(f"Connected to T120 SoC: {banner.strip()}")
+                # Initial config: Set Hadamard burst delay to 2.0 ms
+                self.client.set_config(
+                    mode=0,
+                    jumper_mode=3,
+                    led_switches=0,
+                    max_meas_win_pct=50,
+                    hadamard_khz=250,
+                    inner_loop_n=10,
+                    seed_pct=28,
+                    seed_mode=0,
+                    w_hid_mag=16,
+                    trim_hid_mag=0,
+                    hadamard_delay_us=2000,
+                )
             else:
                 self.lbl_status.setText("Hardware OFFLINE / Unresponsive")
                 self.lbl_status.setStyleSheet("color: #ff1744; font-weight: bold;")
@@ -403,6 +465,24 @@ class MultiplierDynamicsWindow(QMainWindow):
             self.lbl_status.setText(f"Connection Error: {e}")
             self.lbl_status.setStyleSheet("color: #ff1744; font-weight: bold;")
             self.log(f"Connection exception: {e}")
+
+    def on_hadamard_slider_changed(self, v: int):
+        delay_us = v * 100
+        self.lbl_had_val.setText(f"{delay_us / 1000.0:.1f} ms")
+        self.client.set_config(
+            mode=0,
+            jumper_mode=3,
+            led_switches=0,
+            max_meas_win_pct=50,
+            hadamard_khz=250,
+            inner_loop_n=10,
+            seed_pct=28,
+            seed_mode=0,
+            w_hid_mag=16,
+            trim_hid_mag=0,
+            hadamard_delay_us=delay_us,
+        )
+        self.log(f"Configured Hadamard 24µs burst delay to {delay_us} µs ({delay_us/1000.0:.1f} ms) post-refresh.")
 
     def get_selected_matrix_id(self) -> int:
         idx = self.cb_matrix.currentIndex()
@@ -451,6 +531,49 @@ class MultiplierDynamicsWindow(QMainWindow):
 
         except Exception as e:
             self.log(f"Hardware probe error: {e}")
+
+    def on_capture_hadamard(self):
+        self.log("Triggering 24 µs Hadamard carrier diagnostic burst...")
+        try:
+            diag = self.client.diag_hadamard(mode=6, en_mask=0x7FFF)
+            if diag is None:
+                self.log("ERROR: No response from hardware on Hadamard diagnostic.")
+                return
+
+            self.log(f"  -> Hadamard burst ACK OK: {diag.ack_ok}, Miss: {diag.ack_miss}, Settle: {diag.settle_cycles} cycles")
+            self.log(f"  -> ADC_45 Hi-Z baseline: {diag.adc45_hiz}")
+            self.log(f"  -> ADC_49 Hi-Z baseline: {diag.adc49_hiz}")
+
+            # Populate Table
+            for p in range(12):
+                c45 = diag.cap45[p] if p < len(diag.cap45) else [0]*6
+                c49 = diag.cap49[p] if p < len(diag.cap49) else [0]*6
+                for ch in range(6):
+                    item45 = QTableWidgetItem(f"{c45[ch]:+d}")
+                    item49 = QTableWidgetItem(f"{c49[ch]:+d}")
+                    item45.setTextAlignment(Qt.AlignCenter)
+                    item49.setTextAlignment(Qt.AlignCenter)
+                    self.table_hadamard.setItem(p, ch, item45)
+                    self.table_hadamard.setItem(p, ch + 6, item49)
+
+            self.tab_widget.setCurrentIndex(1)
+
+            self.last_hadamard_dump = {
+                "timestamp": datetime.now().isoformat(),
+                "ack_ok": diag.ack_ok,
+                "ack_miss": diag.ack_miss,
+                "lat_last": diag.lat_last,
+                "adc45_hiz": diag.adc45_hiz,
+                "adc49_hiz": diag.adc49_hiz,
+                "cap45_12pulses": diag.cap45[:12],
+                "cap49_12pulses": diag.cap49[:12],
+                "fwht45": diag.fwht45,
+                "fwht49": diag.fwht49,
+            }
+            self.log("Hadamard 24 µs carrier dump updated cleanly in table.")
+
+        except Exception as e:
+            self.log(f"Hadamard capture exception: {e}")
 
     def on_measure_dual_cycle_delta(self):
         mat_id = self.get_selected_matrix_id()
@@ -582,16 +705,50 @@ class MultiplierDynamicsWindow(QMainWindow):
     def on_export_data(self):
         docs_dir = Path(REPO_ROOT) / "FPGA_code" / "docs"
         docs_dir.mkdir(parents=True, exist_ok=True)
+
+        # Enforce 100 MB Data Log Quota (skill: data-log-quota)
+        try:
+            skill_dir = Path(REPO_ROOT) / ".agents" / "skills" / "data-log-quota"
+            if str(skill_dir) not in sys.path:
+                sys.path.insert(0, str(skill_dir))
+            from check_quota import enforce_quota_before_write, get_quota_status
+            status = get_quota_status(max_mb=100.0, docs_dir=docs_dir)
+            if status["usage_pct"] >= 85.0:
+                self.log(f"Notice: Data log usage at {status['usage_mb']:.1f} MB ({status['usage_pct']:.1f}% of 100 MB quota). Enforcing quota before export.")
+                enforce_quota_before_write(incoming_bytes=2_000_000, max_mb=100.0, auto_prune=True, docs_dir=docs_dir)
+        except Exception as e:
+            pass
+
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        export_file = docs_dir / f"maml_gui_cell_eval_{ts}.json"
-        data = {
-            "title": "MAML Cell Evaluator Hardware Log",
+        export_file_json = docs_dir / f"maml_gui_full_dump_{ts}.json"
+        export_file_csv = docs_dir / f"maml_gui_hadamard_dump_{ts}.csv"
+
+        # 1. Full JSON Dump
+        full_data = {
+            "title": "MAML Cell Evaluator & Hadamard Full Data Dump",
             "timestamp": datetime.now().isoformat(),
             "consecutive_history": self.consecutive_history,
+            "hadamard_dump": self.last_hadamard_dump,
         }
-        with open(export_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        self.log(f"Exported session data to: {export_file}")
+        with open(export_file_json, "w", encoding="utf-8") as f:
+            json.dump(full_data, f, indent=2)
+
+        # 2. Hadamard 12-Pulse CSV Export
+        if self.last_hadamard_dump and "cap45_12pulses" in self.last_hadamard_dump:
+            cap45 = self.last_hadamard_dump["cap45_12pulses"]
+            cap49 = self.last_hadamard_dump["cap49_12pulses"]
+            with open(export_file_csv, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    "Pulse_Idx", "Time_us",
+                    "ADC45_C1", "ADC45_C2", "ADC45_C3", "ADC45_C4", "ADC45_C5", "ADC45_C6",
+                    "ADC49_C1", "ADC49_C2", "ADC49_C3", "ADC49_C4", "ADC49_C5", "ADC49_C6",
+                ])
+                for p in range(12):
+                    row_data = [p, p * 2.0] + cap45[p] + cap49[p]
+                    writer.writerow(row_data)
+
+        self.log(f"Exported FULL dump to:\n  JSON: {export_file_json}\n  CSV:  {export_file_csv}")
 
 
 def main() -> int:
@@ -616,4 +773,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
