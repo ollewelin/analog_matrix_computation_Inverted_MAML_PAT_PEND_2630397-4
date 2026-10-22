@@ -466,10 +466,13 @@ def build_pdf():
     ))
     story.append(Paragraph(
         "<b>Upgrade Roadmap for Late November:</b><br/>"
-        "1. <b>High-Current Op-Amp Swap:</b> Replacing the weak <code>MCP6024</code> (<10 mA) buffers with pin-compatible high-current quad op-amps "
+        "1. <b>Targeted DAC Data Row Buffer Upgrade:</b> Bench verification confirmed that Weight DAC buffers (<code>MCP6024</code>) operate "
+        "flawlessly with clean, flat 6-column refresh steps. Only the <b>In-Data row buffers (<code>DAC2_D_ROW*</code>)</b> experience current starvation "
+        "due to driving parallel column channels. Upgrading only the <code>DAC2</code> op-amps to high-current pin-compatible quad op-amps "
         "(<b><code>AD8534ARZ</code></b> or <b><code>MCP664-E/SL</code></b>, ±150 to 250 mA) will eliminate the 188 mVpp row sag completely.<br/>"
-        "2. <b>Local Energy Reservoirs:</b> Placing 100 nF+ ceramic bypass capacitors directly at the driver outputs will absorb column switching spikes.<br/>"
-        "3. <b>Projected Precision:</b> With stiff, invariant voltage rails, the uncompensated baseline will jump to ~5 bits, allowing the Inverted MAML "
+        "2. <b>Preserve Weight Path Topology:</b> Weight DAC line buffering requires zero modification; adding external reservoir caps is "
+        "unnecessary as the original sequential column charging design is fully adequate.<br/>"
+        "3. <b>Projected Precision:</b> With stiff, invariant DAC2 voltage rails, the uncompensated baseline will jump to ~5 bits, allowing the Inverted MAML "
         "neural compensation network to achieve its full potential of <b>7.5 to 9.0+ bits effective precision</b>.",
         body_style
     ))

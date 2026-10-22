@@ -165,8 +165,8 @@ We probed the multiplier output across discrete time slices within the 10 ms aut
 4. **Hadamard Coherence Overcomes Physical Sag:** Despite driver droop, the 24 µs Hadamard carrier retains an SNR of $20.9\text{ dB}$ with clean orthogonality, allowing the Inverted MAML meta-learning algorithm to compensate for physical hardware non-idealities.
 
 ### Recommendations for Late November Hardware Upgrade:
-- **Swap Op-Amps:** Replace weak `MCP6024` buffers with pin-compatible high-current quad op-amps (**`AD8534ARZ`** or **`OPA4310IDR`**, $\pm 150\text{--}250\text{ mA}$) to provide stiff, invariant voltage rails under all column loading conditions.
-- **Add Local Reservoir Capacitors:** Place local $100\text{ nF}+$ ceramic charge buckets directly at the driver output stages to absorb instantaneous column switching currents.
+- **Targeted Op-Amp Swap on DAC Data Rows (`DAC2`):** Bench tests confirmed that the Weight DAC buffers (`MCP6024`) operate flawlessly with clean, flat 6-column refresh steps without droop. Only the In-Data row buffers (`DAC2_D_ROW*`) suffer from current starvation because they drive all active column channels in parallel across the row. Replace only the `DAC2` `MCP6024` buffers with pin-compatible high-current quad op-amps (**`AD8534ARZ`** or **`MCP664-E/SL`**, $\pm 150\text{--}250\text{ mA}$) to provide stiff, invariant voltage rails under all column loading conditions.
+- **Preserve Weight Path Design:** Weight DAC buffering requires zero modification; adding external 100 nF reservoir capacitors is unnecessary as the original sequential column charging design is fully adequate.
 - **Calibrate Meta-Learning Compensation:** Feed the empirical $6 \times 6$ gain matrix ($CV = 21.7\%$) into the Inverted MAML outer loop ($W_0$) so that outer-loop adaptation autonomously pre-compensates for the static transistor variations discovered today.
 
 ---
