@@ -7,6 +7,27 @@
 
 ## Firmware Release History
 
+### Release 2026-10-24 12:30:00 CEST — T120 Master Firmware v2.2-MAML (Decoupled Snapshot Timing & Full 6x6 Mode B Verification)
+- **Date & Local Time:** `2026-10-24 12:30:00 CEST`
+- **Target Subsystem:** T120 Master Sapphire RISC-V SoC BRAM & Flash Archive
+- **Git Commit / Working Base:** `9b3e6c7` / `main`
+- **Bitstream Archive:** `FPGA_code/bitstreams_archive/20261024_T120_MAML_DecoupledTiming_M3_M33_Alive/`
+  - Bitstream: `T120_MALM.bit` (MD5: `3f7be1a6089bfe26211f77f84768ad44`, 10,651,071 bytes)
+  - Bitstream Flash: `T120_MALM.hex` (MD5: `05f2e3f3a96c1588139bfbcf5416b27d`, 10,651,071 bytes)
+  - Firmware Binary: `t120_master.bin` (MD5: `0b47d93dd68543afd18cad5736c67a9e`, 27,182 bytes)
+  - Firmware HEX: `t120_master.hex` (MD5: `dad53d94320a2e8201bdbab00fdb759f`, 76,528 bytes)
+  - Firmware ELF: `t120_master.elf` (MD5: `1afc7ea67c8bd62a7f504c7290eb4b50`, 38,612 bytes)
+- **Standalone Test Catalog:** `FPGA_code/sw/standalone_test_versions/Matrix33_Full_36Cell_Gain_Landscape_Test/`
+- **Key Engineering Changes & Silicon Verification:**
+  1. **Decoupled Multiplier Snapshot Delay (`snap_dly_us`):** Fully decoupled from Hadamard timing registers. Operators can sample ADC49 anywhere across `0..9500 µs` relative to the 100 Hz refresh pulse.
+  2. **Automated Background Random Data Auto-Pause:** Probing any cell via `maml_probe_single_cell()` automatically clears `g_auto_random_data = 0u`, guaranteeing 100% quiescent, unmodulated inputs on unprobed rows during manual or automated characterization.
+  3. **Universal Subthreshold Turnaround Roll-Over Physics Confirmed:** Validated across all 36 crosspoints that P-channel gate pinch-off occurs at $W < -80\text{ LSB}$, causing differential gain to roll backwards.
+  4. **Full 6x6 Matrix 33 Empirical Mapping:** All 36 cells characterized in Mode B (uncompensated silicon). Confirmed massive dynamic range ($\pm 180\text{ mV}$ to $\pm 1200\text{ mV}$) and mapped the complete 3D spatial gain topography.
+  5. **100 Hz Refresh Preservation:** Continuous 100 Hz autonomous refresh engine strictly preserved in background.
+- **Rollback Safety:** If subsequent Mode A or Mode C experiments destabilize, this exact configuration can be restored immediately from the standalone test archive.
+
+---
+
 ### Release 2026-10-12 22:15:46 CEST — T120 Master Firmware v2.1-MAML
 - **Date & Local Time:** `2026-10-12 22:15:46 CEST`
 - **Target Subsystem:** T120 Master Sapphire RISC-V SoC BRAM (loaded via OpenOCD JTAG)
