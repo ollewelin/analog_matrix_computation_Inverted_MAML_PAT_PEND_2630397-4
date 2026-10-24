@@ -37,6 +37,14 @@ static inline int16_t sat_q14(int32_t v) {
     return (int16_t)v;
 }
 
+/* Linear-regime saturation for Dual-2T1C compensation weights [-80, +80] DAC LSBs */
+static inline int16_t sat_w80_q14(int32_t v) {
+    const int32_t lim = (80 << 7);
+    if (v >  lim) return (int16_t)lim;
+    if (v < -lim) return (int16_t)(-lim);
+    return (int16_t)v;
+}
+
 /* Symmetric saturation to signed 8-bit DAC offset [-127, +127] around 128 */
 static inline int8_t sat_dac_off(int32_t v) {
     if (v >  127) return  127;
@@ -314,12 +322,24 @@ static void maml_pulse_t20_col_gates(uint8_t col_mask_6b, uint8_t mat_pn_mask, u
  * ============================================================================ */
 static uint16_t g_col_settle_us     = 100u;   /* 100 us per column (50 us G_N + 50 us G_P) */
 static uint32_t g_refresh_period_us = 10000u; /* 10.0 ms (100 Hz) autonomous refresh cycle */
-static uint32_t g_hadamard_delay_us = 2000u;  /* Programmable Hadamard 24us position (0..9500 us) */
+static uint32_t g_hadamard_delay_us = 5000u;  /* Default 5.0 ms (5000 us) nominal plateau */
 static uint32_t g_last_refresh_ticks = 0u;
 static uint8_t  g_focus_col          = 0u;
 static uint8_t  g_dac_row7_code      = 128u;  /* DAC2_D_ROW7 (w34[6], TRIM_B1) */
 static uint8_t  g_dac_row8_code      = 128u;  /* DAC2_D_ROW8 (w34[7], TRIM_REF) */
 static uint8_t  g_auto_random_data   = 0u;    /* Autonomous 100 Hz white-noise In-Data generator */
+
+/* Primary Payload Matrix M33 (full-rank 6x6 target matrix with positive column
+ * pedestal so single-supply COLTIA amplifiers U1/U2$CBB15 stay in the center
+ * of their linear operating window around 1.65V / 0 LSB at t = 5.0 ms) */
+static const int8_t k_default_m33[6][6] = {
+    { +76, -20, +28,  -4, +44, -36 },
+    { -20, +84, -12, +44,  -4, +36 },
+    { +36,  -4, +80, -16, +32,  -4 },
+    {  -4, +40,  -8, +72, -12, +44 },
+    { +44, -12, +28, -12, +76,  -8 },
+    { -28, +32,  -4, +40,  -8, +82 }
+};
 
 static void maml_refresh_all_columns(void) {
     maml_sync_shadow_bytes();
@@ -399,27 +419,30 @@ static void maml_refresh_all_columns(void) {
  *   MANDATORY RULE: Held 100% constant across the entire refresh cycle and
  *   across all M shuffled strata slots before advancing!
  * ============================================================================ */
-static void maml_generate_new_white_noise_ref(void) {
-    uint8_t d2_codes[6];
-    for (int i = 0; i < 6; i++) {
-        /* Uncorrelated uniform white noise in [-100, +100] */
-        int32_t rnd = (int32_t)(prng_next() % 201u) - 100;
-        g_tel.x_ref[i] = (int16_t)rnd;
-        d2_codes[i]    = off_to_dac_u8(rnd);
-    }
-    aio_load_dac2(d2_codes);
-
-    /* Compute ideal digital target output Z_target = M33_ideal * x_ref (scaled to physical 12-bit ADC_49 LSBs) */
+static void maml_recompute_z_target(void) {
+    /* Compute ideal digital target output Z_target = g_adc49_zero_cal + M33_ideal * x_ref */
     for (int j = 0; j < 6; j++) {
         int32_t acc = 0;
         for (int i = 0; i < 6; i++) {
             acc += (int32_t)g_tel.w_m33[i][j] * (int32_t)g_tel.x_ref[i];
         }
-        int32_t z_scaled = rshift_rne(acc * 15, 8);
+        int32_t z_scaled = (int32_t)g_adc49_zero_cal[j] + rshift_rne(acc * 8, 8);
         if (z_scaled > 2047)  z_scaled = 2047;
         if (z_scaled < -2048) z_scaled = -2048;
         g_tel.z_target[j] = (int16_t)z_scaled;
     }
+}
+
+static void maml_generate_new_white_noise_ref(void) {
+    uint8_t d2_codes[6];
+    for (int i = 0; i < 6; i++) {
+        /* Uniform white noise in [-45, +45] (DAC2 codes 83..173, keeping MOSFETs in linear triode region) */
+        int32_t rnd = (int32_t)(prng_next() % 91u) - 45;
+        g_tel.x_ref[i] = (int16_t)rnd;
+        d2_codes[i]    = off_to_dac_u8(rnd);
+    }
+    aio_load_dac2(d2_codes);
+    maml_recompute_z_target();
 }
 
 /* Fisher-Yates shuffle of time-slot permutation P[0..M-1] */
@@ -437,21 +460,26 @@ static void maml_shuffle_outer_slots(void) {
 }
 
 /* ============================================================================
- * Contiguous 2x6 = 12-Pulse Hadamard Table (2.00 us per pulse = 24.00 us total)
- *   - (+) Table (pulses 0..5, 12.00 us): 6 orthogonal non-DC Walsh-Hadamard rows
- *   - (-) Table (pulses 6..11, 12.00 us): exact bitwise complement (~(+) & 0x7FFF)
- *   - Step 12 (at t = 24.00 us): 0x8000 (Leave-Table Tri-State Hi-Z until next 10 ms refresh)
- *   - ZERO tri-state gaps between the 12 pulses!
- *   - ADC_45 & ADC_49 sample at the END of each 2.00 us pulse (t = 1.96 us)
- *     right before the next pulse latches onto T20's physical pins at t = 2.00 us.
+ * Contiguous Interleaved 2x7 = 14-Pulse Sylvester H_8 Simplex Hadamard Table
+ * (2.00 us per pulse = 28.00 us total + step 14 = 0x8000 Tri-State Hi-Z exit)
+ *   - Uses all 7 non-DC rows of Sylvester H_8 (HADAMARD_16[1..7]):
+ *     For any two distinct basis indices b != b' in 0..6, the dot product across
+ *     the 7 non-DC rows is identically -1 (Simplex code).
+ *   - Because active rows 0..5 are enabled (0x003Fu for M3, 0x3F00u for M8) while
+ *     the 7th basis (b=6 for M3, b=14 for M8) is held in 3-State Hi-Z (y_6 == 0),
+ *     subtracting c[6] from c[b] (c[b] - c[6] = 16 * y[b]) cancels 100% of
+ *     off-diagonal inter-row cross-talk!
+ *   - Interleaving (+) at 2*p and (-) at 2*p+1 separates each complementary pair
+ *     by only 2.00 us, canceling 100% of capacitor discharge DC drift!
  * ============================================================================ */
-static const uint16_t HADAMARD_2X6_POS[6] = {
-    0x2AAAu, /* p=0: basis 1 (+1/-1/+1/-1/+1/-1) */
-    0x1999u, /* p=1: basis 2 */
-    0x4CCCu, /* p=2: basis 3 */
-    0x0787u, /* p=3: basis 4 */
-    0x52D2u, /* p=4: basis 5 */
-    0x61E1u  /* p=5: basis 6 */
+static const uint16_t HADAMARD_2X7_POS[7] = {
+    0x2AAAu, /* p=0: H_8 row 1 */
+    0x1999u, /* p=1: H_8 row 2 */
+    0x4CCCu, /* p=2: H_8 row 3 */
+    0x0787u, /* p=3: H_8 row 4 */
+    0x52D2u, /* p=4: H_8 row 5 */
+    0x61E1u, /* p=5: H_8 row 6 */
+    0x34B4u  /* p=6: H_8 row 7 (completes exact 7-row Sylvester H_8 simplex!) */
 };
 
 static void maml_run_2x6_hadamard_burst(uint16_t en_mask, int tristate_off, uint8_t sck_div) {
@@ -460,26 +488,27 @@ static void maml_run_2x6_hadamard_burst(uint16_t en_mask, int tristate_off, uint
     t20_set_hadamard_mask(en_mask);
     t20_hadamard_tristate_center();
 
-    /* Identity scatter map: pulse t (0..11) writes directly to cap_ram[t] */
+    /* Identity scatter map: pulse t (0..13) writes directly to cap_ram[t] */
     AIO_REG(AIO_PI_INV_LO) = 0x76543210u;
     AIO_REG(AIO_PI_INV_HI) = 0xFEDCBA98u;
 
-    /* Load 2x6 = 12 contiguous 2.00 us pulses + 13th word (0x8000 Tri-State exit) */
-    for (int p = 0; p < 6; p++) {
-        uint16_t w_pos = tristate_off ? 0x8000u : (HADAMARD_2X6_POS[p] & 0x7FFFu);
-        uint16_t w_neg = tristate_off ? 0x8000u : ((~HADAMARD_2X6_POS[p]) & 0x7FFFu);
-        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * p)       = (uint32_t)w_pos;
-        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * (p + 6)) = (uint32_t)w_neg;
+    /* Load 2x7 = 14 contiguous interleaved 2.00 us pulses:
+     *   - Step 2*p     : (+) pulse p
+     *   - Step 2*p + 1 : (-) pulse p (exact complement, only 2.00 us after (+)!)
+     *   - Step 14      : 0x8000 Tri-State exit at 28.00 us */
+    for (int p = 0; p < 7; p++) {
+        uint16_t w_pos = tristate_off ? 0x8000u : (HADAMARD_2X7_POS[p] & 0x7FFFu);
+        uint16_t w_neg = tristate_off ? 0x8000u : ((~HADAMARD_2X7_POS[p]) & 0x7FFFu);
+        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * (2 * p))     = (uint32_t)w_pos;
+        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * (2 * p + 1)) = (uint32_t)w_neg;
     }
-    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 12) = 0x00008000u; /* Exit to Hi-Z at 24.00 us */
-    for (int k = 13; k < 16; k++) {
-        *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * k) = 0x00008000u;
-    }
+    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 14) = 0x00008000u; /* Exit to Hi-Z at 28.00 us */
+    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 15) = 0x00008000u;
 
     /* Switch to Pipelined 2.00 us Contiguous Mode:
      *   - T20_CLK_PERIOD = 5 (10.0 MHz CLK9, 100 ns cycle)
      *   - T20_H_PERIOD   = 20 (20 CLK9 cycles = 2.000 us exact per pulse!)
-     *   - T20_H_COUNT    = 13 (12 active pulses = 24.000 us + step 12 = 0x8000 Hi-Z)
+     *   - T20_H_COUNT    = 15 (14 active pulses = 28.000 us + step 14 = 0x8000 Hi-Z)
      *   - r_settle_cycles = 1 (enables pipe_2us_mode, no CLK9 freeze), r_conv_cycles = 21 (locks S/H at 1.96 us) */
     g_tel.settle_cycles = 100u; /* 100 sys_clk cycles = 2.00 us per pulse */
     AIO_REG(AIO_SETTLE_CYCLES) = (21u << 16) | 1u;
@@ -487,10 +516,10 @@ static void maml_run_2x6_hadamard_burst(uint16_t en_mask, int tristate_off, uint
     AIO_REG(AIO_CTRL) = (((uint32_t)(sck_div & 0x0Fu)) << 8) | 0xA9u;
 
     T20_REG(T20_CLK_PERIOD) = 5u;
-    T20_REG(T20_H_COUNT)    = 13u;
+    T20_REG(T20_H_COUNT)    = 15u;
     T20_REG(T20_H_PERIOD)   = 20u;
     T20_REG(T20_H_CTRL)     = (1u << 2) | (1u << 9); /* Clear counters */
-    T20_REG(T20_H_CTRL)     = (1u << 0) | (1u << 9); /* Fire single 24.00 us hardware burst! */
+    T20_REG(T20_H_CTRL)     = (1u << 0) | (1u << 9); /* Fire single 28.00 us hardware burst! */
 
     uint32_t timeout = 10000;
     while ((((T20_REG(T20_H_STATUS) & 2u) == 0u) ||
@@ -537,26 +566,42 @@ static void maml_read_latest_adcs(int16_t adc45_out[6], int16_t adc49_out[6]) {
 }
 
 static void aio_trigger_settled_adc_read(int16_t adc45_out[6], int16_t adc49_out[6]) {
-    AIO_REG(AIO_CMD) = (1u << 4); /* Manual settled ADC_45 & ADC_49 conversion */
-    uint32_t timeout = 10000;
-    while ((AIO_REG(AIO_STATUS) & 0x06u) && --timeout);
-    bsp_uDelay(4);
-    maml_read_latest_adcs(adc45_out, adc49_out);
+    int32_t acc45[6] = {0, 0, 0, 0, 0, 0};
+    int32_t acc49[6] = {0, 0, 0, 0, 0, 0};
+    int16_t tmp45[6], tmp49[6];
+    for (int s = 0; s < 16; s++) {
+        AIO_REG(AIO_CMD) = (1u << 4); /* Manual settled ADC_45 & ADC_49 conversion */
+        uint32_t timeout = 10000;
+        while ((AIO_REG(AIO_STATUS) & 0x06u) && --timeout);
+        bsp_uDelay(2);
+        maml_read_latest_adcs(tmp45, tmp49);
+        for (int c = 0; c < 6; c++) {
+            acc45[c] += tmp45[c];
+            acc49[c] += tmp49[c];
+        }
+    }
+    for (int c = 0; c < 6; c++) {
+        adc45_out[c] = (int16_t)rshift_rne(acc45[c], 4);
+        adc49_out[c] = (int16_t)rshift_rne(acc49[c], 4);
+    }
 }
 
 /* ============================================================================
- * 12-Pulse (2x6 (+) and (-)) Coherent Differential Hadamard Demodulator
- *   - Pulses p = 0..5  : (+) Table response Y_pos[p][c]
- *   - Pulses p = 6..11 : (-) Table response Y_neg[p][c]
+ * 14-Pulse (2x7 Interleaved (+) and (-)) Exact Orthogonal Sylvester H_8 Demodulator
+ *   - Pulse 2*p     : (+) Table response Y_pos[p][c]
+ *   - Pulse 2*p + 1 : (-) Table response Y_neg[p][c] (2.00 us later)
  *   - Differential pair dY[p][c] = Y_pos[p][c] - Y_neg[p][c] cancels DC offset
- *     and capacitor discharge slope!
- *   - Coherent correlation across p = 0..5 extracts row sensitivity:
- *     sens_out[b + 1][c] = sum_{p=0..5} sign(HADAMARD_2X6_POS[p], bit b) * dY[p][c]
+ *     and linear capacitor discharge slope!
+ *   - Exact Simplex Orthogonalization:
+ *       raw_c[b] = sum_{p=0..6} sign(HADAMARD_2X7_POS[p], bit b) * dY[p][c]
+ *       Since bit 6 (for M3) and bit 14 (for M8) are held in 3-State Hi-Z (y == 0),
+ *       raw_c[6] = -2 * sum_{r=0..5} y_r.
+ *       Therefore: raw_c[b] - raw_c[6] = 16 * y_b (100% zero cross-talk!).
  * ============================================================================ */
 static void maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6]) {
-    int32_t buf[12][6];
+    int32_t buf[14][6];
 
-    for (int k = 0; k < 12; k++) {
+    for (int k = 0; k < 14; k++) {
         uint32_t addr = cap_base_off + (uint32_t)(k * 16);
         uint32_t w01  = AIO_REG(addr + 0x0);
         uint32_t w23  = AIO_REG(addr + 0x4);
@@ -569,29 +614,45 @@ static void maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6
         buf[k][5] = (int16_t)(w45 >> 16);
     }
 
-    /* k = 0: DC average across the 12 samples */
+    /* k = 0: DC average across the 14 samples */
     for (int c = 0; c < 6; c++) {
         int32_t dc_sum = 0;
-        for (int k = 0; k < 12; k++) dc_sum += buf[k][c];
-        sens_out[0][c] = sat_q14(dc_sum / 12);
+        for (int k = 0; k < 14; k++) dc_sum += buf[k][c];
+        sens_out[0][c] = sat_q14(dc_sum / 14);
     }
 
-    /* k = 1..15: Coherent 2x6 differential correlation for bits b = 0..14
-     *   b = 0..7  (k = 1..8)  -> Matrix 3 rows 0..7
-     *   b = 8..14 (k = 9..15) -> Matrix 8 rows 0..6 */
+    /* Raw 7-pulse Simplex correlation for bits b = 0..14 */
+    int32_t raw_corr[15][6];
     for (int b = 0; b < 15; b++) {
         for (int c = 0; c < 6; c++) {
             int32_t corr = 0;
-            for (int p = 0; p < 6; p++) {
-                int32_t dy = buf[p][c] - buf[p + 6][c];
-                if ((HADAMARD_2X6_POS[p] >> b) & 1u) {
+            for (int p = 0; p < 7; p++) {
+                int32_t dy = buf[2 * p][c] - buf[2 * p + 1][c];
+                if ((HADAMARD_2X7_POS[p] >> b) & 1u) {
                     corr += dy;
                 } else {
                     corr -= dy;
                 }
             }
-            sens_out[b + 1][c] = sat_q14(corr);
+            raw_corr[b][c] = corr;
         }
+    }
+
+    /* Subtract silent reference basis (b=6 for M3 rows 0..5, b=14 for M8 rows 0..5)
+     * so cross-talk from the other 5 active rows cancels identically! */
+    for (int c = 0; c < 6; c++) {
+        int32_t ref_m3 = raw_corr[6][c];
+        for (int r = 0; r < 6; r++) {
+            sens_out[r + 1][c] = sat_q14((raw_corr[r][c] - ref_m3) >> 1);
+        }
+        sens_out[7][c] = 0;
+        sens_out[8][c] = 0;
+
+        int32_t ref_m8 = raw_corr[14][c];
+        for (int r = 0; r < 6; r++) {
+            sens_out[r + 9][c] = sat_q14((raw_corr[r + 8][c] - ref_m8) >> 1);
+        }
+        sens_out[15][c] = 0;
     }
 }
 
@@ -599,7 +660,7 @@ static void maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6
  * Pure Hardware Analog Readout & Non-Backprop Hadamard Gradient Engine
  *   Implements Equations 1–7 from NON_BACKPROP_HADAMARD_GRADIENT_RULES.md
  *   strictly from raw physical ADC_45 / ADC_49 and FWHT-16 measurements:
- *     - Eq. 1: Er_j^(49) = Z_target,j - Z_out,j^(49)
+ *     - Eq. 1: Er_j^(49) = Z_out,j^(49) - Z_target,j
  *     - Eq. 2: dL / dW_{i,j}^(8) = <dz_j^(49)/dV_i^PTU>_H * Er_j^(49)  [NO * x_i!]
  *     - Eq. 5: Carrier Wave Search k = argmax_i |x_i^(8)|
  *     - Eq. 6: Regularized Inverse Scaling for sigma_2'(y_j^(8))
@@ -623,16 +684,18 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     bsp_uDelay(10);
     aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
 
-    /* 2. Sub-Window 1: Perturb Matrix 3 Only (M8 3-stated Hi-Z via mask 0x00FF) */
-    maml_run_permuted_hadamard_sweep(0x00FFu);
-    maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
+    /* 2. Sub-Window A: Perturb Matrix 8 FIRST (active rows 0..5 = 0x3F00, M3 3-stated Hi-Z)
+     *    Per NON_BACKPROP_HADAMARD_GRADIENT_RULES.md §2: M8 is perturbed first while M3 is quiet! */
+    maml_run_permuted_hadamard_sweep(0x3F00u);
+    maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
 
-    /* 20 us quiet Tri-State separation between M3 table and M8 table */
+    /* 20 us quiet Tri-State separation between M8 table and M3 table */
+    t20_hadamard_tristate_center();
     bsp_uDelay(20);
 
-    /* 3. Sub-Window 2: Perturb Matrix 8 Only (M3 3-stated Hi-Z via mask 0x7F00) */
-    maml_run_permuted_hadamard_sweep(0x7F00u);
-    maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
+    /* 3. Sub-Window B: Perturb Matrix 3 SECOND (active rows 0..5 = 0x003F, M8 3-stated Hi-Z) */
+    maml_run_permuted_hadamard_sweep(0x003Fu);
+    maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
 
     /* 4. Return Hadamard carrier to 3-State (0x8000 Hi-Z) immediately after burst */
     t20_hadamard_tristate_center();
@@ -697,18 +760,21 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     for (int i = 0; i < 7; i++) {
         for (int j = 0; j < 6; j++) {
             int32_t prod = (int32_t)sens_m8[i][j] * (-err49[j]);
-            grad_m8_out[i][j] = sat_q14(rshift_rne(prod, 6));
+            grad_m8_out[i][j] = sat_q14(rshift_rne(prod, 1));
         }
     }
 
     /* ========================================================================
      * Equation 5: Carrier Wave Search (Find strongest intermediate row k)
      *   k = argmax_{i in 0..5} |x_i^(8)|
+     *   where x_i^(8) is the zero-referenced Layer 1 activation on ADC_45[i]
      * ======================================================================== */
+    int16_t x8_sig[6];
     uint8_t best_k = 0;
     int32_t max_abs_x8 = -1;
     for (uint8_t i = 0; i < 6; i++) {
-        int32_t ax = eval_adc45[i];
+        x8_sig[i] = (int16_t)((int32_t)eval_adc45[i] - (int32_t)g_adc45_zero_cal[i]);
+        int32_t ax = x8_sig[i];
         if (ax < 0) ax = -ax;
         if (ax > max_abs_x8) {
             max_abs_x8 = ax;
@@ -718,24 +784,24 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     g_tel.carrier_row_k = best_k;
 
     /* ========================================================================
-     * Equation 6: Strictly Non-Negative Column Slope sigma_2'(y_j^(8))
-     *   Since the BJT differential pair sigmoid (SIG2) is monotonically increasing,
-     *   sigma_2'(y_j^(8)) > 0 always. We estimate each column's active slope from
-     *   the mean absolute Hadamard response at ADC_49 with a positive floor (4096)
-     *   so Layer 1 (M3) never experiences sign inversion.
+     * Equation 6: Regularized Inverse Scaling for Column Slope sigma_2'(y_j^(8))
+     *   sigma_2'(y_j^(8)) approx (x_k^(8) / ((x_k^(8))^2 + alpha)) * <dz_j^(49)/dW_{k,j}^(8)>_H
+     *   Evaluated using the strongest carrier row best_k from Equation 5, with
+     *   Tikhonov regularization alpha = 256 LSB^2 and non-negative clamp for the
+     *   monotonically increasing BJT differential pair Sigmoid 10 (SIG2).
      * ======================================================================== */
+    int32_t xk = x8_sig[best_k];
+    int32_t denom = (xk * xk) + 256;
     for (int j = 0; j < 6; j++) {
         if (g_tel.jumper_mode == JUMPER_OFF_NO_COMP) {
             g_tel.sigma2_slope[j] = 0;
         } else if (g_tel.jumper_mode == JUMPER_BYPASS_SIG2) {
             g_tel.sigma2_slope[j] = 16384; /* 1.0 in Q1.14 */
         } else {
-            int32_t abs_sum = 0;
-            for (int r = 0; r < 7; r++) {
-                int32_t s = sens_m8[r][j];
-                abs_sum += (s < 0) ? -s : s;
-            }
-            int32_t slope_q14 = 4096 + ((abs_sum / 7) << 6);
+            int32_t s_kj = sens_m8[best_k][j];
+            int32_t num  = xk * s_kj;
+            if (num < 0) num = -num;
+            int32_t slope_q14 = 2048 + ((num << 13) / denom);
             if (slope_q14 > 16384) slope_q14 = 16384;
             g_tel.sigma2_slope[j] = (int16_t)slope_q14;
         }
@@ -744,15 +810,16 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     /* ========================================================================
      * Equation 4: Row Sensitivity Receipt dx_i^(8) back to Layer 1
      *   dx_i^(8) = sum_{j=0..5} W_{i,j}^(8)digital * sigma_2'(y_j^(8)) * Er_j^(49)
+     *   Normalized for Q1.14 sigma_2_slope (>> 14) and Q7 w_m8 (>> 8)
      * ======================================================================== */
     int32_t dx8[6];
     for (int i = 0; i < 6; i++) {
         int32_t sum = 0;
         for (int j = 0; j < 6; j++) {
-            int32_t col_term = rshift_rne((int32_t)g_tel.sigma2_slope[j] * (-err49[j]), 10);
+            int32_t col_term = rshift_rne((int32_t)g_tel.sigma2_slope[j] * (-err49[j]), 14);
             sum += (int32_t)g_tel.w_m8[i][j] * col_term;
         }
-        dx8[i] = rshift_rne(sum, 6);
+        dx8[i] = rshift_rne(sum, 8);
     }
 
     /* ========================================================================
@@ -763,7 +830,7 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 6; j++) {
             int32_t prod = (int32_t)sens_m3[i][j] * dx8[j];
-            grad_m3_out[i][j] = sat_q14(rshift_rne(prod, 6));
+            grad_m3_out[i][j] = sat_q14(rshift_rne(prod, 7));
         }
     }
 }
@@ -812,37 +879,79 @@ static void maml_update_3d_landscape_coords(void) {
 /* ============================================================================
  * Seed Randomization & Center Compensation Weights (128)
  * ============================================================================ */
+static void maml_load_default_m33(void) {
+    for (int r = 0; r < 6; r++) {
+        for (int c = 0; c < 6; c++) {
+            g_w_m33_q14[r][c] = (int16_t)((int32_t)k_default_m33[r][c] << 7);
+        }
+    }
+    maml_sync_shadow_bytes();
+}
+
+static void maml_calibrate_zero_baseline(void);
+static void maml_wait_10ms_refresh_tick(void);
+
 static void maml_center_compensation_weights(void) {
     g_auto_random_data = 0u;
     memset(g_w0_m3_q14,  0, sizeof(g_w0_m3_q14));
     memset(g_w0_m8_q14,  0, sizeof(g_w0_m8_q14));
     memset(g_w_m3_q14,   0, sizeof(g_w_m3_q14));
     memset(g_w_m8_q14,   0, sizeof(g_w_m8_q14));
-    memset(g_w_m33_q14,  0, sizeof(g_w_m33_q14));
     memset(g_vel_m3_q14, 0, sizeof(g_vel_m3_q14));
     memset(g_vel_m8_q14, 0, sizeof(g_vel_m8_q14));
     for (int k = 0; k < NUM_BASINS; k++) {
         memset(g_basin_w_m3_q14[k], 0, sizeof(g_basin_w_m3_q14[k]));
         memset(g_basin_w_m8_q14[k], 0, sizeof(g_basin_w_m8_q14[k]));
     }
-    maml_sync_shadow_bytes();
+    /* Keep Layer 1 diagonal pass-through + row 6 bias active on M3 and +24 linear pedestal
+     * on M8 so both single-supply COLTIA_3 and COLTIA_8 operate in their 1.65V linear center! */
+    for (int c = 0; c < 6; c++) {
+        g_w0_m3_q14[c][c] = (int16_t)(64 << 7);
+        g_w_m3_q14[c][c]  = (int16_t)(64 << 7);
+        g_w0_m3_q14[6][c] = (int16_t)(48 << 7);
+        g_w_m3_q14[6][c]  = (int16_t)(48 << 7);
+        for (int r = 0; r < 6; r++) {
+            g_w0_m8_q14[r][c] = (int16_t)(24 << 7);
+            g_w_m8_q14[r][c]  = (int16_t)(24 << 7);
+        }
+    }
+    /* Preserve Primary Payload Matrix M33 (k_default_m33) so COLTIA stays centered! */
+    maml_load_default_m33();
 
-    /* Center all 6 In-Data rows back to 128 (0.0 V differential) */
-    uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
-    g_dac_row7_code = 128u;
-    g_dac_row8_code = 128u;
-    aio_load_dac2(d2_mid);
+    /* Calibrate quiescent zero-input baseline at DAC_2 = 128 and 100 Hz (10.0 ms) cadence */
+    maml_calibrate_zero_baseline();
+
+    /* Restore M3 and M8 linear center weights after calibration */
+    for (int c = 0; c < 6; c++) {
+        g_w0_m3_q14[c][c] = (int16_t)(64 << 7);
+        g_w_m3_q14[c][c]  = (int16_t)(64 << 7);
+        g_w0_m3_q14[6][c] = (int16_t)(48 << 7);
+        g_w_m3_q14[6][c]  = (int16_t)(48 << 7);
+        for (int r = 0; r < 6; r++) {
+            g_w0_m8_q14[r][c] = (int16_t)(24 << 7);
+            g_w_m8_q14[r][c]  = (int16_t)(24 << 7);
+        }
+    }
+
+    /* Apply active reference input vector x_ref and compute zero-referenced z_target */
+    maml_generate_new_white_noise_ref();
 
     g_comp_is_centered = 1;
-    maml_refresh_all_columns();
-    bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 2500u);
+    uint32_t settle_dly_us = (g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ?
+                             g_hadamard_delay_us : 5000u;
+    /* Let the 100 nF gate capacitors settle at the exact 10.0 ms (100 Hz) cadence */
+    for (int rep = 0; rep < 3; rep++) {
+        maml_wait_10ms_refresh_tick();
+        bsp_uDelay(settle_dly_us);
+    }
 
-    /* Measure uncompensated bit precision at centered weights */
+    /* Measure uncompensated bit precision at centered compensation weights */
     uint8_t saved_jm = g_tel.jumper_mode;
     g_tel.jumper_mode = JUMPER_OFF_NO_COMP;
     int16_t gm3[8][6], gm8[7][6];
     maml_measure_and_extract_gradients(0, gm3, gm8);
     g_tel.jumper_mode = saved_jm;
+    g_tel.bit_prec_comp_centi = g_tel.bit_prec_uncomp_centi;
     for (int k = 0; k < NUM_BASINS; k++) {
         g_tel.basin_loss_milli[k] = g_tel.loss_total_milli;
     }
@@ -876,6 +985,10 @@ static void maml_seed_weights(uint8_t mode, uint8_t swing_pct) {
                     v = (int32_t)(prng_next() % (uint32_t)(2 * max_q14 + 1)) - max_q14;
                 }
             }
+            /* Add diagonal pass-through on Layer 1 (M3) so ACT(4)_D_ROW[0..5] drives M8 cleanly */
+            if (r == c && r < 6 && g_tel.jumper_mode != JUMPER_OFF_NO_COMP) {
+                v += (64 << 7);
+            }
             g_w0_m3_q14[r][c]  = sat_q14(v);
             g_w_m3_q14[r][c]   = sat_q14(v);
             g_vel_m3_q14[r][c] = 0;
@@ -907,26 +1020,31 @@ static void maml_seed_weights(uint8_t mode, uint8_t swing_pct) {
         }
     }
 
-    /* Randomize Matrix 33 (Primary 6x6 Payload Matrix) so weights actively refresh in Mode B! */
-    for (int r = 0; r < 6; r++) {
-        for (int c = 0; c < 6; c++) {
-            int32_t v = 0;
-            if (max_q14 > 0) {
-                if (mode == SEED_MODE_CHECKERBOARD) {
-                    v = ((r + c) & 1) ? max_q14 : -max_q14;
-                } else {
-                    v = (int32_t)(prng_next() % (uint32_t)(2 * max_q14 + 1)) - max_q14;
+    if (g_tel.jumper_mode == JUMPER_OFF_NO_COMP) {
+        /* Randomize Matrix 33 in Mode B with +16 pedestal so weights actively refresh */
+        for (int r = 0; r < 6; r++) {
+            for (int c = 0; c < 6; c++) {
+                int32_t v = (16 << 7);
+                if (max_q14 > 0) {
+                    if (mode == SEED_MODE_CHECKERBOARD) {
+                        v += ((r + c) & 1) ? max_q14 : -max_q14;
+                    } else {
+                        v += (int32_t)(prng_next() % (uint32_t)(2 * max_q14 + 1)) - max_q14;
+                    }
                 }
+                g_w_m33_q14[r][c] = sat_q14(v);
             }
-            g_w_m33_q14[r][c] = sat_q14(v);
         }
+    } else {
+        maml_load_default_m33();
     }
     maml_sync_shadow_bytes();
+    maml_recompute_z_target();
 
     g_tel.outer_loop_epoch = 0;
     g_tel.cur_inner_step   = 0;
     maml_refresh_all_columns();
-    bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 2500u);
+    bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 5000u);
 
     /* Measure initial compensated bit precision from live hardware */
     int16_t gm3[8][6], gm8[7][6];
@@ -963,21 +1081,39 @@ static void aio_load_all_30_dacs(uint8_t code);
 static void maml_apply_fixed_even_dac2(void);
 static void maml_seed_fixed_test_weights_once(uint32_t seed_val);
 
-/* Calibrate quiescent DC zero baseline at x_ref = 0 (DAC_2 = 128) with M33 payload charged */
+/* Calibrate quiescent DC zero baseline at x_ref = 0 (DAC_2 = 128) with M33 payload charged
+ * and M3/M8 in their linear center (M3 diag = +64, row6 = +48, M8 = +24) at 100 Hz (10.0 ms) cadence */
 static void maml_calibrate_zero_baseline(void) {
     t20_hadamard_tristate_center();
     uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
+    g_dac_row7_code = 128u;
+    g_dac_row8_code = 128u;
     aio_load_dac2(d2_mid);
     memset(g_w_m3_q14, 0, sizeof(g_w_m3_q14));
     memset(g_w_m8_q14, 0, sizeof(g_w_m8_q14));
-    for (int rep = 0; rep < 8; rep++) {
-        maml_refresh_all_columns();
+    for (int c = 0; c < 6; c++) {
+        g_w_m3_q14[c][c] = (int16_t)(64 << 7);
+        g_w_m3_q14[6][c] = (int16_t)(48 << 7);
+        for (int r = 0; r < 6; r++) {
+            g_w_m8_q14[r][c] = (int16_t)(24 << 7);
+        }
     }
-    bsp_uDelay(20);
+
+    uint32_t settle_dly_us = (g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ?
+                             g_hadamard_delay_us : 5000u;
+
+    g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
+    for (int rep = 0; rep < 3; rep++) {
+        maml_wait_10ms_refresh_tick();
+    }
 
     int32_t acc45[6] = {0, 0, 0, 0, 0, 0};
     int32_t acc49[6] = {0, 0, 0, 0, 0, 0};
     for (int i = 0; i < 4; i++) {
+        maml_wait_10ms_refresh_tick();
+        bsp_uDelay(settle_dly_us);
+        t20_hadamard_tristate_center();
+        bsp_uDelay(10);
         int16_t a45[6], a49[6];
         aio_trigger_settled_adc_read(a45, a49);
         for (int c = 0; c < 6; c++) {
@@ -986,8 +1122,8 @@ static void maml_calibrate_zero_baseline(void) {
         }
     }
     for (int c = 0; c < 6; c++) {
-        g_adc45_zero_cal[c] = (int16_t)(acc45[c] >> 2);
-        g_adc49_zero_cal[c] = (int16_t)(acc49[c] >> 2);
+        g_adc45_zero_cal[c] = (int16_t)rshift_rne(acc45[c], 2);
+        g_adc49_zero_cal[c] = (int16_t)rshift_rne(acc49[c], 2);
     }
 }
 
@@ -1011,18 +1147,8 @@ void maml_platform_init(void) {
     g_tel.bit_prec_uncomp_centi = 0; /* Strictly measured from live hardware */
     g_tel.bit_prec_comp_centi   = 0; /* Strictly measured from live hardware */
 
-    /* Initialize Primary Payload Matrix M33 with a deterministic orthogonal-like target matrix */
-    const int8_t default_m33[6][6] = {
-        { +64, -32, +16, -16, +32, -48 },
-        { -32, +72, -24, +32, -16, +24 },
-        { +24, -16, +68, -28, +20, -16 },
-        { -16, +28, -20, +60, -24, +32 },
-        { +32, -24, +16, -24, +64, -20 },
-        { -40, +20, -16, +28, -20, +70 }
-    };
-    for (int r = 0; r < 6; r++)
-        for (int c = 0; c < 6; c++)
-            g_w_m33_q14[r][c] = (int16_t)((int32_t)default_m33[r][c] << 7);
+    /* Initialize Primary Payload Matrix M33 with pedestaled full-rank target matrix */
+    maml_load_default_m33();
 
     for (uint8_t k = 0; k < NUM_BASINS; k++) {
         maml_sample_hidden_offset(k);
@@ -1033,9 +1159,7 @@ void maml_platform_init(void) {
     AIO_REG(AIO_CTRL)          = 0x00000FA9u;
     AIO_REG(AIO_SETTLE_CYCLES) = (25u << 16) | 100u;
 
-    maml_calibrate_zero_baseline();
     maml_shuffle_outer_slots();
-    maml_generate_new_white_noise_ref();
     maml_center_compensation_weights();
     g_tel.run_mode = MAML_MODE_IDLE;
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
@@ -1059,23 +1183,23 @@ static void maml_execute_step(void) {
          * -------------------------------------------------------------------- */
         if (g_tel.cur_inner_step == 0 && g_cur_basin_idx < NUM_BASINS) {
             /* If g_hid_amp_dac > 0: MAML meta-learning with basin hopping.
-             * If g_hid_amp_dac == 0: Pure inner loop neural network training (no outer reset!) */
+             * If g_hid_amp_dac == 0: Pure inner loop neural network training (no outer reset,
+             * and reference input x_ref remains locked for monotonic convergence!) */
             if (g_hid_amp_dac > 0) {
                 memcpy(g_w_m3_q14, g_w0_m3_q14, sizeof(g_w_m3_q14));
                 memcpy(g_w_m8_q14, g_w0_m8_q14, sizeof(g_w_m8_q14));
                 maml_sample_hidden_offset(g_cur_basin_idx);
+                maml_generate_new_white_noise_ref();
             }
-            /* Lock a constant white-noise reference vector across the inner trajectory! */
-            maml_generate_new_white_noise_ref();
         }
 
         maml_shuffle_outer_slots();
         maml_refresh_all_columns();
 
-        /* Wait until the programmable plateau delay (e.g. 3000 us) after refresh
+        /* Wait until the programmable plateau delay (default 5000 us = 5.0 ms) after refresh
          * so 2T1C gate capacitors and column amplifiers are 100% settled! */
         uint32_t settle_dly_us = (g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ?
-                                 g_hadamard_delay_us : 2500u;
+                                 g_hadamard_delay_us : 5000u;
         bsp_uDelay(settle_dly_us);
 
         memset(g_acc_grad_m3, 0, sizeof(g_acc_grad_m3));
@@ -1098,7 +1222,10 @@ static void maml_execute_step(void) {
                 if (g_tel.cur_inner_step == 0) g_grad_init_m3[r][c] = g_avg;
                 g_grad_final_m3[r][c] = g_avg;
                 int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
-                g_w_m3_q14[r][c] = sat_q14((int32_t)g_w_m3_q14[r][c] - step_w);
+                g_w_m3_q14[r][c] = sat_w80_q14((int32_t)g_w_m3_q14[r][c] - step_w);
+                if (g_hid_amp_dac == 0) {
+                    g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
+                }
                 if (g_cur_basin_idx < NUM_BASINS) {
                     g_basin_w_m3_q14[g_cur_basin_idx][r][c] = g_w_m3_q14[r][c];
                 }
@@ -1110,7 +1237,10 @@ static void maml_execute_step(void) {
                 if (g_tel.cur_inner_step == 0) g_grad_init_m8[r][c] = g_avg;
                 g_grad_final_m8[r][c] = g_avg;
                 int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
-                g_w_m8_q14[r][c] = sat_q14((int32_t)g_w_m8_q14[r][c] - step_w);
+                g_w_m8_q14[r][c] = sat_w80_q14((int32_t)g_w_m8_q14[r][c] - step_w);
+                if (g_hid_amp_dac == 0) {
+                    g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
+                }
                 if (g_cur_basin_idx < NUM_BASINS) {
                     g_basin_w_m8_q14[g_cur_basin_idx][r][c] = g_w_m8_q14[r][c];
                 }
@@ -1371,16 +1501,9 @@ void maml_platform_tick(void) {
             if (delay_us > 0) {
                 bsp_uDelay(delay_us);
             }
-            /* Read settled quiet forward-pass ADC_45 & ADC_49 at the plateau BEFORE Hadamard burst */
-            t20_hadamard_tristate_center();
-            bsp_uDelay(10);
-            aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
-
-            /* Coherent 24.00 us Hadamard burst (Matrix 3 then Matrix 8) */
-            maml_run_2x6_hadamard_burst(0x00FFu, 0, 2u);
-            bsp_uDelay(20);
-            maml_run_2x6_hadamard_burst(0x7F00u, 0, 2u);
-            t20_hadamard_tristate_center();
+            /* Read settled quiet forward-pass ADC_45 & ADC_49, run Hadamard bursts, and update live loss/ENOB */
+            int16_t gm3_idle[8][6], gm8_idle[7][6];
+            maml_measure_and_extract_gradients(0, gm3_idle, gm8_idle);
         } else {
             maml_execute_step();
         }
@@ -1648,11 +1771,11 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
     resp.en_mask  = en_mask;
 
     for (int i = 0; i < 16; i++) resp.perm[i] = (uint8_t)i;
-    for (int p = 0; p < 6; p++) {
-        resp.h_words[p]     = HADAMARD_2X6_POS[p] & 0x7FFFu;
-        resp.h_words[p + 6] = (~HADAMARD_2X6_POS[p]) & 0x7FFFu;
+    for (int p = 0; p < 7; p++) {
+        resp.h_words[2 * p]     = HADAMARD_2X7_POS[p] & 0x7FFFu;
+        resp.h_words[2 * p + 1] = (~HADAMARD_2X7_POS[p]) & 0x7FFFu;
     }
-    for (int k = 12; k < 16; k++) {
+    for (int k = 14; k < 16; k++) {
         resp.h_words[k] = 0x8000u;
     }
 
@@ -1749,10 +1872,8 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
 
         case MAML_CMD_SET_CONFIG:
             if (req_len >= 15) {
-                g_tel.run_mode          = req[5];
-                if (g_tel.run_mode != MAML_MODE_IDLE) {
-                    g_comp_is_centered = 0;
-                }
+                uint8_t prev_mode = g_tel.run_mode;
+                g_tel.run_mode    = req[5];
                 g_tel.jumper_mode       = (req[6] >= 1 && req[6] <= 3) ? req[6] : JUMPER_USE_SIG2;
                 g_tel.hadamard_freq_khz = (uint16_t)req[7] | ((uint16_t)req[8] << 8);
                 if (g_tel.hadamard_freq_khz < 50)  g_tel.hadamard_freq_khz = 50;
@@ -1774,8 +1895,33 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                     g_hadamard_delay_us = (had_dly <= 9500u) ? had_dly : 9500u;
                 }
 
+                if (g_tel.run_mode != MAML_MODE_IDLE) {
+                    if (g_comp_is_centered != 0u || prev_mode == MAML_MODE_IDLE) {
+                        /* Enable Layer 1 diagonal pass-through on M3 so ACT(4)_D_ROW[0..5] drives M8
+                         * with strong intermediate carrier signals while M8 starts near zero! */
+                        for (int c = 0; c < 6; c++) {
+                            if (g_w_m3_q14[c][c] == 0) {
+                                g_w_m3_q14[c][c]  = (int16_t)(80 << 7);
+                                g_w0_m3_q14[c][c] = (int16_t)(80 << 7);
+                            }
+                        }
+                        for (int r = 0; r < 7; r++) {
+                            for (int c = 0; c < 6; c++) {
+                                if (g_w_m8_q14[r][c] == 0) {
+                                    int16_t eps = ((r + c) & 1) ? (int16_t)(2 << 7) : (int16_t)-(2 << 7);
+                                    g_w_m8_q14[r][c]  = eps;
+                                    g_w0_m8_q14[r][c] = eps;
+                                }
+                            }
+                        }
+                        g_tel.outer_loop_epoch = 0;
+                        g_tel.cur_inner_step   = 0;
+                    }
+                    g_comp_is_centered = 0;
+                }
+
                 maml_refresh_all_columns();
-                bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 2500u);
+                bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 5000u);
                 aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
             }
             break;
@@ -1901,19 +2047,35 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
 
         case MAML_CMD_STEP_ONCE:
             {
-                /* Force an immediate 2-step Inner + Outer-Loop (Ref 41 + Ref 40) gather epoch */
+                /* Synchronize to the exact 10.0 ms (100 Hz) capacitor refresh boundary */
+                uint32_t period_ticks = g_refresh_period_us * 50u;
+                while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks) {
+                    /* wait for 10.0 ms boundary */
+                }
+                g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
+
                 uint8_t saved_mode = g_tel.run_mode;
-                uint16_t saved_n   = g_tel.inner_loop_n;
-                uint8_t saved_m    = g_tel.num_strata_m;
                 g_tel.run_mode     = MAML_MODE_BASE_TRAIN;
-                g_tel.inner_loop_n = 10;
-                g_tel.num_strata_m = 2;
-                g_tel.cur_inner_step = 0;
-                maml_execute_step(); /* Step 0 -> 5: measure g_grad_init at W_0 and adapt W_1 */
-                maml_execute_step(); /* Step 5 -> 10: measure g_grad_final at W_1 and update W_0 (Ref 40) */
-                g_tel.num_strata_m = saved_m;
-                g_tel.inner_loop_n = saved_n;
-                g_tel.run_mode     = saved_mode;
+                g_comp_is_centered = 0u;
+                if (g_hid_amp_dac == 0u) {
+                    /* Pure Inner Loop step at exact 100 Hz cadence */
+                    maml_execute_step();
+                } else {
+                    /* 2-step Inner + Outer-Loop (Ref 41 + Ref 40) gather epoch */
+                    uint16_t saved_n = g_tel.inner_loop_n;
+                    uint8_t  saved_m = g_tel.num_strata_m;
+                    g_tel.inner_loop_n   = 2;
+                    g_tel.num_strata_m   = 1;
+                    g_tel.cur_inner_step = 0;
+                    maml_execute_step();
+                    while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks);
+                    g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
+                    maml_execute_step();
+                    g_tel.num_strata_m = saved_m;
+                    g_tel.inner_loop_n = saved_n;
+                }
+                g_tel.run_mode = saved_mode;
+                maml_sync_shadow_bytes();
             }
             break;
 

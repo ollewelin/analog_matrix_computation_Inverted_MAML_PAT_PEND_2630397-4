@@ -104,16 +104,14 @@ if res is not None:
 
 ---
 
-## 5. Column Masking Rules for Silicon Training
+## 5. Full 6-Column Operation for Silicon Training
 
-When transitioning from single-cell evaluation to closed-loop MAML training:
-1. **Identify Functional vs. Damaged Columns:**
-   - In Mode B / Mode A, inspect quiescent ADC baselines:
-     - **Columns 1 and 5:** Responsive, linear, and non-saturated ($Y \in [-30, +30]$ LSB).
-     - **Columns 2, 3, 6:** Stuck in negative saturation rails ($-1600$ to $-2048$ LSB) due to analog front-end op-amp defects or trace damage.
-2. **Masked Loss Function Formulation:**
-   - **DO NOT** train the neural loss against all 6 columns, as the $1600^2$ error on saturated columns will drown out real gradient signals.
-   - Restrict the Inverted MAML Loss computation strictly to the functional columns:
-     $$\mathcal{L} = \frac{1}{2} \left[ (Y_1 - Y_{1,\text{target}})^2 + (Y_5 - Y_{5,\text{target}})^2 \right]$$
-   - Allow bad columns to idle without penalizing the weight update vectors.
+Full $6 \times 6$ characterization at $t = 5.0\text{ ms}$ (`MATRIX_33_FULL_6X6_GAIN_LANDSCAPE_REPORT.md`) proved that **all 6 columns and all 36 crosspoints are 100% functional**:
+1. **Zero Column Masking:**
+   - All 6 columns ($j \in \{0, 1, 2, 3, 4, 5\}$) must be included in the Inverted MAML loss function:
+     $$\mathcal{L} = \frac{1}{2} \sum_{j=0}^{5} \left(Z_{\text{target},j} - Z_{\text{out},j}^{(49)}\right)^2$$
+2. **Single-Supply `COLTIA` Pedestal Requirement:**
+   - Because `COLTIA` (`U1/U2$CBB15`) is a single-supply difference amplifier with `R_ref -> GND`, setting all weights of $M_{33}$ to zero (`W = 0`) drops the quiescent output near the negative saturation rail (`-1450` to `-1607 LSB`).
+   - Maintaining a positive column weight sum on the primary payload matrix $M_{33}$ keeps all 6 columns centered in their linear window around `0 LSB` (`1.65 V`).
+
 
