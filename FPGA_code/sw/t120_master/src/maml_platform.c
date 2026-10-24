@@ -319,6 +319,7 @@ static uint32_t g_last_refresh_ticks = 0u;
 static uint8_t  g_focus_col          = 0u;
 static uint8_t  g_dac_row7_code      = 128u;  /* DAC2_D_ROW7 (w34[6], TRIM_B1) */
 static uint8_t  g_dac_row8_code      = 128u;  /* DAC2_D_ROW8 (w34[7], TRIM_REF) */
+static uint8_t  g_auto_random_data   = 0u;    /* Autonomous 100 Hz white-noise In-Data generator */
 
 static void maml_refresh_all_columns(void) {
     maml_sync_shadow_bytes();
@@ -326,7 +327,7 @@ static void maml_refresh_all_columns(void) {
     /* Step 1: Ensure Hadamard outputs are 3-Stated (Hi-Z, OE=0) before recharging 2T1C gates */
     t20_hadamard_tristate_center();
 
-    int use_hid = (g_tel.run_mode == MAML_MODE_BASE_TRAIN);
+    int use_hid = (g_tel.run_mode == MAML_MODE_BASE_TRAIN) && (g_hid_amp_dac > 0u);
     int8_t hid_trim = use_hid ? g_hid_trim[g_cur_basin_idx] : 0;
     g_tel.hid_trim_offset = hid_trim;
     uint8_t trim_code = off_to_dac_u8((int32_t)g_tel.trim_dac_38 + (int32_t)hid_trim);
@@ -346,12 +347,10 @@ static void maml_refresh_all_columns(void) {
         /* --- A. Negative Half-Cells (G_N[col+1]_MAT_*) : W- = 128 - w_eff --- */
         for (int r = 0; r < 8; r++) {
             int32_t w = g_tel.w_m3[r][col] + (use_hid ? g_hid_w_m3[g_cur_basin_idx][r][col] : 0);
-            if (g_tel.jumper_mode == JUMPER_OFF_NO_COMP) w = 0;
             w15[r] = off_to_dac_u8(-w);
         }
         for (int r = 0; r < 7; r++) {
             int32_t w = g_tel.w_m8[r][col] + (use_hid ? g_hid_w_m8[g_cur_basin_idx][r][col] : 0);
-            if (g_tel.jumper_mode == JUMPER_OFF_NO_COMP) w = 0;
             w12[r] = off_to_dac_u8(-w);
         }
         w12[7] = trim_code; /* Ref 38 TRIM_DAC on W_12 channel 8 */
@@ -371,12 +370,10 @@ static void maml_refresh_all_columns(void) {
         /* --- B. Positive Half-Cells (G_P[col+1]_MAT_*) : W+ = 128 + w_eff --- */
         for (int r = 0; r < 8; r++) {
             int32_t w = g_tel.w_m3[r][col] + (use_hid ? g_hid_w_m3[g_cur_basin_idx][r][col] : 0);
-            if (g_tel.jumper_mode == JUMPER_OFF_NO_COMP) w = 0;
             w15[r] = off_to_dac_u8(+w);
         }
         for (int r = 0; r < 7; r++) {
             int32_t w = g_tel.w_m8[r][col] + (use_hid ? g_hid_w_m8[g_cur_basin_idx][r][col] : 0);
-            if (g_tel.jumper_mode == JUMPER_OFF_NO_COMP) w = 0;
             w12[r] = off_to_dac_u8(+w);
         }
         w12[7] = trim_code; /* Ref 38 TRIM_DAC on W_12 channel 8 */
@@ -620,26 +617,35 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     int16_t sens_m8_raw[16][6];
     int16_t sens_m3_raw[16][6];
 
-    /* 1. Sub-Window A: Perturb Matrix 8 Only (M3 3-stated Hi-Z via mask 0x7F00) */
-    maml_run_permuted_hadamard_sweep(0x7F00u);
-    maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
+    /* 1. Ensure Hadamard carrier is in 3-State (0x8000 Hi-Z) on the settled plateau
+     *    and read the quiet forward-pass analog output on ADC_45 & ADC_49 FIRST! */
+    t20_hadamard_tristate_center();
+    bsp_uDelay(10);
+    aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
 
-    /* 2. Sub-Window B: Perturb Matrix 3 Only (M8 3-stated Hi-Z via mask 0x00FF) */
+    /* 2. Sub-Window 1: Perturb Matrix 3 Only (M8 3-stated Hi-Z via mask 0x00FF) */
     maml_run_permuted_hadamard_sweep(0x00FFu);
     maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
 
-    /* 3. Read quiet 3-state (0x8000 Hi-Z) forward-pass output on ADC_45 & ADC_49 */
-    aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
+    /* 20 us quiet Tri-State separation between M3 table and M8 table */
+    bsp_uDelay(20);
+
+    /* 3. Sub-Window 2: Perturb Matrix 8 Only (M3 3-stated Hi-Z via mask 0x7F00) */
+    maml_run_permuted_hadamard_sweep(0x7F00u);
+    maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
+
+    /* 4. Return Hadamard carrier to 3-State (0x8000 Hi-Z) immediately after burst */
+    t20_hadamard_tristate_center();
 
     int16_t sens_m8[7][6];
     int16_t sens_m3[8][6];
     int16_t eval_adc45[6];
     int16_t eval_adc49[6];
 
-    /* Pure physical hardware readings relative to calibrated zero-drive baseline */
+    /* Direct physical signed 12-bit differential ADC readings (0 LSB = 1.65V hardware center) */
     for (int c = 0; c < 6; c++) {
-        eval_adc45[c] = (int16_t)((int32_t)g_tel.adc45_sig[c] - (int32_t)g_adc45_zero_cal[c]);
-        eval_adc49[c] = (int16_t)((int32_t)g_tel.adc49_sig[c] - (int32_t)g_adc49_zero_cal[c]);
+        eval_adc45[c] = g_tel.adc45_sig[c];
+        eval_adc49[c] = g_tel.adc49_sig[c];
         for (int r = 0; r < 8; r++) {
             sens_m3[r][c] = sens_m3_raw[r + 1][c];
         }
@@ -712,19 +718,26 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     g_tel.carrier_row_k = best_k;
 
     /* ========================================================================
-     * Equation 6: Regularized Inverse Scaling to isolate column slope sigma_2'(y_j^(8))
-     *   sigma_2'(y_j^(8)) approx (x_k^(8) / ((x_k^(8))^2 + alpha)) * <dz_j^(49)/dW_{k,j}^(8)>_H
+     * Equation 6: Strictly Non-Negative Column Slope sigma_2'(y_j^(8))
+     *   Since the BJT differential pair sigmoid (SIG2) is monotonically increasing,
+     *   sigma_2'(y_j^(8)) > 0 always. We estimate each column's active slope from
+     *   the mean absolute Hadamard response at ADC_49 with a positive floor (4096)
+     *   so Layer 1 (M3) never experiences sign inversion.
      * ======================================================================== */
-    int32_t xk = eval_adc45[best_k];
-    int32_t denom = (xk * xk) + 64; /* Tikhonov regularizer alpha = 64 LSB^2 */
     for (int j = 0; j < 6; j++) {
         if (g_tel.jumper_mode == JUMPER_OFF_NO_COMP) {
             g_tel.sigma2_slope[j] = 0;
         } else if (g_tel.jumper_mode == JUMPER_BYPASS_SIG2) {
             g_tel.sigma2_slope[j] = 16384; /* 1.0 in Q1.14 */
         } else {
-            int32_t num = (xk * (int32_t)sens_m8[best_k][j]) << 10;
-            g_tel.sigma2_slope[j] = sat_q14(num / denom);
+            int32_t abs_sum = 0;
+            for (int r = 0; r < 7; r++) {
+                int32_t s = sens_m8[r][j];
+                abs_sum += (s < 0) ? -s : s;
+            }
+            int32_t slope_q14 = 4096 + ((abs_sum / 7) << 6);
+            if (slope_q14 > 16384) slope_q14 = 16384;
+            g_tel.sigma2_slope[j] = (int16_t)slope_q14;
         }
     }
 
@@ -800,18 +813,29 @@ static void maml_update_3d_landscape_coords(void) {
  * Seed Randomization & Center Compensation Weights (128)
  * ============================================================================ */
 static void maml_center_compensation_weights(void) {
+    g_auto_random_data = 0u;
     memset(g_w0_m3_q14,  0, sizeof(g_w0_m3_q14));
     memset(g_w0_m8_q14,  0, sizeof(g_w0_m8_q14));
     memset(g_w_m3_q14,   0, sizeof(g_w_m3_q14));
     memset(g_w_m8_q14,   0, sizeof(g_w_m8_q14));
+    memset(g_w_m33_q14,  0, sizeof(g_w_m33_q14));
     memset(g_vel_m3_q14, 0, sizeof(g_vel_m3_q14));
     memset(g_vel_m8_q14, 0, sizeof(g_vel_m8_q14));
     for (int k = 0; k < NUM_BASINS; k++) {
         memset(g_basin_w_m3_q14[k], 0, sizeof(g_basin_w_m3_q14[k]));
         memset(g_basin_w_m8_q14[k], 0, sizeof(g_basin_w_m8_q14[k]));
     }
+    maml_sync_shadow_bytes();
+
+    /* Center all 6 In-Data rows back to 128 (0.0 V differential) */
+    uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
+    g_dac_row7_code = 128u;
+    g_dac_row8_code = 128u;
+    aio_load_dac2(d2_mid);
+
     g_comp_is_centered = 1;
     maml_refresh_all_columns();
+    bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 2500u);
 
     /* Measure uncompensated bit precision at centered weights */
     uint8_t saved_jm = g_tel.jumper_mode;
@@ -883,9 +907,26 @@ static void maml_seed_weights(uint8_t mode, uint8_t swing_pct) {
         }
     }
 
+    /* Randomize Matrix 33 (Primary 6x6 Payload Matrix) so weights actively refresh in Mode B! */
+    for (int r = 0; r < 6; r++) {
+        for (int c = 0; c < 6; c++) {
+            int32_t v = 0;
+            if (max_q14 > 0) {
+                if (mode == SEED_MODE_CHECKERBOARD) {
+                    v = ((r + c) & 1) ? max_q14 : -max_q14;
+                } else {
+                    v = (int32_t)(prng_next() % (uint32_t)(2 * max_q14 + 1)) - max_q14;
+                }
+            }
+            g_w_m33_q14[r][c] = sat_q14(v);
+        }
+    }
+    maml_sync_shadow_bytes();
+
     g_tel.outer_loop_epoch = 0;
     g_tel.cur_inner_step   = 0;
     maml_refresh_all_columns();
+    bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 2500u);
 
     /* Measure initial compensated bit precision from live hardware */
     int16_t gm3[8][6], gm8[7][6];
@@ -996,9 +1037,7 @@ void maml_platform_init(void) {
     maml_shuffle_outer_slots();
     maml_generate_new_white_noise_ref();
     maml_center_compensation_weights();
-    maml_seed_fixed_test_weights_once(0x5A3C9E4Du);
-    maml_apply_fixed_even_dac2();
-    g_tel.run_mode = 3u;
+    g_tel.run_mode = MAML_MODE_IDLE;
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
     t20_sync_heater_and_wdog();
     t20_sync_leds();
@@ -1006,7 +1045,7 @@ void maml_platform_init(void) {
 
 /* ============================================================================
  * Execute One Full MAML Training / Compensation Step
- *   - Enforces white-noise reference lock across all M=10 strata
+ *   - Enforces white-noise reference lock across the inner trajectory
  *   - Enforces Equations 1-7 (no digital multiplication by x_i)
  *   - Enforces Inner Loop (Ref 41) & Dot-Product Second-Derivative Outer Loop (Ref 40)
  * ============================================================================ */
@@ -1016,7 +1055,7 @@ static void maml_execute_step(void) {
     if (g_tel.run_mode == MAML_MODE_BASE_TRAIN) {
         /* --------------------------------------------------------------------
          * Base Model Training Mode (Ref 40 Outer Loop + Ref 41 Inner Loop)
-         * Duty cycle is 100% back-to-back across all M strata per refresh cycle!
+         * 1 clean settled measurement + Hadamard extraction per 10 ms refresh!
          * -------------------------------------------------------------------- */
         if (g_tel.cur_inner_step == 0 && g_cur_basin_idx < NUM_BASINS) {
             /* If g_hid_amp_dac > 0: MAML meta-learning with basin hopping.
@@ -1033,24 +1072,24 @@ static void maml_execute_step(void) {
         maml_shuffle_outer_slots();
         maml_refresh_all_columns();
 
+        /* Wait until the programmable plateau delay (e.g. 3000 us) after refresh
+         * so 2T1C gate capacitors and column amplifiers are 100% settled! */
+        uint32_t settle_dly_us = (g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ?
+                                 g_hadamard_delay_us : 2500u;
+        bsp_uDelay(settle_dly_us);
+
         memset(g_acc_grad_m3, 0, sizeof(g_acc_grad_m3));
         memset(g_acc_grad_m8, 0, sizeof(g_acc_grad_m8));
 
-        uint8_t m = g_tel.num_strata_m;
-        for (uint8_t s = 0; s < m; s++) {
-            uint8_t slot = g_slot_perm[s];
-            g_tel.cur_stratum_slot = slot;
-            if (m == 1 && g_hadamard_delay_us > 0) {
-                bsp_uDelay(g_hadamard_delay_us);
-            }
-            maml_measure_and_extract_gradients(slot, gm3, gm8);
-            for (int r = 0; r < 8; r++)
-                for (int c = 0; c < 6; c++)
-                    g_acc_grad_m3[r][c] += gm3[r][c];
-            for (int r = 0; r < 7; r++)
-                for (int c = 0; c < 6; c++)
-                    g_acc_grad_m8[r][c] += gm8[r][c];
-        }
+        uint8_t m = 1u;
+        g_tel.cur_stratum_slot = g_slot_perm[0];
+        maml_measure_and_extract_gradients(g_tel.cur_stratum_slot, gm3, gm8);
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 6; c++)
+                g_acc_grad_m3[r][c] = gm3[r][c];
+        for (int r = 0; r < 7; r++)
+            for (int c = 0; c < 6; c++)
+                g_acc_grad_m8[r][c] = gm8[r][c];
 
         /* Average gradient across the M strata and update Inner Loop weights (Ref 41) */
         for (int r = 0; r < 8; r++) {
@@ -1321,22 +1360,28 @@ void maml_platform_tick(void) {
     if ((uint32_t)(now_ticks - g_last_refresh_ticks) >= period_ticks) {
         g_last_refresh_ticks = now_ticks;
 
-        /* Execute the 100 Hz (10.0 ms) column refresh across all matrices */
-        maml_refresh_all_columns();
-
-        /* Always run the 24 us Hadamard carrier burst at the programmable delay */
+        /* Always run the 100 Hz (10.0 ms) column refresh + Hadamard carrier burst at the programmable delay */
         if (g_tel.run_mode != MAML_MODE_BASE_TRAIN && g_tel.run_mode != MAML_MODE_OPERATIONAL) {
+            if (g_auto_random_data) {
+                maml_generate_new_white_noise_ref();
+            }
+            maml_refresh_all_columns();
             uint32_t delay_us = g_hadamard_delay_us;
             if (delay_us > 9500u) delay_us = 9500u;
             if (delay_us > 0) {
                 bsp_uDelay(delay_us);
             }
+            /* Read settled quiet forward-pass ADC_45 & ADC_49 at the plateau BEFORE Hadamard burst */
+            t20_hadamard_tristate_center();
+            bsp_uDelay(10);
+            aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
+
             /* Coherent 24.00 us Hadamard burst (Matrix 3 then Matrix 8) */
             maml_run_2x6_hadamard_burst(0x00FFu, 0, 2u);
             bsp_uDelay(20);
             maml_run_2x6_hadamard_burst(0x7F00u, 0, 2u);
             t20_hadamard_tristate_center();
-        } else if (g_tel.run_mode != MAML_MODE_IDLE) {
+        } else {
             maml_execute_step();
         }
     }
@@ -1395,6 +1440,7 @@ static void maml_wait_10ms_refresh_tick(void) {
 
 static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t col,
                                        int8_t x_amp, int8_t w_fixed, uint8_t mode_flag,
+                                       uint16_t snap_dly_us,
                                        uint8_t *resp_buf, uint16_t resp_max) {
     if (resp_max < sizeof(maml_cell_probe_resp_t)) return 0;
     maml_cell_probe_resp_t resp;
@@ -1404,6 +1450,9 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
     resp.matrix_id = matrix_id;
     resp.row       = row;
     resp.col       = col;
+
+    /* Probing a single cell pauses/disables autonomous random data generator */
+    g_auto_random_data = 0u;
 
     /* Save active Q2.14 weight matrices so non-hold probes restore them cleanly */
     int16_t saved_m3[8][6];
@@ -1418,13 +1467,18 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
     /* Ensure Hadamard is 3-stated (Hi-Z centered) during static cell characterization */
     t20_hadamard_tristate_center();
 
+    /* Multiplier snapshot delay (0..9500 us) chosen freely by the user.
+     * Decoupled from Hadamard! If snap_dly_us is explicitly passed (> 0), honor user value directly.
+     * If snap_dly_us == 0, default to 2500 us. */
+    uint32_t settle_dly_us = (snap_dly_us > 0u && snap_dly_us <= 9500u) ? (uint32_t)snap_dly_us : 2500u;
+
     /* Measure quiescent column baseline at d2 = 128 (X = 0), w = 0 right after refresh */
     uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
     g_dac_row7_code = 128u;
     g_dac_row8_code = 128u;
     aio_load_dac2(d2_mid);
     maml_probe_charge_column(matrix_id, row, col, 0);
-    bsp_uDelay(10);
+    bsp_uDelay(settle_dly_us);
     int16_t base45[6], base49[6];
     aio_trigger_settled_adc_read(base45, base49);
 
@@ -1436,15 +1490,14 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
         /* --------------------------------------------------------------------
          * Fixed-Weight Input-Up/Down Multiplier Mode (mode_flag bit 0 = 1):
          *   Each measurement (X = 0, X = +x_amp, X = -x_amp) is preceded by a
-         *   fresh synchronous column refresh so all three ADC reads occur at
-         *   the EXACT same relative time (10 us) after the refresh window!
+         *   fresh synchronous column refresh, settling cleanly on the plateau!
          * -------------------------------------------------------------------- */
         /* 1. X = 0 (all DAC_2 = 128) at fixed weight W = w_fixed */
         g_dac_row7_code = 128u;
         g_dac_row8_code = 128u;
         aio_load_dac2(d2_mid);
         maml_probe_charge_column(matrix_id, row, col, (int32_t)w_fixed);
-        bsp_uDelay(10);
+        bsp_uDelay(settle_dly_us);
         aio_trigger_settled_adc_read(raw45_zero, raw49_zero);
 
         /* 2. X = +x_amp on probed row (move input UP) at fixed weight W = w_fixed */
@@ -1460,7 +1513,7 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
         }
         aio_load_dac2(d2_pos);
         maml_refresh_all_columns();
-        bsp_uDelay(10);
+        bsp_uDelay(settle_dly_us);
         aio_trigger_settled_adc_read(raw45_pos, raw49_pos);
 
         /* 3. X = -x_amp on probed row (move input DOWN) at fixed weight W = w_fixed */
@@ -1476,20 +1529,17 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
         }
         aio_load_dac2(d2_neg);
         maml_refresh_all_columns();
-        bsp_uDelay(10);
+        bsp_uDelay(settle_dly_us);
         aio_trigger_settled_adc_read(raw45_neg, raw49_neg);
 
         if (mode_flag & 0x02u) {
-            /* Hold static (X = +x_amp, W = w_fixed) active on the board:
-             * Leave g_w_m*_q14[row][col] = w_fixed so the 10.0 ms autonomous
-             * refresh engine continuously refreshes (matrix_id, row, col) with
-             * W = w_fixed and all other cells with W = 0! */
+            /* Hold static (X = +x_amp, W = w_fixed) active on the board */
             g_dac_row7_code = (row == 6u) ? off_to_dac_u8(+(int32_t)x_amp) : 128u;
             g_dac_row8_code = (row == 7u) ? off_to_dac_u8(+(int32_t)x_amp) : 128u;
             aio_load_dac2(d2_pos);
             maml_refresh_all_columns();
             g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
-            bsp_uDelay(10);
+            bsp_uDelay(settle_dly_us);
             aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
         } else {
             g_dac_row7_code = 128u;
@@ -1518,19 +1568,19 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
         }
         aio_load_dac2(d2);
         maml_probe_charge_column(matrix_id, row, col, 0);
-        bsp_uDelay(10);
+        bsp_uDelay(settle_dly_us);
 
         /* 1. Probe Zero Weight (W+ = 128, W- = 128) */
         aio_trigger_settled_adc_read(raw45_zero, raw49_zero);
 
         /* 2. Probe Positive Weight (w = +w_fixed) */
         maml_probe_charge_column(matrix_id, row, col, +(int32_t)w_fixed);
-        bsp_uDelay(10);
+        bsp_uDelay(settle_dly_us);
         aio_trigger_settled_adc_read(raw45_pos, raw49_pos);
 
         /* 3. Probe Negative Weight (w = -w_fixed) */
         maml_probe_charge_column(matrix_id, row, col, -(int32_t)w_fixed);
-        bsp_uDelay(10);
+        bsp_uDelay(settle_dly_us);
         aio_trigger_settled_adc_read(raw45_neg, raw49_neg);
 
         /* Restore weights after probing */
@@ -1695,9 +1745,6 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
         case MAML_CMD_GET_TELEMETRY:
             t20_sync_heater_and_wdog();
             maml_sync_shadow_bytes();
-            if (g_tel.run_mode == MAML_MODE_IDLE) {
-                aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
-            }
             break;
 
         case MAML_CMD_SET_CONFIG:
@@ -1728,6 +1775,7 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 }
 
                 maml_refresh_all_columns();
+                bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 2500u);
                 aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
             }
             break;
@@ -1811,19 +1859,44 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
         case MAML_CMD_SEED_WEIGHTS:
             if (req_len >= 7) {
                 maml_seed_weights(req[5], req[6]);
+                maml_refresh_all_columns();
                 aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
             }
             break;
 
         case MAML_CMD_PROBE_CELL:
-            if (req_len >= 10) {
+            if (req_len >= 13) {
+                int8_t   x_amp     = (int8_t)req[8];
+                int8_t   w_fixed   = (int8_t)req[9];
+                uint8_t  mode_flag = req[10];
+                uint16_t snap_dly  = (uint16_t)req[11] | ((uint16_t)req[12] << 8);
+                return maml_probe_single_cell(req[5], req[6], req[7], x_amp, w_fixed, mode_flag, snap_dly, resp_buf, resp_max);
+            } else if (req_len >= 10) {
                 int8_t  x_amp     = (int8_t)req[8];
                 int8_t  w_fixed   = (int8_t)req[9];
                 uint8_t mode_flag = (req_len >= 11) ? req[10] : 0x01u;
-                return maml_probe_single_cell(req[5], req[6], req[7], x_amp, w_fixed, mode_flag, resp_buf, resp_max);
+                return maml_probe_single_cell(req[5], req[6], req[7], x_amp, w_fixed, mode_flag, 0, resp_buf, resp_max);
             } else if (req_len >= 8) {
-                return maml_probe_single_cell(req[5], req[6], req[7], 96, 96, 0x00u, resp_buf, resp_max);
+                return maml_probe_single_cell(req[5], req[6], req[7], 96, 96, 0x00u, 0, resp_buf, resp_max);
             }
+            break;
+
+        case MAML_CMD_RAND_DATA:
+            if (req_len >= 6) {
+                g_auto_random_data = req[5] ? 1u : 0u;
+            } else {
+                g_auto_random_data = g_auto_random_data ? 0u : 1u; /* toggle */
+            }
+            if (g_auto_random_data) {
+                maml_generate_new_white_noise_ref();
+            } else {
+                /* Center In-Data rows back to 128 (0.0 V differential) */
+                uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
+                g_dac_row7_code = 128u;
+                g_dac_row8_code = 128u;
+                aio_load_dac2(d2_mid);
+            }
+            aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
             break;
 
         case MAML_CMD_STEP_ONCE:

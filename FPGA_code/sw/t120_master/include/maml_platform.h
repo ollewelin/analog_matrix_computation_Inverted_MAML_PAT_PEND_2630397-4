@@ -35,6 +35,7 @@
 #define MAML_CMD_PROBE_CELL     0x17
 #define MAML_CMD_STEP_ONCE      0x18
 #define MAML_CMD_DIAG_HADAMARD  0x19
+#define MAML_CMD_RAND_DATA      0x1A
 
 /* Run Modes */
 #define MAML_MODE_IDLE          0

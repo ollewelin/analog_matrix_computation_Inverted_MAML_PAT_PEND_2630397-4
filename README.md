@@ -41,6 +41,15 @@ Working with analog computing is an act of balancing physics and precision. Very
     > These results were generated autonomously by the AI agent research suite executing automated tests over UDP directly on the physical hardware while the inventor was away.  
     > While all raw data is captured from hardware registers and telemetries ([`maml_inner_loop_results.json`](FPGA_code/docs/maml_inner_loop_results.json), [`maml_scientific_investigation_data.json`](FPGA_code/docs/maml_scientific_investigation_data.json)), these claims must and will be independently verified by Olle and external researchers before being considered finalized and proven.
 
+- **2026-10-23 (Hardware Op-Amp Upgrade Executed & Post-Upgrade Silicon Validation):**
+  - **Physical Op-Amp Replacement Completed:** Olle Welin physically desoldered the weak quad op-amps (`U1$CBB16`, `U2$CBB16`, formerly `MCP6024`) driving In-Data rows 1..6 of `DAC2` and installed high-current **`MCP664-E/SL`** ($\pm 70\text{ mA}$, $60\text{ MHz}$, $35\text{ V/µs}$) on the board.
+  - **Oscilloscope Bench Verification:** Direct oscilloscope probing on `DAC2_D_ROW1` confirmed that the former $188\text{ mVpp}$ row sag under dynamic column load is completely eliminated ("stabilt rakt streck" / stiff, stable flat rail).
+  - **Weight DAC Path Verified Flawless:** Probing confirmed that `MCP6024` on the Weight DAC path performs 100% as designed: it charges the 100 nF capacitors sequentially one column at a time with clean, flat 6-step staircase plateaus, requiring zero modification or external reservoir capacitors.
+  - **Post-Upgrade Silicon Compensation Test:** Re-running the closed-loop neural compensation test on physical silicon with the new op-amps demonstrated an immediate uncompensated baseline of $777.1\text{ LSB}$ ($1.43\text{ bits}$), reducing to $431.8\text{ LSB}$ ($2.29\text{ bits}$) with trained compensation (-44.4% full-matrix error reduction). Peak transient inner-loop convergence reached **$64.4\text{ LSB}$ RMSE / $5.00\text{ bits}$ ENOB** at Epoch 87, with Column 1 error dropping by 71.5% ($711.1\text{ LSB} \to 202.8\text{ LSB}$).
+  - **Updated Scientific Research Report Published:** Updated 5-page report available in [`FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.pdf`](FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.pdf).
+  - > ⚠️ **DISCLAIMER:**  
+    > **Olle Welin has not yet manually verified all AI agent statements and metrics; independent verification is ongoing.**
+
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
 ![](Fig8_Hadamard_carrier_injection_circuit.png)
 

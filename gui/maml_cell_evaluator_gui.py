@@ -130,6 +130,7 @@ class MultiplierDynamicsWindow(QMainWindow):
         self.client = MamlUdpClient(host=host, port=port, timeout=0.35)
         self.consecutive_history: List[Dict[str, Any]] = []
         self.last_hadamard_dump: Optional[Dict[str, Any]] = None
+        self.is_random_data_running: bool = False
 
         self.setWindowTitle("Inverted MAML - Single-Cell Multiplier Dynamic Evaluator (Pure Hardware)")
         self.resize(1340, 890)
@@ -325,9 +326,10 @@ class MultiplierDynamicsWindow(QMainWindow):
         tg_layout.addWidget(QLabel("Multiplier Snapshot Time:"), 1, 0)
         self.slider_mult_pos = QSlider(Qt.Horizontal)
         self.slider_mult_pos.setRange(0, 95)
-        self.slider_mult_pos.setValue(50)    # default 5.0 ms
+        self.slider_mult_pos.setValue(50)    # default 5.0 ms (5000 us)
+        self.current_mult_snapshot_us = 5000
         self.lbl_mult_val = QLabel("5.0 ms")
-        self.slider_mult_pos.valueChanged.connect(lambda v: self.lbl_mult_val.setText(f"{v/10.0:.1f} ms"))
+        self.slider_mult_pos.valueChanged.connect(self.on_multiplier_slider_changed)
         tg_layout.addWidget(self.slider_mult_pos, 1, 1)
         tg_layout.addWidget(self.lbl_mult_val, 1, 2)
 
@@ -380,9 +382,9 @@ class MultiplierDynamicsWindow(QMainWindow):
         btn_rand_weights.clicked.connect(self.on_randomize_weights)
         ug_layout.addWidget(btn_rand_weights, 1, 0)
 
-        btn_rand_data = QPushButton("Randomize In-Data Rows")
-        btn_rand_data.clicked.connect(self.on_randomize_data)
-        ug_layout.addWidget(btn_rand_data, 1, 1, 1, 2)
+        self.btn_rand_data = QPushButton("Start Random In-Data (100 Hz)")
+        self.btn_rand_data.clicked.connect(self.on_randomize_data)
+        ug_layout.addWidget(self.btn_rand_data, 1, 1, 1, 2)
 
         btn_self_test = QPushButton("Automated Multiplier Self-Test")
         btn_self_test.clicked.connect(self.on_run_self_test)
@@ -443,18 +445,20 @@ class MultiplierDynamicsWindow(QMainWindow):
                 self.lbl_status.setText(f"Hardware ONLINE: {banner.strip()[:42]}...")
                 self.lbl_status.setStyleSheet("color: #76ff03; font-weight: bold;")
                 self.log(f"Connected to T120 SoC: {banner.strip()}")
-                # Initial config: Set Hadamard burst delay to 2.0 ms
+                # Initial config: Read telemetry to preserve active hardware jumper mode (Mode B = 1)
+                t = self.client.poll_telemetry()
+                jm = t.jumper_mode if (t and t.jumper_mode in (1, 2, 3)) else 1
                 self.client.set_config(
                     mode=0,
-                    jumper_mode=3,
-                    led_switches=0,
-                    max_meas_win_pct=50,
-                    hadamard_khz=250,
-                    inner_loop_n=10,
-                    seed_pct=28,
-                    seed_mode=0,
-                    w_hid_mag=16,
-                    trim_hid_mag=0,
+                    jumper_mode=jm,
+                    led_switches=t.led_switches if t else 0,
+                    max_meas_win_pct=t.max_meas_win_pct if t else 50,
+                    hadamard_khz=t.hadamard_khz if t else 250,
+                    inner_loop_n=t.inner_loop_n if t else 10,
+                    seed_pct=t.seed_pct if t else 28,
+                    seed_mode=t.seed_mode if t else 0,
+                    w_hid_mag=t.w_hid_mag if t else 16,
+                    trim_hid_mag=t.trim_hid_mag if t else 0,
                     hadamard_delay_us=2000,
                 )
             else:
@@ -466,23 +470,31 @@ class MultiplierDynamicsWindow(QMainWindow):
             self.lbl_status.setStyleSheet("color: #ff1744; font-weight: bold;")
             self.log(f"Connection exception: {e}")
 
+    def on_multiplier_slider_changed(self, v: int):
+        delay_us = v * 100
+        self.lbl_mult_val.setText(f"{delay_us / 1000.0:.1f} ms")
+        self.current_mult_snapshot_us = delay_us
+        self.log(f"Multiplier snapshot time set to {delay_us} µs ({delay_us/1000.0:.1f} ms).")
+
     def on_hadamard_slider_changed(self, v: int):
         delay_us = v * 100
         self.lbl_had_val.setText(f"{delay_us / 1000.0:.1f} ms")
+        t = self.client.sim_telemetry
+        jm = t.jumper_mode if (t and t.jumper_mode in (1, 2, 3)) else 1
         self.client.set_config(
-            mode=0,
-            jumper_mode=3,
-            led_switches=0,
-            max_meas_win_pct=50,
-            hadamard_khz=250,
-            inner_loop_n=10,
-            seed_pct=28,
-            seed_mode=0,
-            w_hid_mag=16,
-            trim_hid_mag=0,
+            mode=t.mode if t else 0,
+            jumper_mode=jm,
+            led_switches=t.led_switches if t else 0,
+            max_meas_win_pct=t.max_meas_win_pct if t else 50,
+            hadamard_khz=t.hadamard_khz if t else 250,
+            inner_loop_n=t.inner_loop_n if t else 10,
+            seed_pct=t.seed_pct if t else 28,
+            seed_mode=t.seed_mode if t else 0,
+            w_hid_mag=t.w_hid_mag if t else 16,
+            trim_hid_mag=t.trim_hid_mag if t else 0,
             hadamard_delay_us=delay_us,
         )
-        self.log(f"Configured Hadamard 24µs burst delay to {delay_us} µs ({delay_us/1000.0:.1f} ms) post-refresh.")
+        self.log(f"Configured Hadamard 24µs burst delay to {delay_us} µs ({delay_us/1000.0:.1f} ms) post-refresh (Jumper Mode {jm}).")
 
     def get_selected_matrix_id(self) -> int:
         idx = self.cb_matrix.currentIndex()
@@ -498,8 +510,16 @@ class MultiplierDynamicsWindow(QMainWindow):
         col = self.sb_col.value()
         x_val = self.slider_x.value()
         w_val = self.slider_w.value()
+        snap_us = getattr(self, "current_mult_snapshot_us", 5000)
 
-        self.log(f"Probing Cell (Mat={mat_id}, R={row}, C={col}) with X={x_val:+d}, W={w_val:+d}...")
+        # Automatically stop autonomous random In-Data when probing a single cell
+        if getattr(self, "is_random_data_running", False):
+            self.is_random_data_running = False
+            self.btn_rand_data.setText("Start Random In-Data (100 Hz)")
+            self.btn_rand_data.setStyleSheet("")
+            self.log("Autonomous random In-Data stopped for single-cell probe.")
+
+        self.log(f"Probing Cell (Mat={mat_id}, R={row}, C={col}) with X={x_val:+d}, W={w_val:+d} at snapshot t={snap_us} µs...")
         try:
             res: Optional[CellProbeResult] = self.client.probe_cell_xw(
                 matrix_id=mat_id,
@@ -509,6 +529,7 @@ class MultiplierDynamicsWindow(QMainWindow):
                 w_fixed=w_val,
                 sweep_input=True,
                 hold=False,
+                snap_dly_us=snap_us,
             )
             if res is None:
                 self.log("ERROR: No response from hardware on cell probe.")
@@ -622,32 +643,38 @@ class MultiplierDynamicsWindow(QMainWindow):
 
     def on_randomize_weights(self):
         strength = self.slider_strength.value()
-        self.log(f"Applying random weights across all matrices with strength {strength}%...")
+        self.log(f"Applying random weights across all matrices (including Matrix 33) with strength {strength}%...")
         try:
             self.client.seed_weights(seed_mode=0, swing_pct=strength)
-            self.log("Random weights applied directly to hardware registers.")
+            self.log("Random weights applied and refreshing continuously into 2T1C capacitors at 100 Hz.")
         except Exception as e:
             self.log(f"Error randomizing weights: {e}")
 
     def on_randomize_data(self):
-        import random
-        strength = self.slider_strength.value()
-        spread = int(127 * (strength / 100.0))
-        d2_codes = [random.randint(128 - spread, 128 + spread) for _ in range(6)]
-        self.log(f"Applying random In-Data row values (strength {strength}%): {d2_codes}...")
+        self.is_random_data_running = not getattr(self, "is_random_data_running", False)
         try:
-            for ch, code in enumerate(d2_codes):
-                self.client.set_dac_mode(osc_10hz_en=False, ovr_en=True, bank=0, ch=ch, val=code)
-            self.log("Random In-Data DAC_2 rows loaded into hardware.")
+            if self.is_random_data_running:
+                self.client.randomize_in_data_rows(enable=True)
+                self.btn_rand_data.setText("Stop Random In-Data (100 Hz)")
+                self.btn_rand_data.setStyleSheet("background-color: #c62828; color: white; font-weight: bold;")
+                self.log("Autonomous 100 Hz In-Data random pulse train STARTED on DAC_2.")
+            else:
+                self.client.randomize_in_data_rows(enable=False)
+                self.btn_rand_data.setText("Start Random In-Data (100 Hz)")
+                self.btn_rand_data.setStyleSheet("")
+                self.log("Autonomous 100 Hz In-Data random pulse train STOPPED (centered to 128 / 0.0V).")
         except Exception as e:
-            self.log(f"Error randomizing data rows: {e}")
+            self.log(f"Error toggling random In-Data train: {e}")
 
     def on_reset_center(self):
+        self.is_random_data_running = False
+        self.btn_rand_data.setText("Start Random In-Data (100 Hz)")
+        self.btn_rand_data.setStyleSheet("")
         self.log("Resetting all weights and In-Data rows to center (128 / 0.0V differential)...")
         try:
             self.client.center_compensation_weights()
             self.client.set_dac_mode(osc_10hz_en=False, ovr_en=False, bank=0, ch=0, val=128)
-            self.log("Hardware reset to center complete.")
+            self.log("Hardware reset to center complete (weights=128, data=128, auto-random data stopped).")
         except Exception as e:
             self.log(f"Error resetting hardware: {e}")
 

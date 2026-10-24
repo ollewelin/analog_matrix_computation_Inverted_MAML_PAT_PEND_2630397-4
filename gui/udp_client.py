@@ -28,6 +28,7 @@ MAML_CMD_SEED_WEIGHTS   = 0x16
 MAML_CMD_CELL_DIAG      = 0x17
 MAML_CMD_STEP_OUTER     = 0x18
 MAML_CMD_DIAG_HADAMARD  = 0x19
+MAML_CMD_RAND_DATA      = 0x1A
 
 # Matrix IDs matching maml_platform.h (0=M3, 1=M8, 2=M33)
 MAT_M3  = 0
@@ -441,9 +442,9 @@ class MamlUdpClient:
             t.hadamard_khz,
             t.max_meas_win_pct,
             t.inner_loop_n,
-            10,
+            1,
             max(-127, min(127, int(t.trim_hid_mag))),
-            max(1, min(64, int(t.w_hid_mag))),
+            max(0, min(64, int(t.w_hid_mag))),
             max(0, min(9500, int(hadamard_delay_us))),
         )
         self._send_binary(MAML_CMD_SET_CONFIG, payload)
@@ -523,16 +524,18 @@ class MamlUdpClient:
         w_fixed: int = 64,
         sweep_input: bool = True,
         hold: bool = False,
+        snap_dly_us: int = 0,
     ) -> Optional[CellProbeResult]:
         """
         Locks cell (matrix_id, row, col) at fixed weight W = w_fixed (-127..+127)
         and steps Input row DAC_2[row] across X = 0 (adc_zero), X = +x_amp (adc_pos),
-        and X = -x_amp (adc_neg).
+        and X = -x_amp (adc_neg) with user-selectable snapshot time snap_dly_us (0..9500 us).
         """
         x_clamped = max(-127, min(127, int(x_amp)))
         w_clamped = max(-127, min(127, int(w_fixed)))
         mode_flag = (0x01 if sweep_input else 0x00) | (0x02 if hold else 0x00)
-        payload = struct.pack("<BBBbbB", matrix_id & 0xFF, row & 0xFF, col & 0xFF, x_clamped, w_clamped, mode_flag)
+        snap_u16 = max(0, min(9500, int(snap_dly_us)))
+        payload = struct.pack("<BBBbbBH", matrix_id & 0xFF, row & 0xFF, col & 0xFF, x_clamped, w_clamped, mode_flag, snap_u16)
         raw = self._send_binary(MAML_CMD_CELL_DIAG, payload)
         if raw is not None and len(raw) >= self.PROBE_SIZE:
             u = struct.unpack(self.PROBE_FMT, raw[:self.PROBE_SIZE])
@@ -549,6 +552,13 @@ class MamlUdpClient:
                     adc49_zero=list(u[35:41]),
                 )
         return None
+
+    def randomize_in_data_rows(self, enable: Optional[bool] = None) -> None:
+        """Controls continuous 100 Hz autonomous white-noise In-Data random pulse train."""
+        if enable is None:
+            self._send_binary(MAML_CMD_RAND_DATA)
+        else:
+            self._send_binary(MAML_CMD_RAND_DATA, struct.pack("<B", 1 if enable else 0))
 
     def run_single_cell_multiplier_curve(
         self,

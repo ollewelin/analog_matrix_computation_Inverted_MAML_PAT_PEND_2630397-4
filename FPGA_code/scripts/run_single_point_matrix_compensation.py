@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/olle/anaconda3/bin/python
 """
 Full-Matrix Neural Network Compensation & Bit Precision Evaluator
 ================================================================
@@ -69,7 +69,12 @@ class SinglePointMatrixCompensationRunner:
         return version
 
     def get_telemetry_raw(self) -> Dict[str, Any]:
-        raw = self.client._send_binary(MAML_CMD_GET_TELEMETRY)
+        raw = None
+        for retry in range(3):
+            raw = self.client._send_binary(MAML_CMD_GET_TELEMETRY)
+            if raw is not None and len(raw) >= self.client.TELEM_SIZE:
+                break
+            time.sleep(0.05)
         if raw is None or len(raw) < self.client.TELEM_SIZE:
             raise RuntimeError("Failed to receive telemetry from hardware!")
         u = struct.unpack(self.client.TELEM_FMT, raw[:self.client.TELEM_SIZE])
@@ -148,27 +153,29 @@ class SinglePointMatrixCompensationRunner:
             "samples": samples,
         }
 
-    def run_local_t120_inner_training(self, train_duration_sec: float = 12.0) -> Dict[str, Any]:
+    def run_local_t120_inner_training(self, train_duration_sec: float = 12.0, jumper_mode: int = 2) -> Dict[str, Any]:
         """
         Commands the T120 RISC-V SoC to execute local inner-loop neural network training.
         All gradient descent and Hadamard sensitivities execute in T120 C firmware.
         """
+        mode_str = "JUMPER_BYPASS_SIG2 (Mode C: Sigmoid Bypass)" if jumper_mode == 2 else "JUMPER_USE_SIG2 (Mode A: Sigmoid Active)"
         print(f"\n[*] Phase 2: Starting Local T120 Inner-Loop Training for {train_duration_sec:.1f} seconds...")
         print("    Configuration:")
         print("      - Run Mode: MAML_MODE_BASE_TRAIN (Local Autonomous C Execution)")
         print("      - Outer MAML: SKIPPED (w_hid_mag = 0, no resets)")
         print("      - Strata: num_strata_m = 1 (Fixed Single Time-Point)")
         print(f"      - Target Time Slice: t0 = {self.target_time_us} us")
-        print("      - Analog Jumper: JUMPER_USE_SIG2 (M3 -> Sigmoid -> M8 Active)")
+        print(f"      - Analog Jumper: {mode_str}")
+        print("      - Reduced Step Schedule: inner_loop_n = 10, seed_pct = 14% (Lower Learning Steps)")
 
         self.client.set_config(
             mode=1, # BASE_TRAIN
-            jumper_mode=3, # JUMPER_USE_SIG2
+            jumper_mode=jumper_mode, # 2 for Mode C (Bypass Sigmoid)
             led_switches=0,
             max_meas_win_pct=25,
             hadamard_khz=500,
-            inner_loop_n=20,
-            seed_pct=28,
+            inner_loop_n=10,
+            seed_pct=14,
             seed_mode=1,
             w_hid_mag=0, # SKIPS outer MAML!
             trim_hid_mag=0,
@@ -191,12 +198,12 @@ class SinglePointMatrixCompensationRunner:
         # Stop training, place into IDLE but KEEP LEARNED WEIGHTS active
         self.client.set_config(
             mode=0, # IDLE
-            jumper_mode=3,
+            jumper_mode=jumper_mode,
             led_switches=0,
             max_meas_win_pct=25,
             hadamard_khz=500,
-            inner_loop_n=20,
-            seed_pct=28,
+            inner_loop_n=10,
+            seed_pct=14,
             seed_mode=1,
             w_hid_mag=0,
             trim_hid_mag=0,
@@ -323,8 +330,8 @@ def main() -> int:
         # 1. Uncompensated Baseline
         baseline_results = runner.measure_uncompensated_baseline(num_samples=15)
 
-        # 2. Local T120 Inner-Loop Training
-        training_results = runner.run_local_t120_inner_training(train_duration_sec=12.0)
+        # 2. Local T120 Inner-Loop Training in Mode C (Bypass Sigmoid, Reduced Step Schedule)
+        training_results = runner.run_local_t120_inner_training(train_duration_sec=12.0, jumper_mode=2)
 
         # 3. Compensated Evaluation
         compensated_results = runner.measure_compensated_performance(num_samples=15)
