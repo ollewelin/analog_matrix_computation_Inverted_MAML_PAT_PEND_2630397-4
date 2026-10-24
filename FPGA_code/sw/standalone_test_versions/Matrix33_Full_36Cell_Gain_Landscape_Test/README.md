@@ -66,3 +66,4 @@ python3 FPGA_code/sw/standalone_test_versions/Matrix33_Full_36Cell_Gain_Landscap
 # Generate PDF report
 python3 FPGA_code/sw/standalone_test_versions/Matrix33_Full_36Cell_Gain_Landscape_Test/scripts/generate_matrix33_landscape_report_pdf.py
 ```
+
