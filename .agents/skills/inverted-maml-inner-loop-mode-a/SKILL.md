@@ -112,16 +112,16 @@ $$V_{\text{SUM\_j}} = \left( \frac{3.9\,\text{k}\Omega}{4.9\,\text{k}\Omega} \ri
 
 ## 3. Patent SE 2630397-4: Exact Gradient Mathematics
 
-### 3.1 Output Error & Masked Loss Function (Equation 1)
+### 3.1 Output Error & Full 6-Column Loss Function (Equation 1)
 For a stationary input vector $\mathbf{x}$, the T120 compares the ideal digital model target output $\mathbf{Z}_{\text{target}}$ against the physical analog reading $\mathbf{Z}_{\text{out}}$ from `ADC_49`:
 
 $$Er_j^{(49)} = Z_{\text{target},j} - Z_{\text{out},j}^{(49)}$$
 
-> [!IMPORTANT]
-> **MASKED LOSS ENFORCEMENT:**
-> Because Columns 2 and 3 are physically saturated at negative rails ($-1600\text{ to }-2048\text{ LSB}$), **THEY MUST BE EXCLUDED FROM THE LOSS FUNCTION**. Training against saturated rails produces an artificial $2000^2 = 4\times 10^6$ error that destroys the weights.
-> Restrict Loss computation strictly to functional columns:
-> $$\mathcal{L}_{\text{total}} = \frac{1}{2} \sum_{j \in \{0, 1, 4, 5\}} \left( Er_j^{(49)} \right)^2 \quad \text{(Equation 1 Masked)}$$
+> [!NOTE]
+> **FULL 6-COLUMN OPERATION (EMPIRICALLY VERIFIED AT 5.0 ms):**
+> Live hardware characterization at $t = 5.0\text{ ms}$ in Mode A confirms that **all 6 columns ($j \in \{0, 1, 2, 3, 4, 5\}$) are healthy and active**, responding with dynamic deltas between $350\text{ mV}$ and $1080\text{ mV}$. Columns 2 and 3 are NOT stuck at rails in this operating mode!
+> The loss function is computed across **all 6 columns**:
+> $$\mathcal{L}_{\text{total}} = \frac{1}{2} \sum_{j=0}^{5} \left( Er_j^{(49)} \right)^2 \quad \text{(Equation 1)}$$
 
 ---
 

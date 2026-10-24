@@ -28,7 +28,7 @@
 >
 > 4. **SLUT LOOPEN MED ENBART INNER LOOP TRÄNING (INGEN MAML ÄN):**
 >    - Stäng av MAML yttre loop och basin-hopping (`w_hid_mag = 0, trim_hid_mag = 0`).
->    - Tillämpa **Masked Loss** enbart på de friska kolumnerna (**Kolumn 0, 1, 4 och 5**). Kolumn 2 och 3 hålls strikt utanför förlustfunktionen.
+>    - **ALLA 6 KOLUMNER ÄR AKTIVA:** Kiselmätning 2026-10-24 13:16 bekräftar att **samtliga 6 kolumner (0, 1, 2, 3, 4, 5)** svarar med ren dynamik (350–1000 mV). Kolumn 2 och 3 är alltså INTE trasiga eller bottnade! Träna därför över **alla 6 kolumner** ($j \in \{0..5\}$).
 >    - Kör försiktiga inre loop-varv ($N = 50\text{--}100$) med låg learning rate ($\alpha_{\text{inner}} \approx 0.005$).
 >
 > 5. **FRAMGÅNGSKRITERIUM FÖR STEG 1:**
@@ -84,12 +84,15 @@ Nedan visas det fysiska kretsschemat för summeringsnoden före utgångs-ADC (`A
 
 ### De Exakta Gradientekvationerna (Enligt Patentet):
 
-#### 1. Utsignalsfel & Maskad Förlust (Ekvation 1)
+#### 1. Utsignalsfel & Total Förlust (Ekvation 1)
 $$Er_j^{(49)} = Z_{\text{target},j} - Z_{\text{out},j}^{(49)}$$
 
-**MASKAD FÖRLUST (KRITISKT):**  
-Eftersom Kolumn 2 och 3 är hårdmättade mot negativa rails ($-2048\text{ LSB}$), **MÅSTE DE EXKLUDERAS** från förlustberäkningen:
-$$\mathcal{L} = \frac{1}{2} \sum_{j \in \{0, 1, 4, 5\}} \left( Er_j^{(49)} \right)^2$$
+**FULL 6-KOLUMNS FÖRLUST (BEKRÄFTAT PÅ KISEL VID 5.0 ms):**  
+Kiselmätning den 2026-10-24 kl 13:16 vid $t = 5.0\text{ ms}$ i Mode A med centrerade vikter visar att **samtliga 6 kolumner ($j \in \{0, 1, 2, 3, 4, 5\}$) är fullt friska och aktiva**. De uppvisar kraftfulla differentiella utslag ($350\text{ till }1080\text{ mV}$). Kolumn 2 och 3 är alltså **INTE** bottnade mot rails!  
+Förlustfunktionen beräknas därför över **alla 6 kolumner**:
+$$\mathcal{L} = \frac{1}{2} \sum_{j=0}^{5} \left( Er_j^{(49)} \right)^2$$
+
+*(Notera: Tidigare masking-rekommendationer var en tillfällig nödlösning från äldre mjukvaruversioner med osynkroniserad timing).*
 
 #### 2. Gradient för Layer 2 ($M_8$) — Direkt Hadamard-produkt (Ekvation 2)
 Den demodulerade Hadamard-känsligheten mätt vid `ADC_49` är redan $\sigma_2'(y_j^{(8)}) \cdot x_i^{(8)}$. Gradienten är därför helt enkelt:
@@ -103,7 +106,8 @@ För att propagera känsligheten bakåt till Layer 1 ($M_3$) måste vi veta hur 
    $$\sigma_2'\!\left(y_j^{(8)}\right) \approx \frac{x_k^{(8)}}{\left(x_k^{(8)}\right)^2 + \alpha} \cdot \left\langle \frac{\partial z_j^{(49)}}{\partial W_{k,j}^{(8)}} \right\rangle_{\text{Hadamard}}$$
 
 #### 4. Känslighetskvitto till Layer 1 (Ekvation 4)
-$$\partial x_i^{(8)} = \sum_{j \in \{0, 1, 4, 5\}} W_{i,j}^{(8)\text{digital}} \cdot \sigma_2'\!\left(y_j^{(8)}\right) \cdot Er_j^{(49)}$$
+Summerat över samtliga 6 funktionella kolumner:
+$$\partial x_i^{(8)} = \sum_{j=0}^{5} W_{i,j}^{(8)\text{digital}} \cdot \sigma_2'\!\left(y_j^{(8)}\right) \cdot Er_j^{(49)}$$
 
 #### 5. Gradient för Layer 1 ($M_3$) — Direkt Hadamard-produkt (Ekvation 7)
 Känsligheten mätt vid `ADC_45` under $M_3$-perturbationen innehåller redan insignalen $x_i^{(3)}$ och den första sigmoidens derivata $\sigma_1'$. Gradienten är därför:
@@ -153,7 +157,7 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | **Mättidpunkt** | Låst till $5.0\text{ ms}$ | `hadamard_delay_us = 5000` | ❌ Sprida ut mätningen över hela cykeln i fas 1 |
 | **Yttre loop (MAML)** | Avstängd i fas 1 | `w_hid_mag = 0, trim_hid_mag = 0` | ❌ Slå på basin-hopping och hidden offsets innan inre loopen konvergerar |
-| **Maskade kolumner** | Kolumn 2 och 3 exkluderade | Träna enbart på $\{0, 1, 4, 5\}$ | ❌ Inkludera bottnade rails i loss-funktionen |
+| **Alla 6 Kolumner Aktiva** | Samtliga kolumner 0..5 friska på kisel | Träna över alla 6 kolumner ($j \in \{0..5\}$) | ❌ Maskera bort fungerande kanaler i onödan |
 | **Layer 2 gradient** | Direkt felprodukt | `grad_M8 = hadamard_M8 * err_49` | ❌ Multiplicera med $x_i^{(8)}$ |
 | **Layer 1 gradient** | Direkt bärvågsprodukt | `grad_M3 = hadamard_M3 * dx8` | ❌ Multiplicera med $x_i^{(3)}$ eller digital $\tanh'$ |
 | **1k/3.9k Dämpare** | $\approx 20.4\%$ auktoritet | Utnyttja som Vernier-fintrimning | ❌ Förvänta sig att kompensationen kan överrösta fullskaliga railfel |
