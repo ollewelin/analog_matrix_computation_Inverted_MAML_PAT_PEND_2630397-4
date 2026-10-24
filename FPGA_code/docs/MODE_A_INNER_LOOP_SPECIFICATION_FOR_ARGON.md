@@ -8,6 +8,19 @@
 
 ---
 
+## 0. Obligatorisk Inläsning av Patentet för Argon (Prerequisite Reading)
+
+> [!IMPORTANT]
+> **INSTRUCTON TILL ARGON AI AGENTEN:**
+> Innan du rör en enda rad kod eller startar en träningscykel MÅSTE du läsa igenom följande centrala dokument i detta repository för att förstå patentets helhet och dess fysikaliska konstruktion:
+> 
+> 1. **[maml_eng.txt](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/maml_eng.txt):** Den fullständiga patentskriften (1416 rader) på engelska för SE 2630397-4. Beskriver Atomic Triad (3, 8, 33), aktiveringsfunktioner (4, 10), bärvågssökning, Ekvationerna 1–7, och MAML inner/outer loop.
+> 2. **[NON_BACKPROP_HADAMARD_GRADIENT_RULES.md](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/NON_BACKPROP_HADAMARD_GRADIENT_RULES.md):** Teknisk genomgång av varför Forward Hadamard Gradient Extraction INTE är digital backpropagation, varför $x_i$-multiplikation är strikt förbjuden, och hur bärvågssökningen ($k = \arg\max |x_i^{(8)}|$) fungerar.
+> 3. **[IP_REPRODUCTION_SPEC.md](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/IP_REPRODUCTION_SPEC.md):** Hårdvarureferens med schematisk koppling till Dual-2T1C, Efinix T120 Master SoC och T20 Coprocessor.
+> 4. **[inverted_maml_math.md](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/inverted_maml_math.md):** Matematisk specifikation för inre loopen och den minnessnåla skalärprodukts-Hessian-approximationen i den yttre loopen.
+
+---
+
 ## 1. Kretsschema: Dämparen $1\text{ k}\Omega / 3.9\text{ k}\Omega$ (Vernier Fintrimning)
 
 Nedan visas det fysiska kretsschemat för summeringsnoden före utgångs-ADC (`ADC_49`):

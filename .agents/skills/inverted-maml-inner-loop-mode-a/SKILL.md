@@ -22,6 +22,15 @@ description: Architectural specification, patent mathematics, schematic analysis
 >
 > **Multiplying the demodulated Hadamard sensitivity by input $x_i$ a second time in digital firmware/software squares the input ($x_i^2$), corrupts the gradient sign and magnitude, and destroys training convergence.**
 
+### Mandatory Prerequisite Reading for Argon AI Agent
+Before touching code or executing training cycles, Argon MUST read:
+1. **`maml_eng.txt`**: The complete patent application (1416 lines) for SE 2630397-4. Details the Atomic Triad (3, 8, 33), activations (4, 10), reference numerals 1..44, and Equations 1–7.
+2. **`FPGA_code/docs/NON_BACKPROP_HADAMARD_GRADIENT_RULES.md`**: Architectural derivation of why forward Hadamard perturbation replaces standard backpropagation and why $x_i$ multiplication is strictly forbidden.
+3. **`FPGA_code/docs/IP_REPRODUCTION_SPEC.md`**: Hardware reproduction specification and schematic mappings.
+4. **`FPGA_code/docs/inverted_maml_math.md`**: Mathematical formulations of the inner loop and dot-product outer loop.
+
+---
+
 ### Why Standard PyTorch / Backprop Assumptions Fail
 In digital neural networks, backpropagation assumes:
 1. Every forward operation is perfectly linear or known analytically ($y = Wx$, $\sigma(y) = \frac{1}{1 + e^{-y}}$).
@@ -176,3 +185,4 @@ $$\boxed{\frac{\partial \mathcal{L}_{\text{total}}}{\partial W_{i,j}^{(3)}} = \l
 | **Carrier Row** | $k = \arg\max_i |x_i^{(8)}|$ on `ADC_45` | Protect with Tikhonov $\alpha$ |
 | **$M_3$ Gradient** | `grad_M3 = hadamard_M3 * dx8` | **NO** $x_i^{(3)}$ or $\tanh'$ multiplication! |
 | **Attenuator Check** | Compensation authority $\approx 20.4\%$ of output | Confirm Vernier trim scaling |
+
