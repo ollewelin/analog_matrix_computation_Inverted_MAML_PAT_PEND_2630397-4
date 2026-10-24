@@ -1,0 +1,88 @@
+================================================================================
+INVERTED MAML — MATRIX 33 FULL 36-CELL GAIN LANDSCAPE STANDALONE TEST SOFTWARE
+================================================================================
+Test Suite: Matrix 33 Full 6x6 Multiplier Gain Landscape & Turnaround Analysis
+Architecture: Trion T120 Master SoC (RISC-V Sapphire) + T20 Coprocessor
+Board IP / Port: 192.168.1.50:5000 (Ethernet UDP)
+Hardware Mode: MODE B (Jumper Mode 1 — Uncompensated Pure Payload Matrix 33)
+Creation Date: 2026-10-24
+Git Commit: 094eea7 ("feat: full 36-cell Matrix 33 3D landscape mapping skill and report")
+Patent Pending: SE 2630397-4
+
+--------------------------------------------------------------------------------
+FPGA BITSTREAM & FIRMWARE BINARY LOCATION (PRIMARY ARCHIVE)
+--------------------------------------------------------------------------------
+The exact bitstream and firmware binaries used for this test are preserved in:
+  FPGA_code/bitstreams_archive/20261024_T120_MAML_DecoupledTiming_M3_M33_Alive/
+
+Files:
+  1. FPGA Bitstream (.bit):
+     Path:   FPGA_code/bitstreams_archive/20261024_T120_MAML_DecoupledTiming_M3_M33_Alive/T120_MALM.bit
+     MD5:    3f7be1a6089bfe26211f77f84768ad44
+     Size:   10,651,071 bytes
+
+  2. FPGA Flash Bitstream (.hex):
+     Path:   FPGA_code/bitstreams_archive/20261024_T120_MAML_DecoupledTiming_M3_M33_Alive/T120_MALM.hex
+     MD5:    05f2e3f3a96c1588139bfbcf5416b27d
+     Size:   10,651,071 bytes
+
+  3. Sapphire SoC RISC-V Firmware (.bin):
+     Path:   FPGA_code/bitstreams_archive/20261024_T120_MAML_DecoupledTiming_M3_M33_Alive/t120_master.bin
+     Local:  FPGA_code/sw/standalone_test_versions/Matrix33_Full_36Cell_Gain_Landscape_Test/bin/t120_master.bin
+     MD5:    0b47d93dd68543afd18cad5736c67a9e
+     Size:   27,182 bytes
+
+  4. Sapphire SoC RISC-V Firmware (.hex):
+     Path:   FPGA_code/bitstreams_archive/20261024_T120_MAML_DecoupledTiming_M3_M33_Alive/t120_master.hex
+     Local:  FPGA_code/sw/standalone_test_versions/Matrix33_Full_36Cell_Gain_Landscape_Test/bin/t120_master.hex
+     MD5:    dad53d94320a2e8201bdbab00fdb759f
+     Size:   76,528 bytes
+
+  5. Sapphire SoC RISC-V Firmware ELF (.elf):
+     Path:   FPGA_code/bitstreams_archive/20261024_T120_MAML_DecoupledTiming_M3_M33_Alive/t120_master.elf
+     Local:  FPGA_code/sw/standalone_test_versions/Matrix33_Full_36Cell_Gain_Landscape_Test/bin/t120_master.elf
+     MD5:    1afc7ea67c8bd62a7f504c7290eb4b50
+     Size:   38,612 bytes
+
+Active Efinity Outflow Path:
+  FPGA_code/outflow/T120_MALM.bit
+  FPGA_code/outflow/T120_MALM.hex
+
+--------------------------------------------------------------------------------
+SOFTWARE FEATURES IN THIS STANDALONE VERSION
+--------------------------------------------------------------------------------
+1. Decoupled Snapshot Timing:
+   Allows setting any arbitrary ADC sample delay t between 0 and 9.5 ms
+   (0 to 9500 us) relative to the 100 Hz autonomous column refresh pulse.
+2. Auto-Pause of Background Random In-Data:
+   When `maml_probe_single_cell()` is called via UDP (0x17), `g_auto_random_data`
+   is automatically cleared to 0, ensuring that unprobed rows remain in a 100%
+   quiescent, silent state (all DAC_2 = 128 / 0.0V differential).
+3. 36-Cell Simultaneous Column Sampling:
+   Each probe read triggers synchronous conversion across all 6 columns of ADC49,
+   enabling rapid mapping of the full 6x6 matrix.
+4. Autonomous 100 Hz Refresh Preservation:
+   Gate voltages on the 100 nF capacitors are refreshed continuously at 100 Hz,
+   maintaining stable operating regimes.
+
+--------------------------------------------------------------------------------
+HOW TO RE-RUN THE TEST SUITE
+--------------------------------------------------------------------------------
+To run the automated 36-cell matrix sweep:
+  cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4
+  python3 FPGA_code/sw/standalone_test_versions/Matrix33_Full_36Cell_Gain_Landscape_Test/scripts/map_matrix33_full_landscape.py --mode fast
+
+To regenerate the 3D and 2D publication figures:
+  python3 FPGA_code/sw/standalone_test_versions/Matrix33_Full_36Cell_Gain_Landscape_Test/scripts/plot_matrix33_full_landscape.py
+
+To regenerate the PDF report:
+  python3 FPGA_code/sw/standalone_test_versions/Matrix33_Full_36Cell_Gain_Landscape_Test/scripts/generate_matrix33_landscape_report_pdf.py
+
+--------------------------------------------------------------------------------
+DOCUMENTATION & PUBLICATION REPORTS
+--------------------------------------------------------------------------------
+  - PDF Report:  FPGA_code/docs/MATRIX_33_FULL_6X6_GAIN_LANDSCAPE_REPORT.pdf
+  - Markdown:    FPGA_code/docs/MATRIX_33_FULL_6X6_GAIN_LANDSCAPE_REPORT.md
+  - Skill Guide: .agents/skills/matrix33-full-landscape-mapping/SKILL.md
+  - JSON Data:   FPGA_code/docs/matrix33_full_landscape.json
+================================================================================
