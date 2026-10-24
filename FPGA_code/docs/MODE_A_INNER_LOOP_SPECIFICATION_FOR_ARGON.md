@@ -4,7 +4,35 @@
 **Patentansökan:** SE 2630397-4  
 **Hårdvara:** Efinix Trion T120 Master SoC + T20 Coprocessor (`192.168.1.50:5000`)  
 **Driftläge:** Mode A (Jumper ON — Kompensation inkopplad via $M_3$ och $M_8$)  
-**Första Milstolpe:** Enpunkts Inre Loop-Träning vid $t = 5.0\text{ ms}$ (Stadig loss-sänkning och ENOB-tillväxt)
+**Huvudmål:** Steg 1 / Milstolpe 1 — Inläsning, låsning till $5.0\text{ ms}$, dämparkontroll och Inner Loop-konvergens med ENOB-ökning
+
+---
+
+## 🎯 ARGONS HUVUDUPPDRAG: STEG 1 (MILSTOLPE 1)
+
+> [!IMPORTANT]
+> **EXAKT VAD ARGON SKALL GÖRA I STEG 1:**
+>
+> 1. **LÄS PÅ FÖRST (Obligatorisk inläsning av patentet):**
+>    - Läs igenom [`maml_eng.txt`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/maml_eng.txt) (hela patentet), [`NON_BACKPROP_HADAMARD_GRADIENT_RULES.md`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/NON_BACKPROP_HADAMARD_GRADIENT_RULES.md) och [`IP_REPRODUCTION_SPEC.md`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/IP_REPRODUCTION_SPEC.md).
+>    - **FÖRBJUDET:** Släng INTE på en extra insignalsmultiplikation ($x_i$) i kedjeregeln! Multiplikationen med $x_i$ sker redan i kislets transistorer under Hadamard-perturbationen.
+>
+> 2. **LÅS TIDEN TILL 5.0 ms:**
+>    - Håll mätning och Hadamard strikt låsta till **$5.0\text{ ms}$** (`hadamard_delay_us = 5000`).
+>    - Sprid INTE ut mätningarna över hela 0–9.5 ms cykeln än! Det är Steg 2.
+>
+> 3. **KONTROLLERA MITTLÄGE (CENTER) & 1k/3.9k DÄMPAREN I MODE A:**
+>    - Slut jumpern (Mode A).
+>    - Sätt alla kompensationsvikter i mitten/noll ($M_3 = 0, M_8 = 0$, kod 128) via `client.center_compensation_weights()`.
+>    - Mät baslinjen och verifiera att signalen dämpas med ca $0.8\times$ (p.g.a. $1\text{ k}\Omega / 3.9\text{ k}\Omega$-dämparen), vilket bekräftar att dämparen fungerar i hårdvaran och sänker bruset.
+>
+> 4. **SLUT LOOPEN MED ENBART INNER LOOP TRÄNING (INGEN MAML ÄN):**
+>    - Stäng av MAML yttre loop och basin-hopping (`w_hid_mag = 0, trim_hid_mag = 0`).
+>    - Tillämpa **Masked Loss** enbart på de friska kolumnerna (**Kolumn 0, 1, 4 och 5**). Kolumn 2 och 3 hålls strikt utanför förlustfunktionen.
+>    - Kör försiktiga inre loop-varv ($N = 50\text{--}100$) med låg learning rate ($\alpha_{\text{inner}} \approx 0.005$).
+>
+> 5. **FRAMGÅNGSKRITERIUM FÖR STEG 1:**
+>    - **Få konvergens!** Se att den maskade förlusten sjunker monotont varv för varv och att ENOB sakta och kontrollerat börjar klättra uppåt!
 
 ---
 

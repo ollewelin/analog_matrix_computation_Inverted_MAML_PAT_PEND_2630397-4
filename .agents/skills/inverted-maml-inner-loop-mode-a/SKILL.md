@@ -9,7 +9,35 @@ description: Architectural specification, patent mathematics, schematic analysis
 **Patent Pending:** SE 2630397-4  
 **Hardware Target:** Efinix Trion T120 Master SoC + T20 Coprocessor (`192.168.1.50:5000`)  
 **Operating Mode:** Mode A (Jumper ON — Active Compensation via $M_3$ and $M_8$)  
-**Initial Milestone:** Single-Time-Point ($t = 5.0\text{ ms}$) Inner Loop Convergence & ENOB Growth  
+**Initial Milestone:** Steg 1 — Reading, locked at $t = 5.0\text{ ms}$, 1k/3.9k check, Inner Loop convergence and ENOB growth  
+
+---
+
+## 🎯 ARGON'S PRIMARY MISSION: STEP 1 (MILSTONE 1)
+
+> [!IMPORTANT]
+> **EXACT ACTION STEPS FOR ARGON AI AGENT IN STEP 1:**
+>
+> 1. **MANDATORY PREREQUISITE READING (PATENT & MATHEMATICS FIRST):**
+>    - Thoroughly read `maml_eng.txt` (the complete patent application), `FPGA_code/docs/NON_BACKPROP_HADAMARD_GRADIENT_RULES.md`, and `FPGA_code/docs/IP_REPRODUCTION_SPEC.md`.
+>    - **STRICTLY FORBIDDEN:** Do NOT add an extra input multiplication ($x_i$) into the gradient chain rule! Multiplication by $x_i$ has ALREADY occurred physically inside the transistor channel during the forward Hadamard correlation.
+>
+> 2. **LOCK OPERATING POINT TO 5.0 ms ONLY:**
+>    - Lock ADC sampling delay and Hadamard perturbation strictly to **$t = 5.0\text{ ms}$** (`hadamard_delay_us = 5000`).
+>    - Do NOT spread out across multiple time slices yet! That is Step 2.
+>
+> 3. **VERIFY MODE A CENTER WEIGHTS & THE 1k / 3.9k ATTENUATOR:**
+>    - Connect jumper (Mode A).
+>    - Initialize all compensation weights in $M_3$ ($8\times 6$) and $M_8$ ($7\times 6$) to digital center `128` (differential weight $0.0$) via `client.center_compensation_weights()`.
+>    - Measure baseline ENOB and verify that the output swing scales by $\approx 0.796\times$ due to the $1\text{ k}\Omega / 3.9\text{ k}\Omega$ passive summing attenuator.
+>
+> 4. **CLOSE THE LOOP WITH INNER LOOP TRAINING ONLY (NO MAML YET):**
+>    - Disable MAML outer loop meta-hopping (`w_hid_mag = 0, trim_hid_mag = 0`).
+>    - Apply **Masked Loss** strictly on functional columns (**Columns 0, 1, 4, 5**). Exclude saturated rails (Columns 2 and 3).
+>    - Execute gentle inner loop training iterations ($N = 50\text{--}100$) with a conservative learning rate ($\alpha_{\text{inner}} \approx 0.005$).
+>
+> 5. **STEP 1 SUCCESS CRITERIA:**
+>    - **Achieve convergence!** The masked loss must decline monotonically iteration-by-iteration, and ENOB must slowly and steadily increase!
 
 ---
 
