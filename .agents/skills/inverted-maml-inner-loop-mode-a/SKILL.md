@@ -33,11 +33,11 @@ description: Architectural specification, patent mathematics, schematic analysis
 >
 > 4. **CLOSE THE LOOP WITH INNER LOOP TRAINING ONLY (NO MAML YET):**
 >    - Disable MAML outer loop meta-hopping (`w_hid_mag = 0, trim_hid_mag = 0`).
->    - Apply **Masked Loss** strictly on functional columns (**Columns 0, 1, 4, 5**). Exclude saturated rails (Columns 2 and 3).
+>    - **ALL 6 COLUMNS ARE ACTIVE:** Silicon verification at $5.0\text{ ms}$ confirms all 6 columns ($j \in \{0..5\}$) are healthy and active. Train across all 6 columns!
 >    - Execute gentle inner loop training iterations ($N = 50\text{--}100$) with a conservative learning rate ($\alpha_{\text{inner}} \approx 0.005$).
 >
 > 5. **STEP 1 SUCCESS CRITERIA:**
->    - **Achieve convergence!** The masked loss must decline monotonically iteration-by-iteration, and ENOB must slowly and steadily increase!
+>    - **Achieve convergence!** The total 6-column loss must decline monotonically iteration-by-iteration, and ENOB must slowly and steadily increase!
 
 ---
 
@@ -156,9 +156,9 @@ Because $\sigma_2'(y_j^{(8)})$ is a column property (identical for all rows $i$ 
 ---
 
 ### 3.4 Row Sensitivity Receipt $\partial x_i^{(8)}$ to Layer 1 (Equation 4)
-Using the digital shadow register of the Matrix 8 weights $W_{i,j}^{(8)\text{digital}}$:
+Using the digital shadow register of the Matrix 8 weights $W_{i,j}^{(8)\text{digital}}$ across all 6 functional columns:
 
-$$\boxed{\partial x_i^{(8)} = \sum_{j \in \{0, 1, 4, 5\}} W_{i,j}^{(8)\text{digital}} \cdot \sigma_2'\!\left(y_j^{(8)}\right) \cdot Er_j^{(49)}} \quad \text{(Equation 4)}$$
+$$\boxed{\partial x_i^{(8)} = \sum_{j=0}^{5} W_{i,j}^{(8)\text{digital}} \cdot \sigma_2'\!\left(y_j^{(8)}\right) \cdot Er_j^{(49)}} \quad \text{(Equation 4)}$$
 
 ---
 
@@ -192,7 +192,7 @@ $$\boxed{\frac{\partial \mathcal{L}_{\text{total}}}{\partial W_{i,j}^{(3)}} = \l
    - Set learning rate conservatively: $\alpha_{\text{inner}} \approx 0.005\text{ to }0.01$.
    - Inner loop steps: $N = 50\text{ to }100$ iterations.
 3. **Verifiera Konvergens & ENOB-Tillväxt:**
-   - Watch the masked loss: does $\mathcal{L}$ decline monotonically?
+   - Watch the total loss: does $\mathcal{L}$ decline monotonically?
    - Watch ENOB: does it slowly climb (e.g. from 3–4 bits up toward 6–8 bits)?
    - If loss increases or oscillates violently, reduce $\alpha_{\text{inner}}$ by $2\times$ and check gradient signs.
 
@@ -208,7 +208,7 @@ $$\boxed{\frac{\partial \mathcal{L}_{\text{total}}}{\partial W_{i,j}^{(3)}} = \l
 | **Hadamard Delay** | Locked strictly to $5000\ \mu\text{s}$ ($5.0\text{ ms}$) | `client.set_config(..., hadamard_delay_us=5000)` |
 | **MAML Outer Loop** | Disabled for Phase 1 (`w_hid_mag = 0`) | Verify `g_hid_amp_dac == 0` |
 | **Compensation Zeroing**| $M_3$ and $M_8$ initialized to center $128$ | `client.center_compensation_weights()` |
-| **Masked Columns** | Columns 2 and 3 EXCLUDED from loss & gradients | `mask = [0, 1, 4, 5]` |
+| **All 6 Columns Active** | All 6 columns ($0..5$) healthy at 5.0ms | Train across full $j \in \{0..5\}$ |
 | **$M_8$ Gradient** | `grad_M8 = hadamard_M8 * error_49` | **NO** $x_i^{(8)}$ multiplication! |
 | **Carrier Row** | $k = \arg\max_i |x_i^{(8)}|$ on `ADC_45` | Protect with Tikhonov $\alpha$ |
 | **$M_3$ Gradient** | `grad_M3 = hadamard_M3 * dx8` | **NO** $x_i^{(3)}$ or $\tanh'$ multiplication! |

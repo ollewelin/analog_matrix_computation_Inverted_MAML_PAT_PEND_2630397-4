@@ -32,7 +32,7 @@
 >    - Kör försiktiga inre loop-varv ($N = 50\text{--}100$) med låg learning rate ($\alpha_{\text{inner}} \approx 0.005$).
 >
 > 5. **FRAMGÅNGSKRITERIUM FÖR STEG 1:**
->    - **Få konvergens!** Se att den maskade förlusten sjunker monotont varv för varv och att ENOB sakta och kontrollerat börjar klättra uppåt!
+>    - **Få konvergens!** Se att den totala förlusten (över samtliga 6 kolumner) sjunker monotont varv för varv och att ENOB sakta och kontrollerat börjar klättra uppåt!
 
 ---
 
@@ -122,7 +122,7 @@ flowchart TD
     Step0["Steg 0: Mode A Verifiering<br/>Jumper ON, Kompensation i Center (128)<br/>Mät initial ENOB vid 5.0 ms"]
     Step1["Steg 1: Dämparkontroll (1k / 3.9k)<br/>Verifiera att signal svingar ca 0.8x pga dämparen<br/>Kontrollera att COLTIA1 når SUM_1"]
     Step2["Steg 2: Lås Hadamard till 5.0 ms<br/>hadamard_delay_us = 5000<br/>Endast Inner Loop (w_hid_mag = 0)"]
-    Step3["Steg 3: Försiktig Inre Träning<br/>Låg learning rate, Masked Loss [0,1,4,5]<br/>Övervaka: Loss sjunker, ENOB ökar"]
+    Step3["Steg 3: Försiktig Inre Träning<br/>Låg learning rate, Alla 6 Kolumner [0..5]<br/>Övervaka: Loss sjunker, ENOB ökar"]
     Step4["Steg 4 (Senare): MAML Yttre Loop<br/>Tidsspridning 0-9.5 ms"]
 
     Step0 --> Step1 --> Step2 --> Step3 --> Step4
@@ -133,7 +133,7 @@ flowchart TD
 ### Steg 0: Mode A Verifiering & Centrerade Vikter
 - Koppla in jumpern (Mode A).
 - Sätt $M_3$ och $M_8$ i nolläge (`client.center_compensation_weights()`).
-- Mät baslinjen vid $t = 5.0\text{ ms}$. Registrera initial ENOB och verifiera att utgången ligger inom $\pm 30\text{ LSB}$ på kolumn 0, 1, 4, 5.
+- Mät baslinjen vid $t = 5.0\text{ ms}$. Registrera initial ENOB och verifiera att utgången ligger inom $\pm 30\text{ LSB}$ på samtliga 6 kolumner ($0..5$).
 
 ### Steg 1: Verifiera 1k/3.9k Dämparen
 - Gör en snabb mätning på en cell (t.ex. Cell 0,0) med $X = -127, W = -80$.
@@ -145,7 +145,7 @@ flowchart TD
 - **Ingen MAML yttre loop direkt:** Sätt `w_hid_mag = 0` och `trim_hid_mag = 0`.
 - **Låg inlärningstakt:** Börja med mycket försiktiga steg ($\alpha_{\text{inner}} \approx 0.005$).
 - **Milstolpe 1:** Målet här är **INTE** perfekt 12-bitars precision direkt, utan att se att:
-  1. Den maskade förlusten sjunker stadigt varv för varv utan oscillationer.
+  1. Den totala förlusten (över alla 6 kolumner) sjunker stadigt varv för varv utan oscillationer.
   2. ENOB rör sig uppåt (från t.ex. 3–4 bitar mot 6–8 bitar).
   3. Kompensationsvikterna i $M_3$ och $M_8$ rör sig mjukt och harmoniskt för att släcka ut Matrix 33:s fel.
 
