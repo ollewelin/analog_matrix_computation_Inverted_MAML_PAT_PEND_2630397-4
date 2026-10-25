@@ -66,3 +66,10 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # - Catastrophic forgetting uppstår när man tränar 40 epoker på EN låst vektor (overfitting till en DC-punkt).
 # - Nästa steg: Mini-batch med flera vektorer per epok så nätverket hittar den gemensamma icke-linjära ytan.
 # - Hårdvara senare: Sänk gain i summeringsresistor till 1/10k eller 1/15k för finare Vernier.
+
+# 4. Multi-Vector Mini-Batch Körning (K=4 till K=8 oberoende vektorer):
+/home/olle/anaconda3/bin/python FPGA_code/scripts/run_mode_a_multi_vector_batch.py --epochs 40 --batch-size 4 --lr-scale 0.25 --out mode_a_multi_vector_batch_k4_lr0p25.json
+/home/olle/anaconda3/bin/python FPGA_code/scripts/run_mode_a_multi_vector_batch.py --epochs 100 --batch-size 8 --lr-scale 0.10 --out mode_a_multi_vector_batch_k8_100ep_lr0p10.json
+
+# 5. Starta 3D Post-Analysis GUI för Multi-Vector Mini-Batch:
+/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/mode_a_extended_training/mode_a_multi_vector_batch_k4_lr0p25.json
