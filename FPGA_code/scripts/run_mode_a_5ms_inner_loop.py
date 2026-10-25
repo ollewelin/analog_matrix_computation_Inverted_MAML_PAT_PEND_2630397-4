@@ -260,7 +260,12 @@ def generate_plots(att_data: dict, history: list, suffix: str = ""):
     w8_diag = np.array([[h["w_m8"][c][c] for c in range(6)] for h in history])
     fig_docs_dir = os.path.join(REPO_ROOT, "FPGA_code", "docs", "figures")
     os.makedirs(fig_docs_dir, exist_ok=True)
-    run_label = " (Run 2 — Fresh Re-Flash Verification)" if suffix else ""
+    if suffix == "_run3":
+        run_label = " (Run 3 — Bitstream Hex Re-Flash Verification)"
+    elif suffix == "_run2":
+        run_label = " (Run 2 — Fresh Re-Flash Verification)"
+    else:
+        run_label = ""
 
     # 1. Convergence Plot (Loss, RMSE, ENOB vs Inner Loop Step)
     fig, axes = plt.subplots(1, 3, figsize=(16, 5.2), dpi=160)
@@ -390,7 +395,11 @@ def generate_plots(att_data: dict, history: list, suffix: str = ""):
 
 
 def main():
-    suffix = "_run2" if "--run2" in sys.argv else ""
+    suffix = ""
+    if "--run3" in sys.argv:
+        suffix = "_run3"
+    elif "--run2" in sys.argv:
+        suffix = "_run2"
     client = MamlUdpClient("192.168.1.50", 5000, timeout=1.5)
     tel = get_full_hw_telemetry(client, n_avg=1)
     print(f"Connected to T120 Master SoC: jumper_mode={tel['jumper_mode']}, heaters={tel['heater_armed']}")

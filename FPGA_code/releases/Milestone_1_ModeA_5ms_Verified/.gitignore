@@ -1,0 +1,44 @@
+# Hardware and compiler artifacts ignore file for Milestone 1 Release Snapshot
+# Prevents Efinity work directories, netlists, and intermediate compilation files from being tracked
+
+# Efinity build & intermediate directories
+outflow/
+work_pnr/
+work_syn/
+work_pt/
+work_dbg/
+*.bak*
+RUNPNR_*
+.lock
+debug_top.v
+debug_TEMPLATE.v
+
+# Efinity IP Manager auto-generated devkits, testbenches and generated wrappers
+ip/**/Testbench/
+ip/**/*_devkit/
+ip/**/source/
+ip/**/ipm/
+ip/**/RISC_mini.v
+ip/**/RISC_mini_tmpl.*
+ip/**/RISC_mini_define.vh
+ip/**/rgmii_eth_efx_tsemac.sv
+ip/**/rgmii_eth_efx_tsemac_tmpl.*
+ip/**/rgmii_eth_efx_tsemac_define.svh
+apb3_2_axi4_lite.v
+mac_rx2tx.v
+
+# Software build artifacts and temporary objects
+sw/**/build/
+*.o
+*.elf
+*.asm
+*.map
+
+# Simulation dumps and temporary files
+sim/*.vvp
+*.vcd
+
+# Python cache
+__pycache__/
+*.pyc
+
