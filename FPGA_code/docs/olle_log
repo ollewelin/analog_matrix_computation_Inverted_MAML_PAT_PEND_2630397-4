@@ -46,3 +46,5 @@ python3 -c "import socket, struct; s=socket.socket(socket.AF_INET, socket.SOCK_D
 
 python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 --col 0 --compare-weights -64,64
 /home/olle/anaconda3/bin/python3 gui/maml_cell_evaluator_gui.py
+
+/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/mode_a_extended_training/mode_a_50ep_4p9to5p1ms_locked_xref.json
