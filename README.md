@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> **Notice:** All files, schematics, and code in this repository are published for scientific transparency under Patent Pending SE 2630397-4 (Priority: 2026-06-03). Copyright © 2026 Olle Welin. Academic & non-commercial research use, verification, and experimentation are freely permitted (with attribution to the inventor). All commercial rights are strictly reserved — no commercial patent or copyright license is granted without a separate written agreement.
+
+---
+
 # Analog Matrix Multiplication with Proprioception
 ### Patent pending: document inverterad MAML_12_Eng.pdf translated
 `inverterad MAML_12_Eng.pdf`
