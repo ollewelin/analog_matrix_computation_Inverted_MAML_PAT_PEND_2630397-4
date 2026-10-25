@@ -29,6 +29,7 @@ from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDialog,
     QFileDialog,
     QFrame,
     QGridLayout,
@@ -57,6 +58,52 @@ DEFAULT_JSON = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training" / "
 TEST_JSON = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training" / "test_trial_3epochs.json"
 
 
+class Matrix3PopupWindow(QDialog):
+    """Independent Pop-Up Window displaying 3D Topography of Matrix 3 (Layer 1 Projection)."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Matrix 3 (Layer 1 Projection / Hidden Layer) — 3D Topography")
+        self.resize(1180, 620)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 8, 8, 8)
+        self.fig = Figure(figsize=(11.5, 5.8), dpi=100)
+        self.fig.patch.set_facecolor("#f8f9fa")
+        self.canvas = FigureCanvas(self.fig)
+        layout.addWidget(self.canvas)
+
+    def update_epoch(self, rec: dict, baseline_rec: Optional[dict] = None):
+        self.fig.clear()
+        w_m3 = np.array(rec.get("w_m3", np.zeros((8, 6))))
+        if baseline_rec is not None:
+            w_m3_0 = np.array(baseline_rec.get("w_m3", np.zeros((8, 6))))
+        else:
+            w_m3_0 = np.zeros((8, 6))
+            for c in range(6):
+                w_m3_0[c, c] = 64
+                w_m3_0[6, c] = 48
+        delta_m3 = w_m3 - w_m3_0
+        X, Y = np.meshgrid(np.arange(6), np.arange(8))
+
+        ax1 = self.fig.add_subplot(121, projection="3d")
+        ax1.plot_surface(X, Y, delta_m3, cmap="coolwarm", edgecolor="k", linewidth=0.5, alpha=0.9)
+        ax1.set_title(f"Matrix 3 Learned ΔW3 (vs Ep 0) — Epoch {rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
+        ax1.set_xlabel("Columns 0..5")
+        ax1.set_ylabel("Rows 0..7")
+        ax1.set_zlabel("ΔWeight (LSB)")
+        ax1.set_zlim(-25, 25)
+
+        ax2 = self.fig.add_subplot(122, projection="3d")
+        ax2.plot_surface(X, Y, w_m3, cmap="plasma", edgecolor="k", linewidth=0.5, alpha=0.9)
+        ax2.set_title(f"Matrix 3 Absolute W3 — Epoch {rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
+        ax2.set_xlabel("Columns 0..5")
+        ax2.set_ylabel("Rows 0..7")
+        ax2.set_zlabel("Weight W (LSB)")
+        ax2.set_zlim(-25, 85)
+
+        self.fig.tight_layout()
+        self.canvas.draw()
+
+
 class MamlPostAnalysisGUI(QMainWindow):
     def __init__(self, json_path: Optional[str] = None):
         super().__init__()
@@ -68,6 +115,7 @@ class MamlPostAnalysisGUI(QMainWindow):
         self.static_m33 = np.zeros((6, 6))
         self.current_idx = 0
         self.is_playing = False
+        self.m3_popup: Optional[Matrix3PopupWindow] = None
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._on_play_step)
@@ -147,6 +195,13 @@ class MamlPostAnalysisGUI(QMainWindow):
         ])
         self.combo_3d_view.currentIndexChanged.connect(self._update_plots)
         view_sel_layout.addWidget(self.combo_3d_view)
+
+        self.btn_m3_popup = QPushButton("🪟 Pop-up 3D Matrix 3")
+        self.btn_m3_popup.setToolTip("Open independent synchronized 3D window for Matrix 3")
+        self.btn_m3_popup.setStyleSheet("background-color: #5c6bc0; color: white; font-weight: bold; padding: 4px 10px; border-radius: 4px;")
+        self.btn_m3_popup.clicked.connect(self._open_m3_popup)
+        view_sel_layout.addWidget(self.btn_m3_popup)
+
         left_layout.addLayout(view_sel_layout)
 
         splitter.addWidget(left_widget)
@@ -285,24 +340,46 @@ class MamlPostAnalysisGUI(QMainWindow):
         loss = rec.get("loss_lsb2", 0.0)
         w_enob = rec.get("window_mean_enob_bits")
         base_ep = self.dataset.get("metadata", {}).get("baseline_epochs", 0)
+        vec_id = rec.get("vector_id")
         phase = rec.get("phase", "BASELINE" if rec.get("epoch", 0) <= base_ep and base_ep > 0 else "TRAINING")
         eff_lr = rec.get("effective_lr", 0.0 if phase == "BASELINE" else self.dataset.get("metadata", {}).get("active_lr_scale", 0.2))
 
-        phase_tag = f"[{phase} | LR={eff_lr:.2f}] " if base_ep > 0 else ""
+        if vec_id:
+            phase_tag = f"[Vector {vec_id} | Ep {rec.get('epoch', 0)}] "
+        elif base_ep > 0:
+            phase_tag = f"[{phase} | LR={eff_lr:.2f}] "
+        else:
+            phase_tag = ""
+
         enob_txt = f"{phase_tag}Nominal 5ms ENOB: {enob:.2f} bits"
         if w_enob is not None:
             enob_txt += f" | Window Mean ENOB: {w_enob:.2f} bits"
         self.lbl_enob.setText(enob_txt)
         if phase == "BASELINE":
             self.lbl_enob.setStyleSheet("font-weight: bold; color: #795548;")
+        elif vec_id == "A":
+            self.lbl_enob.setStyleSheet("font-weight: bold; color: #1565c0;")
+        elif vec_id == "B":
+            self.lbl_enob.setStyleSheet("font-weight: bold; color: #00695c;")
         else:
             self.lbl_enob.setStyleSheet("font-weight: bold; color: #2e7d32;")
         self.lbl_rmse.setText(f"RMSE: {rmse:.2f} LSB | Quadratic Loss: {loss:.1f} LSB²")
+
+    def _open_m3_popup(self):
+        if self.m3_popup is None:
+            self.m3_popup = Matrix3PopupWindow(self)
+        if self.epochs_data:
+            self.m3_popup.update_epoch(self.epochs_data[self.current_idx], self.epochs_data[0])
+        self.m3_popup.show()
+        self.m3_popup.raise_()
 
     def _update_plots(self):
         if not self.epochs_data:
             return
         rec = self.epochs_data[self.current_idx]
+
+        if self.m3_popup and self.m3_popup.isVisible():
+            self.m3_popup.update_epoch(rec, self.epochs_data[0])
 
         # 1. --- Update 3D Topography Plot ---
         self.fig_3d.clear()
@@ -373,6 +450,16 @@ class MamlPostAnalysisGUI(QMainWindow):
             if rmses:
                 ax_rmse.text(base_ep + 0.3, max(rmses) * 0.85, "Training Start ➔", 
                              color="#e65100", fontsize=8, fontweight="bold")
+
+        # Visual indicator for vector switch (40+40 transfer)
+        switch_ep = self.dataset.get("metadata", {}).get("switch_epoch", 0)
+        if switch_ep > 0:
+            for ax in [ax_loss, ax_rmse, ax_w8]:
+                ax.axvline(switch_ep, color="#00bcd4", linestyle="--", linewidth=1.8, alpha=0.9)
+            if losses:
+                max_l = max(losses) if max(losses) > 0 else 1.0
+                ax_loss.text(switch_ep / 2.0, max_l * 0.9, "Vector A (XA)", color="#1565c0", fontsize=8, ha="center", fontweight="bold")
+                ax_loss.text(switch_ep + (len(epochs) - switch_ep) / 2.0, max_l * 0.9, "Vector B (XB)", color="#00695c", fontsize=8, ha="center", fontweight="bold")
 
         # Top: Quadratic Loss (LSB²)
         ax_loss.plot(epochs, losses, "m-s", markersize=2.5, label="Loss (LSB²)", alpha=0.8)

@@ -7,6 +7,34 @@
 
 ## Firmware Release History
 
+### Release 2026-10-25 19:35:00 CEST — T120 Master Firmware v2.3-MAML (Atomic Triad 2-Layer Wakeup: Equations 4 & 7 Fix, Cascade Polarity & Fan-in Normalization)
+- **Date & Local Time:** `2026-10-25 19:35:00 CEST`
+- **Target Subsystem:** T120 Master Sapphire RISC-V SoC BRAM (compiled via `flash_soc.py` in 14.3s via JTAG)
+- **Git Commit / Working Base:** `614f441` / `main`
+- **Files Modified:**
+  - `FPGA_code/sw/t120_master/src/maml_platform.c` (Equations 4 & 7)
+  - `FPGA_code/scripts/maml_post_analysis_gui.py` (Dual 3D Matrix 3 Pop-up Studio)
+  - `FPGA_code/scripts/run_mode_a_sequential_vector_transfer.py` (2-Layer logging & active 6x6 correlation)
+- **Key Engineering Discoveries & Silicon Verification:**
+  1. **Layer 1 Matrix 3 Truncation Root Cause Discovered:**
+     - In earlier versions, Equation 4 shifted the column error sum by `>> 8` (dividing by 256) and Equation 7 shifted `prod` by `>> 7` (dividing by 128), causing a total division by $32\,768$ (compared to only `>> 1` for Matrix 8).
+     - With live empirical `sens_m3` around $15\text{ LSB}$, the integer product was truncated to **exact zero (`0`)**, freezing Matrix 3 at baseline across all previous Mode A runs.
+  2. **Layer 2 Cascade Inverting Polarity Fixed:**
+     - Because `COLTIA_8` / `COLTIA_49` is an inverting summing amplifier, using `-err49[j]` in Equation 4 created *positive feedback* for Layer 1.
+     - Changed to `+err49[j]` in Equation 4, establishing true negative feedback error cancellation for Matrix 3.
+  3. **6x6 Cascade Fan-in Normalization:**
+     - Normalized Equation 4 shift to `>> 6` (dividing by 64) and Equation 7 shift to `>> 3` (dividing by 8) to prevent 6-row summing saturation.
+  4. **Empirical Monotonic 2-Layer Convergence Confirmed on Hardware:**
+     - 10-step silicon test showed monotonic loss reduction: RMSE dropped from $78.75\text{ LSB}$ ($4.70\text{ b}$) down to $26.31\text{ LSB}$ ($6.28\text{ b}$) in 6 steps.
+     - Matrix 3 adapted dynamically with individual cell shifts up to $-12\text{ LSB}$, actively driving `ADC_45` in harmony with Matrix 8.
+  5. **GUI Dual 3D Visualization:**
+     - `Matrix3PopupWindow` upgraded to render two side-by-side 3D surfaces: left shows $\Delta W_3$ relative to baseline (starting flat at $0\text{ LSB}$), right shows absolute $W_3$.
+  6. **Catastrophic Forgetting & Arbitrary Vector Strategy:**
+     - Proved that single-vector locking causes weight flipping (catastrophic forgetting) across vector switches ($X_A \to X_B$) because a single locked point allows weights to fit a point-specific DC offset.
+     - Future path: Multi-vector mini-batching over $K$ vectors to force the 2-layer network to learn an input-invariant representation.
+
+---
+
 ### Release 2026-10-24 12:30:00 CEST — T120 Master Firmware v2.2-MAML (Decoupled Snapshot Timing & Full 6x6 Mode B Verification)
 - **Date & Local Time:** `2026-10-24 12:30:00 CEST`
 - **Target Subsystem:** T120 Master Sapphire RISC-V SoC BRAM & Flash Archive

@@ -810,16 +810,16 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     /* ========================================================================
      * Equation 4: Row Sensitivity Receipt dx_i^(8) back to Layer 1
      *   dx_i^(8) = sum_{j=0..5} W_{i,j}^(8)digital * sigma_2'(y_j^(8)) * Er_j^(49)
-     *   Normalized for Q1.14 sigma_2_slope (>> 14) and Q7 w_m8 (>> 8)
+     *   Normalized for Q1.14 sigma_2_slope (>> 14) and 6x6 cascade fan-in (>> 6)
      * ======================================================================== */
     int32_t dx8[6];
     for (int i = 0; i < 6; i++) {
         int32_t sum = 0;
         for (int j = 0; j < 6; j++) {
-            int32_t col_term = rshift_rne((int32_t)g_tel.sigma2_slope[j] * (-err49[j]), 14);
+            int32_t col_term = rshift_rne((int32_t)g_tel.sigma2_slope[j] * err49[j], 14);
             sum += (int32_t)g_tel.w_m8[i][j] * col_term;
         }
-        dx8[i] = rshift_rne(sum, 8);
+        dx8[i] = rshift_rne(sum, 6);
     }
 
     /* ========================================================================
@@ -830,7 +830,7 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 6; j++) {
             int32_t prod = (int32_t)sens_m3[i][j] * dx8[j];
-            grad_m3_out[i][j] = sat_q14(rshift_rne(prod, 7));
+            grad_m3_out[i][j] = sat_q14(rshift_rne(prod, 3));
         }
     }
 }
@@ -2028,19 +2028,25 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
             break;
 
         case MAML_CMD_RAND_DATA:
-            if (req_len >= 6) {
-                g_auto_random_data = req[5] ? 1u : 0u;
-            } else {
-                g_auto_random_data = g_auto_random_data ? 0u : 1u; /* toggle */
-            }
-            if (g_auto_random_data) {
+            if (req_len >= 6 && req[5] == 2u) {
+                /* Single fresh locked white-noise vector draw while strictly preserving current M3 and M8 weights! */
+                g_auto_random_data = 0u;
                 maml_generate_new_white_noise_ref();
             } else {
-                /* Center In-Data rows back to 128 (0.0 V differential) */
-                uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
-                g_dac_row7_code = 128u;
-                g_dac_row8_code = 128u;
-                aio_load_dac2(d2_mid);
+                if (req_len >= 6) {
+                    g_auto_random_data = req[5] ? 1u : 0u;
+                } else {
+                    g_auto_random_data = g_auto_random_data ? 0u : 1u; /* toggle */
+                }
+                if (g_auto_random_data) {
+                    maml_generate_new_white_noise_ref();
+                } else {
+                    /* Center In-Data rows back to 128 (0.0 V differential) */
+                    uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
+                    g_dac_row7_code = 128u;
+                    g_dac_row8_code = 128u;
+                    aio_load_dac2(d2_mid);
+                }
             }
             aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
             break;

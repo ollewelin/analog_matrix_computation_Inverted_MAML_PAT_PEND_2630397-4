@@ -48,3 +48,21 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 /home/olle/anaconda3/bin/python3 gui/maml_cell_evaluator_gui.py
 
 /home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/mode_a_extended_training/mode_a_50ep_4p9to5p1ms_locked_xref.json
+
+==============================
+# 2026-10-25: Inverted MAML Mode A 2-Layer Wakeup & Catastrophic Forgetting Log
+# 1. Blixtsnabb C-kompilering & JTAG-programmering (15 sekunder!):
+/home/olle/anaconda3/bin/python FPGA_code/scripts/flash_soc.py
+
+# 2. Starta 3D Post-Analysis GUI med Matrix 3 Pop-up Studio:
+/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/mode_a_extended_training/mode_a_40plus40_sequential_transfer.json
+
+# 3. Kör 40+40 Sekventiell Överföringstest (Vektor A -> Vektor B, 80 epoker):
+/home/olle/anaconda3/bin/python FPGA_code/scripts/run_mode_a_sequential_vector_transfer.py --epochs-a 40 --epochs-b 40 --t-min 4.9 --t-max 5.1 --strata 5 --out FPGA_code/logs/mode_a_extended_training/mode_a_40plus40_sequential_transfer.json
+
+# Huvudupptäckter:
+# - Matrix 3 sov på grund av >>8 och >>7 (delat med 32768) i ekvation 4 & 7. Nu fixat med >>6 och >>3 samt +err49 (inverterande COLTIA).
+# - Både M3 och M8 rör sig nu samtidigt och konvergerar monotont på kisel (RMSE 78 -> 26 LSB, 6.28 bitar ENOB).
+# - Catastrophic forgetting uppstår när man tränar 40 epoker på EN låst vektor (overfitting till en DC-punkt).
+# - Nästa steg: Mini-batch med flera vektorer per epok så nätverket hittar den gemensamma icke-linjära ytan.
+# - Hårdvara senare: Sänk gain i summeringsresistor till 1/10k eller 1/15k för finare Vernier.

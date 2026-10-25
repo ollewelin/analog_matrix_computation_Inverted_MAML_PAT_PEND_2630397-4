@@ -98,6 +98,32 @@ Working with analog computing is an act of balancing physics and precision. Very
     With Milestone 1 successfully established at the nominal settled snapshot slice of $t = 5.0\text{ ms}$, **Milestone 2** will expand the operating window across a broader temporal range (e.g. $t = 4.0\text{ ms}$ to $6.0\text{ ms}$, scaling toward full multi-stratum operation across the complete 10 ms cycle).
     *Expected Dynamic Behavior:* Because the 100 nF 2T1C gate capacitors exhibit time-dependent charge leakage and transimpedance drift over the 10 ms period, broadening the evaluation window is anticipated to reduce raw uncompensated ENOB performance. The scientific objective of Milestone 2 is to investigate whether the integrated 2-layer neural network ($M_3 \to \text{Sigmoid 4} \to M_8 \to \text{Sigmoid 10}$) can straighten out these temporal memory leakage artifacts and maintain acceptable ENOB precision across dynamic time spans.
 
+- **2026-10-25 (Major Milestone: Atomic Triad 2-Layer Wakeup ($M_3$ & $M_8$), Equations 4 & 7 Resolved, Sequential Task Transfer & 3D Telemetry Studio):**
+  - **1. Atomic Triad 2-Layer Neural Wakeup ($M_3 \to \text{Sigmoid 4} \to M_8 \to \text{Sigmoid 10}$):**
+    Diagnosed why Layer 1 ($M_3$) had previously remained stationary at baseline ($\Delta W_3 = 0$): fixed-point right-shifting in Equations 4 & 7 (`>> 8` in Eq. 4 and `>> 7` in Eq. 7, dividing by $32\,768$) caused integer truncation to exact $0$ before the learning rate was applied. Resolved scaling to `>> 6` and `>> 3` and corrected the inverting cascade polarity (`+err49`) in [`maml_platform.c`](FPGA_code/sw/t120_master/src/maml_platform.c). Re-compiled and flashed to the T120 SoC via JTAG in 14.3 seconds using [`flash_soc.py`](FPGA_code/scripts/flash_soc.py).
+  - **2. Live Silicon Monotonic 2-Layer Convergence:**
+    Direct hardware execution on physical silicon verified smooth, simultaneous adaptation of both matrices: $M_3$ cells adapted dynamically by $-1\text{ to }-12\text{ LSB}$ with distinct spatial gradients, while $M_8$ adapted in parallel by $+18\text{ to }-12\text{ LSB}$. Measured 6-column RMSE dropped monotonically from $78.75\text{ LSB} \to 26.31\text{ LSB}$ ($4.70\text{ b} \to 6.28\text{ bits}$ ENOB) in just 6 steps.
+  - **3. Sequential Task Transfer & Catastrophic Forgetting Study (40 + 40 Epochs, [4.9 – 5.1 ms]):**
+    Conducted an 80-epoch continuous transfer experiment on physical hardware (Vector A for 40 epochs $\to$ Vector B for 40 epochs with strictly preserved weights).
+    - Proved that the 2-layer landscape **does NOT flip inside out**:
+      - Matrix 3 topographical correlation across active $6\times 6$ cells: **$r = +0.7401$** (strong positive correlation, shared silicon geometry!).
+      - Matrix 8 topographical correlation across active $6\times 6$ cells: **$r = +0.3967$** (positive correlation, soft transition!).
+    - Both tasks achieved high precision on silicon: Vector A reached **$20.75\text{ LSB}$ ($6.63\text{ bits}$ ENOB)**; Vector B inherited A's weights, smoothly adapted, and reached **$19.64\text{ LSB}$ ($6.70\text{ bits}$ ENOB)**.
+  - **4. 3D Telemetry Studio & Matrix 3 Pop-up Studio:**
+    Implemented a full interactive visualization suite in [`FPGA_code/scripts/maml_post_analysis_gui.py`](FPGA_code/scripts/maml_post_analysis_gui.py) with synchronized 80-epoch playback, vertical task-switch indicators, and a dedicated `Matrix3PopupWindow` displaying dual 3D topographies: $\Delta W_3$ learned adaptation landscape (starting flat at $0\text{ LSB}$) alongside absolute $W_3$.
+    
+    ![Inverted MAML Mode A Post-Data Analysis & 3D Telemetry Studio](FPGA_code/docs/figures/fig_mode_a_sequential_transfer_studio.png)
+    
+    *Figure: Inverted MAML Post-Data Analysis & 3D Telemetry Studio displaying 40+40 sequential task transfer. Left: Matrix 8 3D surface at Epoch 14. Top right: Quadratic loss descent for Vector A and continuous re-convergence for Vector B across the Epoch 40 transition boundary. Middle right: RMSE / ENOB curves. Bottom right: Smooth 6-column $W_8$ diagonal trajectory across the task boundary.*
+
+    ![Matrix 3 3D Topography Pop-up Studio](FPGA_code/docs/figures/fig_mode_a_matrix3_3d_topography.png)
+    
+    *Figure: Matrix 3 (Layer 1 Projection / Hidden Layer) 3D Topography Studio at Epoch 60. Left: Learned $\Delta W_3$ adaptation surface relative to baseline ($0\text{ LSB}$), revealing autonomous spatial feature hills and valleys. Right: Absolute $W_3$ surface showing the $+64\text{ LSB}$ diagonal pass-through ridges and row 6/7 bias pedestals.*
+
+  - **5. Future Roadmap & Strategic Action Items:**
+    - **Hardware:** Increase summing junction attenuation from $1\text{ k}\Omega / 3.9\text{ k}\Omega$ ($20.4\%$ authority) to $1\text{ k}\Omega / 10\text{--}20\text{ k}\Omega$ ($5\text{--}9\%$ authority). The physical compensation network has proven strong; higher attenuation will provide ultra-fine Vernier sub-LSB resolution and $\approx 8\text{ dB}$ noise floor reduction.
+    - **Software:** Replace single-vector locking with **Multi-Vector Mini-Batching** (averaging gradients over $K = 4\text{--}8$ diverse vectors per epoch). This will eliminate single-point DC overfitting ("catastrophic forgetting") and compel the 2-layer network ($M_3 \to \text{Sigmoid} \to M_8$) to extract a universal, input-invariant non-linear compensation surface.
+
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
 ![](Fig8_Hadamard_carrier_injection_circuit.png)
 
