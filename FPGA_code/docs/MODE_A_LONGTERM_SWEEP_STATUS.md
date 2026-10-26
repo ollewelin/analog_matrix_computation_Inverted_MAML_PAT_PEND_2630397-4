@@ -1,10 +1,10 @@
 # Inverted MAML Mode A: Long-Term Batch & Learning Rate Statistical Sweep
 
-**Last Updated:** 2026-10-26 16:17:09  
+**Last Updated:** 2026-10-26 17:01:26  
 **Target Platform:** Efinix Trion T120F324 Master SoC (`192.168.1.50:5000`)  
 **Operating Mode:** Mode A (Active 2-Layer Triad via Sigmoid 10, Jumper Mode 3)  
 **Hardware Summing Attenuator:** $1\text{ k}\Omega / 3.9\text{ k}\Omega$ ($20.4\%$ authority, baseline before $15\text{ k}\Omega$ rework)  
-**Completed Conditions:** 26 experiments  
+**Completed Conditions:** 28 experiments  
 
 ---
 
@@ -31,13 +31,15 @@
 | 17 | K=8 | 0.05x | 200 | `-0.99` | **-1.5%** | 4.73 b | 5.21 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
 | 18 | K=25 | 0.08x | 200 | `-2.74` | **-1.2%** | 4.74 b | 5.41 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
 | 19 | K=25 | 0.03x | 200 | `-0.70` | **-0.9%** | 4.70 b | 5.21 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 20 | K=12 | 0.08x | 200 | `+2.18` | **-0.3%** | 4.74 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 21 | K=8 | 0.10x | 200 | `+1.99` | **+1.5%** | 4.80 b | 5.46 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 22 | K=12 | 0.10x | 200 | `+0.93` | **+2.5%** | 4.73 b | 5.17 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 23 | K=8 | 0.03x | 200 | `+4.87` | **+3.5%** | 4.77 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 24 | K=8 | 0.08x | 200 | `+7.92` | **+5.7%** | 4.70 b | 5.25 b | DIVERGING / INSTABILITY |
-| 25 | K=8 | 0.05x | 200 | `+7.97` | **+7.3%** | 4.79 b | 5.47 b | DIVERGING / INSTABILITY |
-| 26 | K=12 | 0.08x | 200 | `+162.19` | **+117.7%** | 4.70 b | 5.39 b | DIVERGING / INSTABILITY |
+| 20 | K=8 | 0.15x | 200 | `-2.43` | **-0.4%** | 4.71 b | 5.36 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 21 | K=12 | 0.08x | 200 | `+2.18` | **-0.3%** | 4.74 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 22 | K=8 | 0.20x | 200 | `+0.53` | **+1.5%** | 4.70 b | 5.21 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 23 | K=8 | 0.10x | 200 | `+1.99` | **+1.5%** | 4.80 b | 5.46 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 24 | K=12 | 0.10x | 200 | `+0.93` | **+2.5%** | 4.73 b | 5.17 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 25 | K=8 | 0.03x | 200 | `+4.87` | **+3.5%** | 4.77 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 26 | K=8 | 0.08x | 200 | `+7.92` | **+5.7%** | 4.70 b | 5.25 b | DIVERGING / INSTABILITY |
+| 27 | K=8 | 0.05x | 200 | `+7.97` | **+7.3%** | 4.79 b | 5.47 b | DIVERGING / INSTABILITY |
+| 28 | K=12 | 0.08x | 200 | `+162.19` | **+117.7%** | 4.70 b | 5.39 b | DIVERGING / INSTABILITY |
 
 ---
 
@@ -276,4 +278,22 @@
 - **Quartile 1 Mean Loss:** `21739.2 LSB^2` (4.64 bits) $\to$ **Quartile 4 Mean Loss:** `18204.2 LSB^2` (4.77 bits)
 - **Net Long-Term Trend:** `-16.26%`
 - **Final Weights:** M8 Diag = `[29, 24, 24, 25, 29, 22]`, M3 Diag = `[64, 62, 64, 64, 61, 63]` ($r_{M3} = 0.9995$)
+
+### Condition: K=8, LR=0.15x (200 epochs)
+- **Dataset File:** [`true_batch_k8_lr15p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k8_lr15p_200ep.json)
+- **Execution Time:** 1306.8 s (21.8 min)
+- **Statistical Verdict:** **STATISTICALLY FLAT (PURE NOISE FLOOR)**
+- **Loss Trajectory Slope:** `-2.432 LSB^2/epoch` ($R^2 = 0.0007$)
+- **Quartile 1 Mean Loss:** `20268.9 LSB^2` (4.7 bits) $\to$ **Quartile 4 Mean Loss:** `20183.4 LSB^2` (4.71 bits)
+- **Net Long-Term Trend:** `-0.42%`
+- **Final Weights:** M8 Diag = `[23, 25, 24, 22, 33, 24]`, M3 Diag = `[64, 63, 63, 64, 62, 62]` ($r_{M3} = 0.9997$)
+
+### Condition: K=8, LR=0.20x (200 epochs)
+- **Dataset File:** [`true_batch_k8_lr20p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k8_lr20p_200ep.json)
+- **Execution Time:** 1348.3 s (22.5 min)
+- **Statistical Verdict:** **STATISTICALLY FLAT (PURE NOISE FLOOR)**
+- **Loss Trajectory Slope:** `+0.529 LSB^2/epoch` ($R^2 = 0.0$)
+- **Quartile 1 Mean Loss:** `19940.5 LSB^2` (4.71 bits) $\to$ **Quartile 4 Mean Loss:** `20232.4 LSB^2` (4.7 bits)
+- **Net Long-Term Trend:** `+1.46%`
+- **Final Weights:** M8 Diag = `[24, 23, 24, 25, 30, 26]`, M3 Diag = `[64, 62, 63, 63, 61, 61]` ($r_{M3} = 0.9996$)
 

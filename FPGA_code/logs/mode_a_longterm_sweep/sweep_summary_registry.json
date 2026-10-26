@@ -1168,5 +1168,95 @@
     ],
     "r_m3": 0.9995,
     "r_m8": NaN
+  },
+  {
+    "tag": "true_batch_k8_lr15p_200ep",
+    "k": 8,
+    "lr": 0.15,
+    "lr_inner_q16": 154,
+    "epochs": 200,
+    "duration_s": 1306.81,
+    "note": "K=8 Higher LR control",
+    "stats": {
+      "verdict": "STATISTICALLY FLAT (PURE NOISE FLOOR)",
+      "slope_loss_per_epoch": -2.432,
+      "r_squared": 0.0007,
+      "q1_loss_mean": 20268.9,
+      "q4_loss_mean": 20183.4,
+      "trend_pct": -0.42,
+      "loss_volatility": 5306.3,
+      "q1_rmse_mean": 79.46,
+      "q4_rmse_mean": 79.06,
+      "q1_enob_mean": 4.7,
+      "q4_enob_mean": 4.71,
+      "best_epoch": 152,
+      "best_val_rmse": 49.99,
+      "best_val_enob": 5.36,
+      "final_val_rmse": 79.46,
+      "final_val_enob": 4.69
+    },
+    "final_w8_diag": [
+      23,
+      25,
+      24,
+      22,
+      33,
+      24
+    ],
+    "final_w3_diag": [
+      64,
+      63,
+      63,
+      64,
+      62,
+      62
+    ],
+    "r_m3": 0.9997,
+    "r_m8": NaN
+  },
+  {
+    "tag": "true_batch_k8_lr20p_200ep",
+    "k": 8,
+    "lr": 0.2,
+    "lr_inner_q16": 205,
+    "epochs": 200,
+    "duration_s": 1348.34,
+    "note": "K=8 High LR control",
+    "stats": {
+      "verdict": "STATISTICALLY FLAT (PURE NOISE FLOOR)",
+      "slope_loss_per_epoch": 0.529,
+      "r_squared": 0.0,
+      "q1_loss_mean": 19940.5,
+      "q4_loss_mean": 20232.4,
+      "trend_pct": 1.46,
+      "loss_volatility": 4508.2,
+      "q1_rmse_mean": 78.45,
+      "q4_rmse_mean": 79.18,
+      "q1_enob_mean": 4.71,
+      "q4_enob_mean": 4.7,
+      "best_epoch": 81,
+      "best_val_rmse": 55.32,
+      "best_val_enob": 5.21,
+      "final_val_rmse": 63.55,
+      "final_val_enob": 5.01
+    },
+    "final_w8_diag": [
+      24,
+      23,
+      24,
+      25,
+      30,
+      26
+    ],
+    "final_w3_diag": [
+      64,
+      62,
+      63,
+      63,
+      61,
+      61
+    ],
+    "r_m3": 0.9996,
+    "r_m8": NaN
   }
 ]
