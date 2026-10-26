@@ -246,7 +246,18 @@ class MamlPostAnalysisGUI(QMainWindow):
         try:
             with open(file_path, "r") as f:
                 self.dataset = json.load(f)
-            self.epochs_data = self.dataset.get("epochs", [])
+
+            # Robust extraction of epoch records across different log schemas
+            epochs_val = self.dataset.get("epochs")
+            if isinstance(epochs_val, list):
+                self.epochs_data = epochs_val
+            elif "records" in self.dataset and isinstance(self.dataset["records"], list):
+                self.epochs_data = self.dataset["records"]
+            elif "epoch_records" in self.dataset and isinstance(self.dataset["epoch_records"], list):
+                self.epochs_data = self.dataset["epoch_records"]
+            else:
+                self.epochs_data = []
+
             meta = self.dataset.get("metadata", {})
             self.static_m33 = np.array(self.dataset.get("static_weights", {}).get("w_m33", np.zeros((6, 6))))
 
@@ -255,11 +266,12 @@ class MamlPostAnalysisGUI(QMainWindow):
             self.slider_epoch.setValue(0)
             self.current_idx = 0
 
+            lr_display = meta.get('lr_scale', self.dataset.get('lr', 1.0))
             info = (
                 f"Loaded: {os.path.basename(file_path)} | "
                 f"Epochs: {n_epochs} | "
                 f"Window: [{meta.get('t_min_ms', 5.0):.1f} - {meta.get('t_max_ms', 5.0):.1f}] ms | "
-                f"LR Scale: {meta.get('lr_scale', 1.0)}"
+                f"LR: {lr_display}"
             )
             self.lbl_file_info.setText(info)
             self._update_all()
@@ -278,7 +290,7 @@ class MamlPostAnalysisGUI(QMainWindow):
             self.btn_play.setText("▶ Play Animation")
             self.btn_play.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
         else:
-            if not self.epochs_data:
+            if not self.epochs_data or not isinstance(self.epochs_data, list):
                 return
             self.timer.start(self.spin_speed.value())
             self.is_playing = True
@@ -286,7 +298,7 @@ class MamlPostAnalysisGUI(QMainWindow):
             self.btn_play.setStyleSheet("background-color: #f44336; color: white; font-weight: bold; padding: 6px 12px;")
 
     def _on_play_step(self):
-        if not self.epochs_data:
+        if not self.epochs_data or not isinstance(self.epochs_data, list):
             return
         nxt = self.current_idx + 1
         if nxt >= len(self.epochs_data):
@@ -295,11 +307,12 @@ class MamlPostAnalysisGUI(QMainWindow):
 
     def _on_slider_changed(self, val: int):
         self.current_idx = val
-        self.lbl_epoch_val.setText(f"{val} / {max(0, len(self.epochs_data) - 1)}")
+        n_eps = len(self.epochs_data) if isinstance(self.epochs_data, list) else 0
+        self.lbl_epoch_val.setText(f"{val} / {max(0, n_eps - 1)}")
         self._update_all()
 
     def _update_all(self):
-        if not self.epochs_data or self.current_idx >= len(self.epochs_data):
+        if not self.epochs_data or not isinstance(self.epochs_data, list) or self.current_idx >= len(self.epochs_data):
             return
         rec = self.epochs_data[self.current_idx]
         self._update_table_and_metrics(rec)
@@ -387,7 +400,14 @@ class MamlPostAnalysisGUI(QMainWindow):
         view_mode = self.combo_3d_view.currentIndex()
 
         if view_mode == 0: # M8 Vernier
-            w_m8 = np.array(rec.get("w_m8", np.zeros((7, 6))))
+            raw_w_m8 = rec.get("w_m8")
+            if raw_w_m8 and len(raw_w_m8) == 7 and len(raw_w_m8[0]) == 6:
+                w_m8 = np.array(raw_w_m8)
+            else:
+                w_m8 = np.zeros((7, 6))
+                diag = rec.get("w8_diag", [24] * 6)
+                for i in range(min(6, len(diag))):
+                    w_m8[i, i] = diag[i]
             X, Y = np.meshgrid(np.arange(6), np.arange(7))
             surf = ax_3d.plot_surface(X, Y, w_m8, cmap="viridis", edgecolor="k", linewidth=0.5, alpha=0.9)
             ax_3d.set_title(f"Matrix 8 (Vernier Layer) — Epoch {rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
@@ -396,7 +416,14 @@ class MamlPostAnalysisGUI(QMainWindow):
             ax_3d.set_zlabel("Weight W (LSB)")
             ax_3d.set_zlim(-50, 50)
         elif view_mode == 1: # M3 Hidden
-            w_m3 = np.array(rec.get("w_m3", np.zeros((8, 6))))
+            raw_w_m3 = rec.get("w_m3")
+            if raw_w_m3 and len(raw_w_m3) == 8 and len(raw_w_m3[0]) == 6:
+                w_m3 = np.array(raw_w_m3)
+            else:
+                w_m3 = np.zeros((8, 6))
+                diag = rec.get("w3_diag", [64] * 6)
+                for i in range(min(6, len(diag))):
+                    w_m3[i, i] = diag[i]
             X, Y = np.meshgrid(np.arange(6), np.arange(8))
             surf = ax_3d.plot_surface(X, Y, w_m3, cmap="plasma", edgecolor="k", linewidth=0.5, alpha=0.9)
             ax_3d.set_title(f"Matrix 3 (Hidden Layer) — Epoch {rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
