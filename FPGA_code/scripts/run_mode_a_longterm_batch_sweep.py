@@ -379,18 +379,18 @@ def run_single_condition(
         }
         epoch_records.append(rec)
 
-        if ep % 20 == 0 or ep == 1 or ep == epochs:
+        if ep % 10 == 0 or ep == 1 or ep == epochs:
             diag_str = str([int(w) for w in w8_diag])
-            print(f"Ep {ep:3d}/{epochs} | Train {train_rmse:5.2f} LSB | Val {val_rmse:5.2f} LSB ({val_enob:4.2f} b) | M8: {diag_str} | r_M3={r3:+.4f}")
+            print(f"Ep {ep:3d}/{epochs} | Train {train_rmse:5.2f} LSB | Val {val_rmse:5.2f} LSB ({val_enob:4.2f} b) | M8: {diag_str} | r_M3={r3:+.4f}", flush=True)
 
     duration = time.time() - t0
     stats = compute_statistical_trajectory(epoch_records)
 
-    print(f"\n[+] Condition Completed in {duration:.1f} s ({duration/60:.1f} min)")
-    print(f"[*] Statistical Verdict: {stats.get('verdict')}")
-    print(f"[*] Slope beta_1: {stats.get('slope_loss_per_epoch'):+.3f} LSB^2/ep (R^2 = {stats.get('r_squared')})")
-    print(f"[*] Q1 Loss: {stats.get('q1_loss_mean')} -> Q4 Loss: {stats.get('q4_loss_mean')} (Trend: {stats.get('trend_pct'):+.1f}%)")
-    print(f"[*] Q4 Mean ENOB: {stats.get('q4_enob_mean')} bits | Peak ENOB: {stats.get('best_val_enob')} bits (Ep {stats.get('best_epoch')})")
+    print(f"\n[+] Condition Completed in {duration:.1f} s ({duration/60:.1f} min)", flush=True)
+    print(f"[*] Statistical Verdict: {stats.get('verdict')}", flush=True)
+    print(f"[*] Slope beta_1: {stats.get('slope_loss_per_epoch'):+.3f} LSB^2/ep (R^2 = {stats.get('r_squared')})", flush=True)
+    print(f"[*] Q1 Loss: {stats.get('q1_loss_mean')} -> Q4 Loss: {stats.get('q4_loss_mean')} (Trend: {stats.get('trend_pct'):+.1f}%)", flush=True)
+    print(f"[*] Q4 Mean ENOB: {stats.get('q4_enob_mean')} bits | Peak ENOB: {stats.get('best_val_enob')} bits (Ep {stats.get('best_epoch')})", flush=True)
 
     # Save detailed telemetry dataset
     dataset_file = LOG_DIR / f"{tag}.json"
