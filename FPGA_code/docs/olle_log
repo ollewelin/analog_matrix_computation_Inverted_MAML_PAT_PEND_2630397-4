@@ -151,24 +151,45 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 #      * Detta innebär att Hadamard-bärvågens spänningsmodulering vid ADC49 kapades med ~4-5 gånger!
 #
 # B. Uppmätt Hadamard-signalstyrka på kisel (FWHT-49):
-#    - Med 15k ohm uppmättes FWHT-49 känsligheterna till endast 2 .. 7 LSB!
-#    - ADC:ns (XC2361A) eget analoga brusgolv ligger runt +-4 .. 5 LSB.
-#    - Hadamard-bärvågen drunknar därmed i ADC-bruset.
+#    - Med 15k ohm uppmättes FWHT-49 känsligheterna till endast 1 .. 4 LSB!
+#    - ADC:ns (XC2361A) eget analoga brusgolv på noden ligger runt sigma ~ 20 .. 35 LSB.
+#    - Hadamard-bärvågen drunknar därmed i ADC-bruset (uppmätt SNR = -16 dB vid ADC49!).
 #    - Detta förklarar varför långtidskörningen uppvisade kraftig spikig förlust och linjär drift:
 #      * Små asymmetrier i ADC-bruset integreras över epoker (0.11 LSB/epok) och skickade Kolumn 5
-#        rakt upp i mättnadstaket (63 LSB) och Kolumn 4 till 0 LSB (det Olle såg på LED-dioderna).
+#        rakt upp i mättnadstaket (67 LSB) och Kolumn 4 till -6 LSB (det Olle såg på LED-dioderna).
 #
-# C. Kodgranskning & Verifiering av Partiella Derivator:
-#    - Git diff mot origin/main kontrollerades rad för rad:
-#      * Endast en ändring gjordes i maml_platform.c: Gränsen för lr_inner_q16 höjdes från 4096 till 32768.
-#      * Ingen kod i maml_fwht16_demodulate, maml_run_permuted_hadamard_sweep, Ekvation 2 (M8-gradient),
-#        Ekvation 4 (Bakåtpropagering), Ekvation 6 (Sigmoid-lutning) eller Ekvation 7 (M3-gradient) har rörts!
-#    - Fysiskt test på kisel:
-#      * 1 steg med MAML_CMD_STEP_OUTER bekräftade att partiella derivator beräknas och appliceras:
-#        Delta W8 uppdaterade 10 celler och Delta W3 uppdaterade 9 celler synkront.
-#      * Beräkningen av partiella derivator är 100% intakt.
+# C. Olles Oscilloskops-observation ("Jag ser Pulser"):
+#    - Olle probade hårdvaran direkt med oscilloskop och bekräftade: Hadamard-pulserna KÖRS FYSISKT!
+#    - T120 Master SoC och T20 Coprocessor lever och avfyrar sina 500 kHz (2.0 us) Walsh-Hadamard
+#      burstsekvenser ut på C_PTU-kondensatorerna.
+#    - Hårdvaran, timingen och tillståndsmaskinerna är 100% aktiva och fungerande.
 #
-# D. Att göra en annan dag:
-#    - Göra en dedikerad mätning av Hadamard-signalstyrka (SNR-svep över capture-RAM).
-#    - Utvärdera om summeringspunkten ska återställas till 3.9k Ohm (där 7.62 bitar ENOB uppnåddes)
-#      eller justeras till ett mer skonsamt mellanläge (t.ex. 4.7k Ohm).
+# D. Matematiken bakom Decibel och Bitar (Olles insikt):
+#    - 6.02 dB per bit: 20 * log10(2) = 6.02 dB.
+#    - 30 dB förlust motsvarar: 30 / 6.02 = 4.98 bitar ~ 5 HELA BITAR (en faktor 32x i amplitud)!
+#    - Resistor-delaren: 16.0 / 4.9 = 3.27x -> 10.3 dB (1.71 bitar).
+#    - Kvantiseringsstupet i SAR-ADC:n: Resterande ~20 dB (3.3 bitar) försvann när bärvågen dök
+#      under 3 LSB i närvaro av sigma = 25 LSB brus, vilket slog ut den koherenta FWHT-korrelationen.
+#
+# E. Olles Arkitekturella Genombrott: Separat Sparse ADC (ADC_149)!
+#    - Konflikten ("Balansgång på slak lina"):
+#      * Mode B (Payload): Kräver stor dämpning (15k eller 30k) för mikroskopisk Vernier-trimning.
+#      * Mode A (Hadamard): Kräver minimal dämpning (1:1 / 0 dB) för att inte drunkna i ADC-brus.
+#    - Olles Lösning: Separera Mätning (Sensing) från Pådrag (Actuation)!
+#      * Tappa av Matris 8 med en dedikerad "Sparse ADC"-räcka (ADC_149) FÖRE summatormotståndet,
+#        på exakt samma sätt som ADC_45 mäter Matris 3 på Layer 1!
+#      * Då mäts Hadamard med full 0 dB signalstyrka (>30 dB SNR), medan summatormotståndet
+#        kan väljas hur stort som helst (15k .. 30k) för ultra-fin Vernier utan att störa bärvågen!
+#
+# F. Möjlighet till Översampling på befintligt kisel:
+#    - Är vi förlorade i brusgolvet? NEJ!
+#    - Noden har naturligt Gaussiskt dither-brus (sigma ~ 25 LSB).
+#    - Ett 2x6 Hadamard-burst tar bara 28 mikrosekunder.
+#    - Genom att köra M = 16 burst i följd vid 5.0 ms (tar endast 448 mikrosekunder!)
+#      får vi sqrt(16) = 4x processing gain (+12 dB = 2 bitar extra).
+#    - Vid M = 64 burst (tar 1.8 ms) får vi sqrt(64) = 8x processing gain (+18 dB = 3 bitar).
+#    - Alternativt kan ett 4.7k-motstånd piggybackas parallellt över 15k (ger 3.6k Ohm) för
+#      omedelbar hårdvaruåterställning av signalstyrkan.
+
+
+

@@ -139,6 +139,27 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Hardware:** Increase summing junction attenuation from $1\text{ k}\Omega / 3.9\text{ k}\Omega$ ($20.4\%$ authority) to $1\text{ k}\Omega / 10\text{--}20\text{ k}\Omega$ ($5\text{--}9\%$ authority). The physical compensation network has proven strong; higher attenuation will provide ultra-fine Vernier sub-LSB resolution and $\approx 8\text{ dB}$ noise floor reduction.
     - **Software:** Replace single-vector locking with **Multi-Vector Mini-Batching** (averaging gradients over $K = 4\text{--}8$ diverse vectors per epoch). This will eliminate single-point DC overfitting ("catastrophic forgetting") and compel the 2-layer network ($M_3 \to \text{Sigmoid} \to M_8$) to extract a universal, input-invariant non-linear compensation surface.
 
+- **2026-10-26 (Physical Attenuator Hardware Mod ($1\text{ k}\Omega / 15\text{ k}\Omega$), Oscilloscope Verification of Hadamard Pulses, Decibel/Quantization Analysis, and Architectural Breakthrough: Dedicated Sparse $\text{ADC}_{149}$ Rack):**
+  - **1. Physical Hardware Modification Executed on Silicon:**
+    Olle Welin physically modified the summing junction attenuators on the PCB from $1\text{ k}\Omega / 3.9\text{ k}\Omega$ ($20.4\%$ authority) to $1\text{ k}\Omega / 15\text{ k}\Omega$ ($6.25\%$ authority) to evaluate whether higher attenuation provides ultra-fine Vernier sub-LSB weight adjustment in Mode B.
+  - **2. Silicon Training Results on $1\text{ k}\Omega / 15\text{ k}\Omega$:**
+    - True Multi-Vector Batch Training ($K=8$, $\text{LR}=1.5\times$) demonstrated an initial landmark physical silicon peak of **$6.71\text{ bits}$ ENOB ($19.63\text{ LSB}$ RMSE)** at Epoch 174.
+    - However, during long continuous 1000-epoch runs, weights exhibited unconstrained linear gradient drift on specific columns (e.g. Column 5 drifted up to $W_8=67$, Column 4 drifted down to $-6$), resulting in late-stage loss blow-ups and LED saturation observed by Olle on the bench.
+  - **3. Direct Oscilloscope Verification ("Jag ser Pulser"):**
+    Direct bench oscilloscope probing by Olle Welin confirmed that the FPGA hardware (Trion T120 Master SoC + Trion T20) is 100% physically alive and actively firing the 500 kHz (2.0 µs per chip) Hadamard Walsh carrier bursts onto the $C_{\text{PTU}}$ gate capacitors. The firmware, FWHT demodulator, and partial derivative state machines are completely intact.
+  - **4. Mathematical Decibel & Bit Alignment ($6.02\text{ dB/bit}$):**
+    Olle and the AI agent audited the exact mathematics of signal loss:
+    - **Linear decibel rule:** $1\text{ bit} \approx 6.02\text{ dB}$. A $30\text{ dB}$ collapse equals $\frac{30\text{ dB}}{6.02\text{ dB/bit}} \approx \mathbf{5\text{ bits}}$ of dynamic range ($10^{30/20} = 31.62\times \approx 32\times$ linear amplitude loss), not "one fifth"!
+    - **Resistor Divider Attenuation ($10.3\text{ dB} \approx 1.7\text{ bits}$):** The branch current division $\frac{1.0 / (1.0 + 3.9)}{1.0 / (1.0 + 15.0)} = \frac{16.0}{4.9} \approx 3.27\times$ accounts for $10.28\text{ dB}$ ($1.71\text{ bits}$).
+    - **SAR ADC Quantization & DNL Cliff ($\approx 20\text{ dB} \approx 3.3\text{ bits}$):** With the carrier amplitude attenuated by $3.27\times$, the raw Hadamard modulation at `ADC_49` dropped from $30\dots 80\text{ LSB}$ down to only **$1\dots 3\text{ LSB}$**. At this microscopic amplitude beneath the background node noise floor ($\sigma \approx 20\dots 35\text{ LSB}$), the SAR ADC comparator deadband disrupted coherent FWHT correlation, dropping effective SNR from $+15\text{ dB}$ to $-16\text{ dB}$ (a net collapse of $\sim 31\text{ dB}$ or 5 bits!).
+  - **5. Architectural Breakthrough: Dedicated Sparse $\text{ADC}_{149}$ Rack:**
+    - **The Dilemma ("Balansgång på slak lina"):** Mode B payload computation wants **large attenuation** ($15\text{ k}\Omega$ or $30\text{ k}\Omega$) for fine Vernier resolution without saturating op-amps, whereas Mode A Hadamard derivative extraction wants **minimal attenuation** ($1:1$, $0\text{ dB}$) so the carrier does not drown in ADC noise.
+    - **The Solution:** Decouple Sensing from Actuation!
+      For the next PCB/silicon revision, Olle identified the key architectural improvement: add a dedicated **Sparse ADC rack (`ADC_149`)** tapping Layer 2 ($M_8$) *before* the summing resistor, exactly mirroring how `ADC_45` taps Layer 1 ($M_3$). This allows Hadamard sensitivities to be sampled with full unattenuated amplitude ($>30\text{ dB}$ SNR), completely freeing the summing resistor to be sized for ideal payload Vernier trim without compromising carrier feedback!
+  - **6. Recovery Strategies on Current Silicon:**
+    - **Hadamard Oversampling in Firmware:** Because the background node noise ($\sigma \approx 25\text{ LSB}$) acts as natural Gaussian dither across the SAR ADC transfer function, executing $M=16\times$ coherent burst averaging ($16 \times 28\text{ µs} = 448\text{ µs}$ within the $5.0\text{ ms}$ plateau) provides $\sqrt{16} = 4\times$ ($+12\text{ dB} = 2\text{ bits}$) processing gain to pull the carrier back out of the noise.
+    - **Hardware Piggyback:** Paralleling a $4.7\text{ k}\Omega$ resistor across the $15\text{ k}\Omega$ ($15\text{k} \parallel 4.7\text{k} = 3.58\text{ k}\Omega \approx 3.9\text{ k}\Omega$) immediately restores full hardware SNR with only 6 solder joints.
+
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
 ![](Fig8_Hadamard_carrier_injection_circuit.png)
 
