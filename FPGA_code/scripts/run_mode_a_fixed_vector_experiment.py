@@ -95,7 +95,7 @@ def run_fixed_vector_experiment(lr=2.0, epochs=20, host="192.168.1.50", port=500
         time.sleep(0.04)
 
         # Read settled post-step telemetry
-        p = get_averaged_telemetry(client, n_avg=4)
+        p = get_averaged_telemetry(client, n_avg=2)
         if not p:
             print(f"[!] Warning: Dropped telemetry packet at Ep {ep}")
             continue
@@ -199,3 +199,4 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=20)
     args = parser.parse_args()
     run_fixed_vector_experiment(lr=args.lr, epochs=args.epochs)
+
