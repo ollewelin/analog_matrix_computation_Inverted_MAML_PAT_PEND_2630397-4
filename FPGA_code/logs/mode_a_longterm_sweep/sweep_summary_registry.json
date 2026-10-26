@@ -1033,5 +1033,140 @@
     ],
     "r_m3": 0.9995,
     "r_m8": NaN
+  },
+  {
+    "tag": "true_batch_k4_lr05p_200ep",
+    "k": 4,
+    "lr": 0.05,
+    "lr_inner_q16": 51,
+    "epochs": 200,
+    "duration_s": 1093.18,
+    "note": "K=4 Low LR control",
+    "stats": {
+      "verdict": "CONVERGING (STATISTICAL DESCENT)",
+      "slope_loss_per_epoch": -23.957,
+      "r_squared": 0.073,
+      "q1_loss_mean": 23038.3,
+      "q4_loss_mean": 18885.5,
+      "trend_pct": -18.03,
+      "loss_volatility": 5119.2,
+      "q1_rmse_mean": 83.99,
+      "q4_rmse_mean": 76.64,
+      "q1_enob_mean": 4.62,
+      "q4_enob_mean": 4.75,
+      "best_epoch": 51,
+      "best_val_rmse": 57.79,
+      "best_val_enob": 5.15,
+      "final_val_rmse": 71.79,
+      "final_val_enob": 4.83
+    },
+    "final_w8_diag": [
+      28,
+      25,
+      24,
+      25,
+      31,
+      22
+    ],
+    "final_w3_diag": [
+      63,
+      62,
+      62,
+      63,
+      62,
+      58
+    ],
+    "r_m3": 0.999,
+    "r_m8": NaN
+  },
+  {
+    "tag": "true_batch_k4_lr10p_200ep",
+    "k": 4,
+    "lr": 0.1,
+    "lr_inner_q16": 102,
+    "epochs": 200,
+    "duration_s": 1153.68,
+    "note": "K=4 Mid LR control",
+    "stats": {
+      "verdict": "STATISTICALLY FLAT (PURE NOISE FLOOR)",
+      "slope_loss_per_epoch": -3.776,
+      "r_squared": 0.0017,
+      "q1_loss_mean": 21532.6,
+      "q4_loss_mean": 21190.9,
+      "trend_pct": -1.59,
+      "loss_volatility": 5285.0,
+      "q1_rmse_mean": 81.3,
+      "q4_rmse_mean": 81.03,
+      "q1_enob_mean": 4.67,
+      "q4_enob_mean": 4.67,
+      "best_epoch": 71,
+      "best_val_rmse": 54.36,
+      "best_val_enob": 5.24,
+      "final_val_rmse": 89.23,
+      "final_val_enob": 4.52
+    },
+    "final_w8_diag": [
+      27,
+      23,
+      24,
+      24,
+      31,
+      25
+    ],
+    "final_w3_diag": [
+      63,
+      62,
+      63,
+      63,
+      62,
+      59
+    ],
+    "r_m3": 0.9994,
+    "r_m8": NaN
+  },
+  {
+    "tag": "true_batch_k4_lr20p_200ep",
+    "k": 4,
+    "lr": 0.2,
+    "lr_inner_q16": 205,
+    "epochs": 200,
+    "duration_s": 1273.83,
+    "note": "K=4 High LR control",
+    "stats": {
+      "verdict": "CONVERGING (STATISTICAL DESCENT)",
+      "slope_loss_per_epoch": -49.507,
+      "r_squared": 0.0023,
+      "q1_loss_mean": 21739.2,
+      "q4_loss_mean": 18204.2,
+      "trend_pct": -16.26,
+      "loss_volatility": 59139.1,
+      "q1_rmse_mean": 82.51,
+      "q4_rmse_mean": 75.36,
+      "q1_enob_mean": 4.64,
+      "q4_enob_mean": 4.77,
+      "best_epoch": 53,
+      "best_val_rmse": 56.28,
+      "best_val_enob": 5.19,
+      "final_val_rmse": 84.85,
+      "final_val_enob": 4.59
+    },
+    "final_w8_diag": [
+      29,
+      24,
+      24,
+      25,
+      29,
+      22
+    ],
+    "final_w3_diag": [
+      64,
+      62,
+      64,
+      64,
+      61,
+      63
+    ],
+    "r_m3": 0.9995,
+    "r_m8": NaN
   }
 ]

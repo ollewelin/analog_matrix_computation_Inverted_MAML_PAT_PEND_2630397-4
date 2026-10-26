@@ -1,10 +1,10 @@
 # Inverted MAML Mode A: Long-Term Batch & Learning Rate Statistical Sweep
 
-**Last Updated:** 2026-10-26 15:18:25  
+**Last Updated:** 2026-10-26 16:17:09  
 **Target Platform:** Efinix Trion T120F324 Master SoC (`192.168.1.50:5000`)  
 **Operating Mode:** Mode A (Active 2-Layer Triad via Sigmoid 10, Jumper Mode 3)  
 **Hardware Summing Attenuator:** $1\text{ k}\Omega / 3.9\text{ k}\Omega$ ($20.4\%$ authority, baseline before $15\text{ k}\Omega$ rework)  
-**Completed Conditions:** 23 experiments  
+**Completed Conditions:** 26 experiments  
 
 ---
 
@@ -12,29 +12,32 @@
 
 | Rank | Batch Size $K$ | LR Scale | Epochs | Slope ($\beta_1$) | $\Delta Q_1 \to Q_4$ | Q4 ENOB | Peak ENOB | Statistical Verdict |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---|
-| 1 | K=20 | 0.03x | 200 | `-23.35` | **-16.4%** | 4.73 b | 5.17 b | CONVERGING (STATISTICAL DESCENT) |
-| 2 | K=25 | 0.05x | 200 | `-18.87` | **-13.8%** | 4.73 b | 5.21 b | CONVERGING (STATISTICAL DESCENT) |
-| 3 | K=16 | 0.08x | 200 | `-13.25` | **-11.7%** | 4.72 b | 5.14 b | CONVERGING (STATISTICAL DESCENT) |
-| 4 | K=12 | 0.10x | 200 | `-15.38` | **-10.8%** | 4.74 b | 5.34 b | CONVERGING (STATISTICAL DESCENT) |
-| 5 | K=20 | 0.10x | 200 | `-14.51` | **-10.8%** | 4.73 b | 5.33 b | CONVERGING (STATISTICAL DESCENT) |
-| 6 | K=8 | 0.03x | 200 | `-14.50` | **-10.8%** | 4.73 b | 5.19 b | CONVERGING (STATISTICAL DESCENT) |
-| 7 | K=12 | 0.05x | 200 | `-8.72` | **-9.1%** | 4.71 b | 5.21 b | CONVERGING (STATISTICAL DESCENT) |
-| 8 | K=20 | 0.08x | 200 | `-12.73` | **-8.7%** | 4.75 b | 5.22 b | CONVERGING (STATISTICAL DESCENT) |
-| 9 | K=20 | 0.05x | 200 | `-10.90` | **-7.9%** | 4.71 b | 5.42 b | CONVERGING (STATISTICAL DESCENT) |
-| 10 | K=16 | 0.05x | 200 | `-9.09` | **-5.9%** | 4.76 b | 5.24 b | CONVERGING (STATISTICAL DESCENT) |
-| 11 | K=8 | 0.08x | 200 | `-7.94` | **-5.4%** | 4.72 b | 5.49 b | CONVERGING (STATISTICAL DESCENT) |
-| 12 | K=8 | 0.10x | 200 | `-3.27` | **-3.4%** | 4.73 b | 5.40 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 13 | K=12 | 0.05x | 200 | `-4.17` | **-2.8%** | 4.79 b | 5.30 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 14 | K=8 | 0.05x | 200 | `-0.99` | **-1.5%** | 4.73 b | 5.21 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 15 | K=25 | 0.08x | 200 | `-2.74` | **-1.2%** | 4.74 b | 5.41 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 16 | K=25 | 0.03x | 200 | `-0.70` | **-0.9%** | 4.70 b | 5.21 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 17 | K=12 | 0.08x | 200 | `+2.18` | **-0.3%** | 4.74 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 18 | K=8 | 0.10x | 200 | `+1.99` | **+1.5%** | 4.80 b | 5.46 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 19 | K=12 | 0.10x | 200 | `+0.93` | **+2.5%** | 4.73 b | 5.17 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 20 | K=8 | 0.03x | 200 | `+4.87` | **+3.5%** | 4.77 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 21 | K=8 | 0.08x | 200 | `+7.92` | **+5.7%** | 4.70 b | 5.25 b | DIVERGING / INSTABILITY |
-| 22 | K=8 | 0.05x | 200 | `+7.97` | **+7.3%** | 4.79 b | 5.47 b | DIVERGING / INSTABILITY |
-| 23 | K=12 | 0.08x | 200 | `+162.19` | **+117.7%** | 4.70 b | 5.39 b | DIVERGING / INSTABILITY |
+| 1 | K=4 | 0.05x | 200 | `-23.96` | **-18.0%** | 4.75 b | 5.15 b | CONVERGING (STATISTICAL DESCENT) |
+| 2 | K=20 | 0.03x | 200 | `-23.35` | **-16.4%** | 4.73 b | 5.17 b | CONVERGING (STATISTICAL DESCENT) |
+| 3 | K=4 | 0.20x | 200 | `-49.51` | **-16.3%** | 4.77 b | 5.19 b | CONVERGING (STATISTICAL DESCENT) |
+| 4 | K=25 | 0.05x | 200 | `-18.87` | **-13.8%** | 4.73 b | 5.21 b | CONVERGING (STATISTICAL DESCENT) |
+| 5 | K=16 | 0.08x | 200 | `-13.25` | **-11.7%** | 4.72 b | 5.14 b | CONVERGING (STATISTICAL DESCENT) |
+| 6 | K=12 | 0.10x | 200 | `-15.38` | **-10.8%** | 4.74 b | 5.34 b | CONVERGING (STATISTICAL DESCENT) |
+| 7 | K=20 | 0.10x | 200 | `-14.51` | **-10.8%** | 4.73 b | 5.33 b | CONVERGING (STATISTICAL DESCENT) |
+| 8 | K=8 | 0.03x | 200 | `-14.50` | **-10.8%** | 4.73 b | 5.19 b | CONVERGING (STATISTICAL DESCENT) |
+| 9 | K=12 | 0.05x | 200 | `-8.72` | **-9.1%** | 4.71 b | 5.21 b | CONVERGING (STATISTICAL DESCENT) |
+| 10 | K=20 | 0.08x | 200 | `-12.73` | **-8.7%** | 4.75 b | 5.22 b | CONVERGING (STATISTICAL DESCENT) |
+| 11 | K=20 | 0.05x | 200 | `-10.90` | **-7.9%** | 4.71 b | 5.42 b | CONVERGING (STATISTICAL DESCENT) |
+| 12 | K=16 | 0.05x | 200 | `-9.09` | **-5.9%** | 4.76 b | 5.24 b | CONVERGING (STATISTICAL DESCENT) |
+| 13 | K=8 | 0.08x | 200 | `-7.94` | **-5.4%** | 4.72 b | 5.49 b | CONVERGING (STATISTICAL DESCENT) |
+| 14 | K=8 | 0.10x | 200 | `-3.27` | **-3.4%** | 4.73 b | 5.40 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 15 | K=12 | 0.05x | 200 | `-4.17` | **-2.8%** | 4.79 b | 5.30 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 16 | K=4 | 0.10x | 200 | `-3.78` | **-1.6%** | 4.67 b | 5.24 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 17 | K=8 | 0.05x | 200 | `-0.99` | **-1.5%** | 4.73 b | 5.21 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 18 | K=25 | 0.08x | 200 | `-2.74` | **-1.2%** | 4.74 b | 5.41 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 19 | K=25 | 0.03x | 200 | `-0.70` | **-0.9%** | 4.70 b | 5.21 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 20 | K=12 | 0.08x | 200 | `+2.18` | **-0.3%** | 4.74 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 21 | K=8 | 0.10x | 200 | `+1.99` | **+1.5%** | 4.80 b | 5.46 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 22 | K=12 | 0.10x | 200 | `+0.93` | **+2.5%** | 4.73 b | 5.17 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 23 | K=8 | 0.03x | 200 | `+4.87` | **+3.5%** | 4.77 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 24 | K=8 | 0.08x | 200 | `+7.92` | **+5.7%** | 4.70 b | 5.25 b | DIVERGING / INSTABILITY |
+| 25 | K=8 | 0.05x | 200 | `+7.97` | **+7.3%** | 4.79 b | 5.47 b | DIVERGING / INSTABILITY |
+| 26 | K=12 | 0.08x | 200 | `+162.19` | **+117.7%** | 4.70 b | 5.39 b | DIVERGING / INSTABILITY |
 
 ---
 
@@ -246,4 +249,31 @@
 - **Quartile 1 Mean Loss:** `19602.4 LSB^2` (4.73 bits) $\to$ **Quartile 4 Mean Loss:** `19357.5 LSB^2` (4.74 bits)
 - **Net Long-Term Trend:** `-1.25%`
 - **Final Weights:** M8 Diag = `[25, 26, 24, 25, 27, 22]`, M3 Diag = `[63, 63, 63, 64, 62, 60]` ($r_{M3} = 0.9995$)
+
+### Condition: K=4, LR=0.05x (200 epochs)
+- **Dataset File:** [`true_batch_k4_lr05p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k4_lr05p_200ep.json)
+- **Execution Time:** 1093.2 s (18.2 min)
+- **Statistical Verdict:** **CONVERGING (STATISTICAL DESCENT)**
+- **Loss Trajectory Slope:** `-23.957 LSB^2/epoch` ($R^2 = 0.073$)
+- **Quartile 1 Mean Loss:** `23038.3 LSB^2` (4.62 bits) $\to$ **Quartile 4 Mean Loss:** `18885.5 LSB^2` (4.75 bits)
+- **Net Long-Term Trend:** `-18.03%`
+- **Final Weights:** M8 Diag = `[28, 25, 24, 25, 31, 22]`, M3 Diag = `[63, 62, 62, 63, 62, 58]` ($r_{M3} = 0.9990$)
+
+### Condition: K=4, LR=0.10x (200 epochs)
+- **Dataset File:** [`true_batch_k4_lr10p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k4_lr10p_200ep.json)
+- **Execution Time:** 1153.7 s (19.2 min)
+- **Statistical Verdict:** **STATISTICALLY FLAT (PURE NOISE FLOOR)**
+- **Loss Trajectory Slope:** `-3.776 LSB^2/epoch` ($R^2 = 0.0017$)
+- **Quartile 1 Mean Loss:** `21532.6 LSB^2` (4.67 bits) $\to$ **Quartile 4 Mean Loss:** `21190.9 LSB^2` (4.67 bits)
+- **Net Long-Term Trend:** `-1.59%`
+- **Final Weights:** M8 Diag = `[27, 23, 24, 24, 31, 25]`, M3 Diag = `[63, 62, 63, 63, 62, 59]` ($r_{M3} = 0.9994$)
+
+### Condition: K=4, LR=0.20x (200 epochs)
+- **Dataset File:** [`true_batch_k4_lr20p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k4_lr20p_200ep.json)
+- **Execution Time:** 1273.8 s (21.2 min)
+- **Statistical Verdict:** **CONVERGING (STATISTICAL DESCENT)**
+- **Loss Trajectory Slope:** `-49.507 LSB^2/epoch` ($R^2 = 0.0023$)
+- **Quartile 1 Mean Loss:** `21739.2 LSB^2` (4.64 bits) $\to$ **Quartile 4 Mean Loss:** `18204.2 LSB^2` (4.77 bits)
+- **Net Long-Term Trend:** `-16.26%`
+- **Final Weights:** M8 Diag = `[29, 24, 24, 25, 29, 22]`, M3 Diag = `[64, 62, 64, 64, 61, 63]` ($r_{M3} = 0.9995$)
 
