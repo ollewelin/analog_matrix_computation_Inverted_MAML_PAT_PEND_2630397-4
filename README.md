@@ -1,5 +1,11 @@
-> [!IMPORTANT]
-> **Notice:** All files, schematics, and code in this repository are published for scientific transparency under Patent Pending SE 2630397-4 (Priority: 2026-06-03). Copyright © 2026 Olle Welin. Academic & non-commercial research use, verification, and experimentation are freely permitted (with attribution to the inventor). All commercial rights are strictly reserved — no commercial patent or copyright license is granted without a separate written agreement.
+> **⚖️ LICENSING & OPEN SCIENCE POLICY (SE 2630397-4)**
+> 
+> * **PCBA / Discrete Hardware (`/pcba_hardware`):** Full Open Source (aligned with CERN OHL-P / Permissive principles). Free for anyone to manufacture, distribute, modify, and sell commercially or non-commercially without any restrictions.
+> * **ASIC / Integrated Circuit (IC) & Core Architecture:** 
+>   * **Free for Research & Academia:** Universities, researchers, and students are completely free to study, test, and implement these designs in silicon, ASIC, or Integrated Circuit (IC) form for research and non-commercial purposes without restrictions.
+>   * **Commercial ASIC / IC Use:** Strictly reserved. Any commercial product or profit-driven silicon/ASIC/IC implementation requires a separate written license agreement under Patent Pending SE 2630397-4.
+> 
+> *See full license text in [LICENSE.md](LICENSE.md).*
 
 ### 💡 A personal note, Olle Welin 2026-10-25
 *If you are wondering where this project is heading – to be honest, I don't know yet! I am building this entirely on my own as a private passion project, and I haven't decided yet whether everything will become pure open source in the future or not. However, the source code, schematics, and telemetry data are published because I believe in open science and want them to be available for anyone who is curious. Feel free to look around, test it, and do research on it – and please reach out if you build upon it!*
