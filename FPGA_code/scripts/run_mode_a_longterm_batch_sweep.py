@@ -294,6 +294,7 @@ def run_single_condition(
 
     w3_flat_0 = np.array(w_m3_start)[:6, :6].flatten()
     w8_flat_0 = np.array(w_m8_start)[:6, :6].flatten()
+    last_good_telem = dict(init_telem)
 
     for ep in range(1, epochs + 1):
         batch_rmses = []
@@ -303,10 +304,16 @@ def run_single_condition(
         # A. True Multi-Strata Batch Gradient Step (Total Samples = M * k)
         # Keeps each vector locked across all 10 strata (4.9..5.1 ms), accumulates
         # all 10*k samples, and performs ONE single weight update on physical silicon!
-        raw_train = client._send_binary(
-            MAML_CMD_BATCH_STEP,
-            struct.pack("<BBHHH", k, 10, 4900, 5100, lr_inner_q16)
-        )
+        raw_train = None
+        for attempt in range(3):
+            raw_train = client._send_binary(
+                MAML_CMD_BATCH_STEP,
+                struct.pack("<BBHHH", k, 10, 4900, 5100, lr_inner_q16)
+            )
+            if raw_train and len(raw_train) >= client.TELEM_SIZE:
+                break
+            time.sleep(0.04)
+
         if raw_train and len(raw_train) >= client.TELEM_SIZE:
             train_p = parse_telemetry_packet(raw_train, client)
             train_loss = train_p["loss_lsb2"]
@@ -314,7 +321,9 @@ def run_single_condition(
             train_enob = train_p["enob_bits"]
             last_train_p = train_p
         else:
-            train_loss, train_rmse, train_enob = 0.0, 0.0, 0.0
+            train_loss = last_good_telem.get("train_loss_mean", last_good_telem["loss_lsb2"])
+            train_rmse = last_good_telem.get("train_rmse_mean", last_good_telem["rmse_lsb"])
+            train_enob = last_good_telem.get("train_enob", last_good_telem["enob_bits"])
 
         # B. Multi-Strata Unseen Holdout Validation (Arbitrary vectors across [4.9..5.1] ms)
         val_rmses = []
@@ -329,7 +338,12 @@ def run_single_condition(
             )
             # Draw fresh independent arbitrary validation vector
             draw_fresh_vector(client, settle_s=0.010)
-            raw = client._send_binary(MAML_CMD_GET_TELEMETRY)
+            raw = None
+            for attempt in range(2):
+                raw = client._send_binary(MAML_CMD_GET_TELEMETRY)
+                if raw and len(raw) >= client.TELEM_SIZE:
+                    break
+                time.sleep(0.02)
             if raw and len(raw) >= client.TELEM_SIZE:
                 p_v = parse_telemetry_packet(raw, client)
                 val_rmses.append(p_v["rmse_lsb"])
@@ -337,10 +351,11 @@ def run_single_condition(
                 if t_val == 5000:
                     last_val_telem = p_v
 
-        val_rmse = round(float(np.mean(val_rmses)), 2) if val_rmses else 0.0
-        val_loss = round(float(np.mean(val_losses)), 1) if val_losses else 0.0
+        val_rmse = round(float(np.mean(val_rmses)), 2) if val_rmses else last_good_telem["rmse_lsb"]
+        val_loss = round(float(np.mean(val_losses)), 1) if val_losses else last_good_telem["loss_lsb2"]
         val_enob = round(max(0.0, 11.0 - math.log2(max(val_rmse, 1.0))), 2)
-        val_telem = last_val_telem if last_val_telem is not None else last_train_p
+        val_telem = last_val_telem if last_val_telem is not None else (last_train_p if last_train_p is not None else last_good_telem)
+        last_good_telem = dict(val_telem)
 
         w_m3_cur = val_telem["w_m3"]
         w_m8_cur = val_telem["w_m8"]

@@ -1,10 +1,10 @@
 # Inverted MAML Mode A: Long-Term Batch & Learning Rate Statistical Sweep
 
-**Last Updated:** 2026-10-26 08:31:23  
+**Last Updated:** 2026-10-26 10:34:57  
 **Target Platform:** Efinix Trion T120F324 Master SoC (`192.168.1.50:5000`)  
 **Operating Mode:** Mode A (Active 2-Layer Triad via Sigmoid 10, Jumper Mode 3)  
 **Hardware Summing Attenuator:** $1\text{ k}\Omega / 3.9\text{ k}\Omega$ ($20.4\%$ authority, baseline before $15\text{ k}\Omega$ rework)  
-**Completed Conditions:** 7 experiments  
+**Completed Conditions:** 12 experiments  
 
 ---
 
@@ -12,13 +12,18 @@
 
 | Rank | Batch Size $K$ | LR Scale | Epochs | Slope ($\beta_1$) | $\Delta Q_1 \to Q_4$ | Q4 ENOB | Peak ENOB | Statistical Verdict |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---|
-| 1 | K=12 | 0.05x | 200 | `-4.17` | **-2.8%** | 4.79 b | 5.30 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 2 | K=8 | 0.10x | 200 | `+1.99` | **+1.5%** | 4.80 b | 5.46 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 3 | K=12 | 0.10x | 200 | `+0.93` | **+2.5%** | 4.73 b | 5.17 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 4 | K=8 | 0.03x | 200 | `+4.87` | **+3.5%** | 4.77 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
-| 5 | K=8 | 0.08x | 200 | `+7.92` | **+5.7%** | 4.70 b | 5.25 b | DIVERGING / INSTABILITY |
-| 6 | K=8 | 0.05x | 200 | `+7.97` | **+7.3%** | 4.79 b | 5.47 b | DIVERGING / INSTABILITY |
-| 7 | K=12 | 0.08x | 200 | `+162.19` | **+117.7%** | 4.70 b | 5.39 b | DIVERGING / INSTABILITY |
+| 1 | K=8 | 0.03x | 200 | `-14.50` | **-10.8%** | 4.73 b | 5.19 b | CONVERGING (STATISTICAL DESCENT) |
+| 2 | K=12 | 0.05x | 200 | `-8.72` | **-9.1%** | 4.71 b | 5.21 b | CONVERGING (STATISTICAL DESCENT) |
+| 3 | K=8 | 0.08x | 200 | `-7.94` | **-5.4%** | 4.72 b | 5.49 b | CONVERGING (STATISTICAL DESCENT) |
+| 4 | K=8 | 0.10x | 200 | `-3.27` | **-3.4%** | 4.73 b | 5.40 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 5 | K=12 | 0.05x | 200 | `-4.17` | **-2.8%** | 4.79 b | 5.30 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 6 | K=8 | 0.05x | 200 | `-0.99` | **-1.5%** | 4.73 b | 5.21 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 7 | K=8 | 0.10x | 200 | `+1.99` | **+1.5%** | 4.80 b | 5.46 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 8 | K=12 | 0.10x | 200 | `+0.93` | **+2.5%** | 4.73 b | 5.17 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 9 | K=8 | 0.03x | 200 | `+4.87` | **+3.5%** | 4.77 b | 5.19 b | STATISTICALLY FLAT (PURE NOISE FLOOR) |
+| 10 | K=8 | 0.08x | 200 | `+7.92` | **+5.7%** | 4.70 b | 5.25 b | DIVERGING / INSTABILITY |
+| 11 | K=8 | 0.05x | 200 | `+7.97` | **+7.3%** | 4.79 b | 5.47 b | DIVERGING / INSTABILITY |
+| 12 | K=12 | 0.08x | 200 | `+162.19` | **+117.7%** | 4.70 b | 5.39 b | DIVERGING / INSTABILITY |
 
 ---
 
@@ -86,4 +91,49 @@
 - **Quartile 1 Mean Loss:** `19199.6 LSB^2` (4.75 bits) $\to$ **Quartile 4 Mean Loss:** `19684.8 LSB^2` (4.73 bits)
 - **Net Long-Term Trend:** `+2.53%`
 - **Final Weights:** M8 Diag = `[18, 25, 23, 18, 33, 34]`, M3 Diag = `[64, 55, 62, 61, 51, 55]` ($r_{M3} = 0.9907$)
+
+### Condition: K=8, LR=0.05x (200 epochs)
+- **Dataset File:** [`true_batch_k8_lr05p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k8_lr05p_200ep.json)
+- **Execution Time:** 1166.6 s (19.4 min)
+- **Statistical Verdict:** **STATISTICALLY FLAT (PURE NOISE FLOOR)**
+- **Loss Trajectory Slope:** `-0.990 LSB^2/epoch` ($R^2 = 0.0001$)
+- **Quartile 1 Mean Loss:** `19804.8 LSB^2` (4.72 bits) $\to$ **Quartile 4 Mean Loss:** `19507.7 LSB^2` (4.73 bits)
+- **Net Long-Term Trend:** `-1.50%`
+- **Final Weights:** M8 Diag = `[25, 25, 24, 25, 25, 23]`, M3 Diag = `[64, 63, 64, 64, 63, 62]` ($r_{M3} = 0.9997$)
+
+### Condition: K=8, LR=0.08x (200 epochs)
+- **Dataset File:** [`true_batch_k8_lr08p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k8_lr08p_200ep.json)
+- **Execution Time:** 1065.3 s (17.8 min)
+- **Statistical Verdict:** **CONVERGING (STATISTICAL DESCENT)**
+- **Loss Trajectory Slope:** `-7.936 LSB^2/epoch` ($R^2 = 0.0086$)
+- **Quartile 1 Mean Loss:** `20966.7 LSB^2` (4.68 bits) $\to$ **Quartile 4 Mean Loss:** `19831.8 LSB^2` (4.72 bits)
+- **Net Long-Term Trend:** `-5.41%`
+- **Final Weights:** M8 Diag = `[26, 25, 24, 26, 23, 22]`, M3 Diag = `[64, 63, 64, 64, 63, 63]` ($r_{M3} = 0.9999$)
+
+### Condition: K=8, LR=0.10x (200 epochs)
+- **Dataset File:** [`true_batch_k8_lr10p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k8_lr10p_200ep.json)
+- **Execution Time:** 942.1 s (15.7 min)
+- **Statistical Verdict:** **STATISTICALLY FLAT (PURE NOISE FLOOR)**
+- **Loss Trajectory Slope:** `-3.265 LSB^2/epoch` ($R^2 = 0.0017$)
+- **Quartile 1 Mean Loss:** `19989.3 LSB^2` (4.71 bits) $\to$ **Quartile 4 Mean Loss:** `19309.1 LSB^2` (4.73 bits)
+- **Net Long-Term Trend:** `-3.40%`
+- **Final Weights:** M8 Diag = `[24, 23, 24, 24, 29, 26]`, M3 Diag = `[64, 63, 63, 64, 63, 62]` ($r_{M3} = 0.9997$)
+
+### Condition: K=8, LR=0.03x (200 epochs)
+- **Dataset File:** [`true_batch_k8_lr03p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k8_lr03p_200ep.json)
+- **Execution Time:** 761.1 s (12.7 min)
+- **Statistical Verdict:** **CONVERGING (STATISTICAL DESCENT)**
+- **Loss Trajectory Slope:** `-14.496 LSB^2/epoch` ($R^2 = 0.0293$)
+- **Quartile 1 Mean Loss:** `22137.4 LSB^2` (4.64 bits) $\to$ **Quartile 4 Mean Loss:** `19754.7 LSB^2` (4.73 bits)
+- **Net Long-Term Trend:** `-10.76%`
+- **Final Weights:** M8 Diag = `[24, 24, 24, 25, 30, 22]`, M3 Diag = `[64, 63, 64, 64, 63, 62]` ($r_{M3} = 0.9997$)
+
+### Condition: K=12, LR=0.05x (200 epochs)
+- **Dataset File:** [`true_batch_k12_lr05p_200ep.json`](../logs/mode_a_longterm_sweep/true_batch_k12_lr05p_200ep.json)
+- **Execution Time:** 1237.0 s (20.6 min)
+- **Statistical Verdict:** **CONVERGING (STATISTICAL DESCENT)**
+- **Loss Trajectory Slope:** `-8.717 LSB^2/epoch` ($R^2 = 0.0088$)
+- **Quartile 1 Mean Loss:** `22303.6 LSB^2` (4.63 bits) $\to$ **Quartile 4 Mean Loss:** `20285.3 LSB^2` (4.71 bits)
+- **Net Long-Term Trend:** `-9.05%`
+- **Final Weights:** M8 Diag = `[26, 24, 24, 25, 31, 25]`, M3 Diag = `[63, 62, 62, 63, 62, 58]` ($r_{M3} = 0.9992$)
 
