@@ -68,6 +68,11 @@ def run_experiment(k=8, lr=0.32, epochs=40, host="192.168.1.50", port=5000, out_
         "w3_diag": list(init_telem["w3_diag"]),
         "w_m8": init_telem["w_m8"],
         "w_m3": init_telem["w_m3"],
+        "x_ref": list(init_telem.get("x_ref", [0]*6)),
+        "z_target": [round(x, 1) for x in init_telem.get("z_target", [0]*6)],
+        "adc45": [round(x, 1) for x in init_telem.get("adc45", [0]*6)],
+        "adc49": [round(x, 1) for x in init_telem.get("adc49", [0]*6)],
+        "err49": [round(x, 1) for x in init_telem.get("err49", [0]*6)],
         "r_m3": 1.0,
     })
 
@@ -136,6 +141,11 @@ def run_experiment(k=8, lr=0.32, epochs=40, host="192.168.1.50", port=5000, out_
             "w3_diag": list(w3_diag),
             "w_m8": val_p.get("w_m8", []),
             "w_m3": val_p.get("w_m3", []),
+            "x_ref": list(val_p.get("x_ref", [0]*6)),
+            "z_target": [round(x, 1) for x in val_p.get("z_target", [0]*6)],
+            "adc45": [round(x, 1) for x in val_p.get("adc45", [0]*6)],
+            "adc49": [round(x, 1) for x in val_p.get("adc49", [0]*6)],
+            "err49": [round(x, 1) for x in val_p.get("err49", [0]*6)],
             "r_m3": r_m3,
         })
 
@@ -180,11 +190,19 @@ def run_experiment(k=8, lr=0.32, epochs=40, host="192.168.1.50", port=5000, out_
     with open(out_json, "w") as f:
         json.dump({
             "test": "1k_15k_hardware_experiment",
-            "k": k, "lr": lr, "lr_inner_q16": lr_inner_q16, "epochs": epochs,
+            "k": k, "lr": lr, "lr_inner_q16": lr_inner_q16, "num_epochs": epochs,
             "elapsed_s": elapsed,
             "slope": slope, "r2": r2, "trend_pct": trend_pct,
             "best_rmse": best_rmse, "best_enob": best_enob, "best_ep": best_ep,
-            "records": epoch_records
+            "epochs": epoch_records,
+            "records": epoch_records,
+            "metadata": {
+                "t_min_ms": 4.9,
+                "t_max_ms": 5.1,
+                "k": k,
+                "lr": lr,
+                "lr_scale": lr,
+            }
         }, f, indent=2)
     print(f"[+] Saved experiment log to {out_json}")
     return out_json

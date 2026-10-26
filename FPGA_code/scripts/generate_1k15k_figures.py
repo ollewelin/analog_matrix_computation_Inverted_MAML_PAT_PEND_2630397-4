@@ -14,7 +14,10 @@ with open(LOG_DIR / "test_1k15k_k8_lr08p_20ep.json") as f:
     d20 = json.load(f)
 
 with open(LOG_DIR / "test_1k15k_k8_lr32p_40ep.json") as f:
-    d40 = json.load(f)
+    d40_high = json.load(f)
+
+with open(LOG_DIR / "test_1k15k_k16_lr08p_40ep.json") as f:
+    d40_k16 = json.load(f)
 
 plt.rcParams.update({
     'font.sans-serif': 'DejaVu Sans',
@@ -28,17 +31,22 @@ plt.rcParams.update({
     'figure.titlesize': 11
 })
 
-fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.2))
+fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.4))
 
 # Panel 1: Validation Loss Trajectories
 ep20 = [r["epoch"] for r in d20["records"][1:]]
 loss20 = [r["loss_lsb2"] for r in d20["records"][1:]]
-ep40 = [r["epoch"] for r in d40["records"][1:]]
-loss40 = [r["loss_lsb2"] for r in d40["records"][1:]]
 
-axes[0].plot(ep20, loss20, color='#0284C7', marker='o', lw=1.8, label="20-Ep Test (LR=0.08x, -57.0% Net)")
-axes[0].plot(ep40, loss40, color='#10B981', marker='s', lw=1.5, alpha=0.8, label="40-Ep Test (LR=0.32x, 4x Higher LR)")
-axes[0].axhline(np.mean(loss20[-5:]), color='#0284C7', linestyle='--', alpha=0.7, label=f"LR=0.08x End Mean ({np.mean(loss20[-5:]):.0f} LSB²)")
+ep40_high = [r["epoch"] for r in d40_high["records"][1:]]
+loss40_high = [r["loss_lsb2"] for r in d40_high["records"][1:]]
+
+ep40_k16 = [r["epoch"] for r in d40_k16["records"][1:]]
+loss40_k16 = [r["loss_lsb2"] for r in d40_k16["records"][1:]]
+
+axes[0].plot(ep20, loss20, color='#0284C7', marker='o', lw=1.8, label="K=8, LR=0.08x (20 Ep, -57.0% Net)")
+axes[0].plot(ep40_high, loss40_high, color='#EF4444', marker='^', lw=1.2, alpha=0.6, label="K=8, LR=0.32x (40 Ep, High Noise)")
+axes[0].plot(ep40_k16, loss40_k16, color='#10B981', marker='s', lw=2.0, label="K=16, LR=0.08x (40 Ep, 160 samples/step)")
+
 axes[0].set_title("(a) Validation Loss Trajectories on 1k/15k Resistor", fontweight='bold')
 axes[0].set_xlabel("Epoch")
 axes[0].set_ylabel("Validation Loss (LSB²)")
@@ -47,15 +55,19 @@ axes[0].legend(loc='upper right', framealpha=0.9, fontsize=7.5)
 
 # Panel 2: Effective Resolution (ENOB)
 enob20 = [r["enob_bits"] for r in d20["records"][1:]]
-enob40 = [r["enob_bits"] for r in d40["records"][1:]]
+enob40_high = [r["enob_bits"] for r in d40_high["records"][1:]]
+enob40_k16 = [r["enob_bits"] for r in d40_k16["records"][1:]]
 
-axes[1].plot(ep20, enob20, color='#0284C7', marker='o', lw=1.8, label=f"LR=0.08x (Peak {max(enob20):.2f} b)")
-axes[1].plot(ep40, enob40, color='#10B981', marker='s', lw=1.5, alpha=0.8, label=f"LR=0.32x (Peak {max(enob40):.2f} b!)")
-axes[1].axhline(5.89, color='#DC2626', linestyle=':', lw=1.5, label="All-Time Record (5.89 bits @ Ep 24)")
+axes[1].plot(ep20, enob20, color='#0284C7', marker='o', lw=1.8, label=f"K=8, LR=0.08x (Peak {max(enob20):.2f} b)")
+axes[1].plot(ep40_high, enob40_high, color='#EF4444', marker='^', lw=1.2, alpha=0.6, label=f"K=8, LR=0.32x (Peak {max(enob40_high):.2f} b)")
+axes[1].plot(ep40_k16, enob40_k16, color='#10B981', marker='s', lw=2.0, label=f"K=16, LR=0.08x (Peak {max(enob40_k16):.2f} b!)")
+
+axes[1].axhline(6.10, color='#059669', linestyle=':', lw=1.5, label="All-Time Record (6.10 bits @ Ep 2)")
+axes[1].axhline(6.00, color='#DC2626', linestyle='--', lw=1.0, alpha=0.7, label="6.0-Bit Barrier")
 axes[1].set_title("(b) Effective Resolution (ENOB Bits) Progression", fontweight='bold')
 axes[1].set_xlabel("Epoch")
 axes[1].set_ylabel("ENOB (Bits)")
-axes[1].set_ylim(3.8, 6.2)
+axes[1].set_ylim(3.8, 6.3)
 axes[1].grid(True, linestyle='--', alpha=0.5)
 axes[1].legend(loc='lower right', framealpha=0.9, fontsize=7.5)
 
