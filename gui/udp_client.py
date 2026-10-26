@@ -29,6 +29,7 @@ MAML_CMD_CELL_DIAG      = 0x17
 MAML_CMD_STEP_OUTER     = 0x18
 MAML_CMD_DIAG_HADAMARD  = 0x19
 MAML_CMD_RAND_DATA      = 0x1A
+MAML_CMD_BATCH_STEP     = 0x1B
 
 # Matrix IDs matching maml_platform.h (0=M3, 1=M8, 2=M33)
 MAT_M3  = 0
@@ -527,6 +528,29 @@ class MamlUdpClient:
                 return parsed
         self._step_digital_twin(force_outer=True)
         return self.sim_telemetry
+
+    def step_strata_batch(
+        self,
+        k: int = 8,
+        num_strata: int = 10,
+        t_min_us: int = 4900,
+        t_max_us: int = 5100,
+        lr_inner_q16: Optional[int] = None,
+    ) -> Optional[MamlTelemetry]:
+        """
+        Executes a true two-stage multi-strata batch gradient accumulation step:
+          - Holds each input vector constant across all num_strata (t_min_us .. t_max_us).
+          - Evaluates across k independent vectors (Total Samples = num_strata * k).
+          - Executes exactly ONE single physical weight update using the accumulated mean gradient.
+        """
+        self.sim_comp_centered = False
+        payload = struct.pack("<BBHH", max(1, min(30, k)), max(1, min(16, num_strata)), t_min_us, t_max_us)
+        if lr_inner_q16 is not None:
+            payload += struct.pack("<H", max(32, min(4096, lr_inner_q16)))
+        raw = self._send_binary(MAML_CMD_BATCH_STEP, payload)
+        if raw is not None:
+            return self._parse_hw_telemetry(raw)
+        return None
 
     def probe_cell(self, matrix_id: int, row: int, col: int) -> Optional[CellProbeResult]:
         return self.probe_cell_xw(matrix_id, row, col, x_amp=96, w_fixed=96, sweep_input=False, hold=False)

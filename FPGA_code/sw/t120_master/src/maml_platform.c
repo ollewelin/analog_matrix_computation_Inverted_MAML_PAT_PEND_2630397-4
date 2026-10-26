@@ -1374,6 +1374,103 @@ static void maml_execute_step(void) {
     }
 }
 
+/* ============================================================================
+ * True Two-Stage Multi-Strata Batch Gradient Accumulation & Weight Step
+ *   - Strata Loop (Inner): Holds the exact same input vector x_ref constant
+ *     across all M strata (t_min_us .. t_max_us).
+ *   - Vector Loop (Outer): Evaluates k distinct arbitrary white-noise vectors.
+ *   - Batch Accumulation: Total Samples = M * k.
+ *   - Weight Update: Exactly ONE single weight update to M3 and M8 per batch!
+ * ============================================================================ */
+static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
+                                      uint16_t t_min_us, uint16_t t_max_us) {
+    if (k_batch < 1)  k_batch = 1;
+    if (k_batch > 30) k_batch = 30;
+    if (num_strata < 1)  num_strata = 1;
+    if (num_strata > 16) num_strata = 16;
+    if (t_min_us < 500)  t_min_us = 4900;
+    if (t_max_us > 9500) t_max_us = 5100;
+    if (t_max_us < t_min_us) t_max_us = t_min_us;
+
+    static int32_t batch_acc_m3[8][6];
+    static int32_t batch_acc_m8[7][6];
+    memset(batch_acc_m3, 0, sizeof(batch_acc_m3));
+    memset(batch_acc_m8, 0, sizeof(batch_acc_m8));
+
+    uint32_t total_samples = (uint32_t)k_batch * (uint32_t)num_strata;
+    uint32_t period_ticks  = g_refresh_period_us * 50u;
+    int16_t gm3[8][6], gm8[7][6];
+    uint64_t loss_accum = 0;
+
+    for (uint8_t vi = 0; vi < k_batch; vi++) {
+        /* Generate fresh arbitrary white-noise vector for this batch member */
+        maml_generate_new_white_noise_ref();
+        t20_sync_heater_and_wdog();
+
+        for (uint8_t si = 0; si < num_strata; si++) {
+            uint16_t dly_us = (num_strata > 1) ?
+                (uint16_t)(t_min_us + ((uint32_t)si * (uint32_t)(t_max_us - t_min_us)) / (uint32_t)(num_strata - 1)) :
+                t_min_us;
+
+            /* Wait for 10.0 ms capacitor refresh boundary */
+            while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks) {
+                /* spin */
+            }
+            g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
+
+            /* Re-charge 2T1C capacitors with current weights */
+            maml_refresh_all_columns();
+
+            /* Settle at the exact stratum delay */
+            bsp_uDelay(dly_us);
+
+            /* Measure and extract gradients on physical silicon while holding x_ref constant! */
+            maml_measure_and_extract_gradients(si, gm3, gm8);
+            loss_accum += (uint64_t)g_tel.loss_total_milli;
+
+            /* Accumulate gradients into 32-bit batch buffers (NO WEIGHT UPDATES HERE!) */
+            for (int r = 0; r < 8; r++) {
+                for (int c = 0; c < 6; c++) {
+                    batch_acc_m3[r][c] += (int32_t)gm3[r][c];
+                }
+            }
+            for (int r = 0; r < 7; r++) {
+                for (int c = 0; c < 6; c++) {
+                    batch_acc_m8[r][c] += (int32_t)gm8[r][c];
+                }
+            }
+        }
+    }
+
+    /* Perform EXACTLY ONE weight update using the batch-averaged gradient */
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 6; c++) {
+            int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)total_samples);
+            int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
+            g_w_m3_q14[r][c] = sat_w80_q14((int32_t)g_w_m3_q14[r][c] - step_w);
+            g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
+        }
+    }
+    for (int r = 0; r < 7; r++) {
+        for (int c = 0; c < 6; c++) {
+            int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)total_samples);
+            int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
+            g_w_m8_q14[r][c] = sat_w80_q14((int32_t)g_w_m8_q14[r][c] - step_w);
+            g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
+        }
+    }
+
+    /* Record average batch training loss */
+    g_tel.loss_total_milli = (uint32_t)(loss_accum / (uint64_t)total_samples);
+
+    /* Apply the updated weights to physical 2T1C cells and read settled telemetry */
+    maml_refresh_all_columns();
+    bsp_uDelay((t_min_us + t_max_us) >> 1);
+    aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
+    g_tel.outer_loop_epoch++;
+    maml_sync_shadow_bytes();
+}
+
 static void aio_load_all_30_dacs(uint8_t code) {
     uint32_t b   = (uint32_t)bitrev8(code);
     uint32_t w32 = b | (b << 8) | (b << 16) | (b << 24);
@@ -2098,6 +2195,22 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 uint8_t  mode    = req[5];
                 uint16_t en_mask = (uint16_t)req[6] | ((uint16_t)req[7] << 8);
                 return maml_diag_hadamard(mode, en_mask, resp_buf, resp_max);
+            }
+            break;
+
+        case MAML_CMD_BATCH_STEP:
+            if (req_len >= 5) {
+                uint8_t  k_batch    = (req_len >= 6 && req[5] >= 1) ? req[5] : 8u;
+                uint8_t  num_strata = (req_len >= 7 && req[6] >= 1) ? req[6] : 10u;
+                uint16_t t_min_us   = (req_len >= 9) ? ((uint16_t)req[7] | ((uint16_t)req[8] << 8)) : 4900u;
+                uint16_t t_max_us   = (req_len >= 11) ? ((uint16_t)req[9] | ((uint16_t)req[10] << 8)) : 5100u;
+                if (req_len >= 13) {
+                    uint16_t lr_val = (uint16_t)req[11] | ((uint16_t)req[12] << 8);
+                    if (lr_val >= 32u && lr_val <= 4096u) {
+                        g_lr_inner_q16 = lr_val;
+                    }
+                }
+                maml_execute_strata_batch(k_batch, num_strata, t_min_us, t_max_us);
             }
             break;
 
