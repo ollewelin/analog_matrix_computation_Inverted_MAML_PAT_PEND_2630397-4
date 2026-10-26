@@ -16,48 +16,47 @@ Efter omlödning av summeringspunkten på kretskortet sänktes återkopplingsauk
 
 ---
 
-## 2. Jämförelse mellan de fyra testerna med 1k/15k-motståndet
+## 2. Jämförelsetabell över hårdvarutesterna på 1k/15k
 
-![1k/15k Hårdvaruverifiering](/home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_1k15k_hardware_verification.png)
-
-| Egenskap | Test 1: $K=8, \text{LR}=0.08x$ | Test 2: $K=8, \text{LR}=0.32x$ | Test 3: $K=16, \text{LR}=0.08x$ | **Test 4: $K=4, \text{LR}=1.00x$ (Dynamisk Backprop)** |
+| Egenskap | Test 1: $K=8, \text{LR}=0.08x$ | Test 3: $K=16, \text{LR}=0.08x$ | Test 4: $K=4, \text{LR}=1.00x$ | **Test 5: $K=8, \text{LR}=1.50x$ (200 Ep)** 🏆 |
 | :--- | :---: | :---: | :---: | :---: |
-| **Antal Epoker** | 20 Epoker (37.8 s) | 40 Epoker (87.5 s) | 40 Epoker (99.3 s) | **40 Epoker (75.5 s, 1.9 s/ep)** |
-| **Prover per steg ($10 \times K$)** | 80 prover/steg | 80 prover/steg | 160 prover/steg | **40 prover/steg (Snabb respons)** |
-| **Initial Val Loss / RMSE** | $20\,035.0\text{ LSB}^2$ ($81.7\text{ LSB}$) | $7\,515.6\text{ LSB}^2$ ($50.1\text{ LSB}$) | $17\,703.5\text{ LSB}^2$ ($76.8\text{ LSB}$) | $29\,031.8\text{ LSB}^2$ ($98.4\text{ LSB}$) |
-| **Bästa Uppmätta ENOB** | $5.61\text{ bitar}$ | $5.89\text{ bitar}$ | $6.10\text{ bitar}$ | **$6.28\text{ bitar}$! (Nytt all-time kiselrekord!)** 🏆 |
-| **Lägsta Val-RMSE** | $42.00\text{ LSB}$ | $34.49\text{ LSB}$ | $29.95\text{ LSB}$ | **$26.35\text{ LSB}$! (Epok 27)** |
-| **Stabilitet / Dynamik** | Mycket jämn nedgång | Högt brus, fladdrig | Lugn och kontrollerad | **Aggressiv adaptiv inlärning** |
-| **Viktförflyttning $W_8$ (M8)** | Statisk: alla 24 | Liten rörelse: $24 \dots 25$ | Liten rörelse: $24 \dots 25$ | **Mycket aktiv: $[23, 23, 25, 24, 27, 26]$** |
-| **Viktförflyttning $W_3$ (M3)** | Statisk: nästan alla 64 | Liten rörelse: $60 \dots 63$ | Liten rörelse: $62 \dots 64$ | **Mycket aktiv: $60 \dots 65$ + off-diagonaler** |
-| **Topologisk Stabilitet** | $r_{M3} = 1.0000$ | $r_{M3} = 0.9994$ | $r_{M3} = 0.9998$ | **$r_{M3} = 0.9998$** |
+| **Antal Epoker** | 20 Epoker (37.8 s) | 40 Epoker (99.3 s) | 40 Epoker (75.5 s) | **200 Epoker (373.0 s, 1.9 s/ep)** |
+| **Prover per steg ($10 \times K$)** | 80 prover | 160 prover | 40 prover | **80 prover / steg (16 000 prover totalt)** |
+| **Initial Val Loss / RMSE** | $20\,035\text{ LSB}^2$ ($81.7\text{ LSB}$) | $17\,703\text{ LSB}^2$ ($76.8\text{ LSB}$) | $29\,031\text{ LSB}^2$ ($98.4\text{ LSB}$) | **$11\,670\text{ LSB}^2$ ($62.4\text{ LSB}$)** |
+| **Bästa Uppmätta ENOB** | $5.61\text{ bitar}$ | $6.10\text{ bitar}$ | $6.28\text{ bitar}$ | **$6.71\text{ bitar}$! (All-Time Kiselrekord!)** 👑 |
+| **Lägsta Val-RMSE** | $42.00\text{ LSB}$ | $29.95\text{ LSB}$ | $26.35\text{ LSB}$ | **$19.63\text{ LSB}$! (Epok 174)** |
+| **Långsiktig Trend** | -57.0% (20 ep) | Stabil runt 5.7 b | Snabb dal vid Ep 27 | **-23.9% nettoloss Q1 &rarr; Q4 ($\beta_1 = -22.7$)** |
+| **Viktförflyttning $W_8$ (M8)** | Statisk: alla 24 | Liten rörelse ($24 \dots 25$) | Aktiv ($20 \dots 27$) | **Organisk evolution: $[26, 28, 23, 24, 0, 37]$** |
+| **Viktförflyttning $W_3$ (M3)** | Statisk: nästan alla 64 | Liten rörelse ($62 \dots 64$) | Aktiv ($60 \dots 65$) | **Organisk evolution: $[50, 67, 45, 65, 31, 72]$** |
+| **Topologisk Korrelation** | $r_{M3} = 1.0000$ | $r_{M3} = 0.9998$ | $r_{M3} = 0.9998$ | **$r_{M3} = 0.8748$ (Bevarad geometri)** |
 
 ---
 
-## 3. Fysikalisk Analys & Förklaring till varför matriserna stod stilla tidigare
+## 3. Fysikalisk Analys: Varför 200 Epoker vid $\text{LR}=1.5x$ gav 6.71 bitar
 
-### 1. Varför stod matriserna stilla i GUI vid låg Learning Rate?
-- **6-bitars DAC-upplösning:** Hårdvarans DAC:ar arbetar med diskreta heltalssteg ($0 \dots 63$).
-- **Gradientskalan:** Vid $\text{LR} = 0.08x$ var den ackumulerade viktförändringen per epok $\Delta W \approx 0.05 \dots 0.15\text{ DAC-steg}$. Efter heltalsavrundning (eller trunkering) förblev de flesta DAC-värdena identiska med startläget (pedestalen 24 för M8, 64 för M3) under loppet av 20-40 epoker.
-- Det gav illusionen i GUI-animeringen att "ingenting hände och bara brus syntes", trots att analog signalbehandling pågick.
+### 1. Landskapet växer organiskt utan att mättas
+Vid $\text{LR} = 5.0x$ drevs vikterna så hårt att de slog i taket för linjär mättning ($W_3 = 80$) redan vid epok 50.
+Vid **$\text{LR} = 1.50x$** fann systemet en perfekt balans:
+- Vikterna rörde sig kontinuerligt i varje epok för att kompensera för kanalernas analoga olinjäriteter.
+- Ingen kanal slog i taket ($W_3$ rörde sig mellan 31 och 72, väl inom det linjära området).
+- Korrelationen $r_{M3}$ bevarades på höga **$0.875$**, vilket innebär att matrisens inbördes geometriska struktur förblev intakt.
 
-### 2. Vad hände när vi höjde till $\text{LR} = 1.0x$ och sänkte till $K = 4$?
-1. **Gradientauktoriteten slog igenom:** Med $\text{LR} = 1.0x$ blev gradientstegen tillräckligt kraftiga för att faktiskt korsa diskretiseringströskeln ($\Delta W \ge 1\text{ LSB}$) i varje uppdatering.
-2. **Kompensation i båda lagren:**
-   - I **Matrix 8** vandrade vikterna dynamiskt mellan 20 och 27 över kolumnerna för att kompensera för kanalernas fysiska asymmetrier.
-   - I **Matrix 3** justerades inte bara diagonalen ($62 \dots 65$) utan även off-diagonala korskopplingar ($0 \to 1$) utvecklades för att dämpa överhörning mellan intilliggande kolumner.
-3. **Ingen instabilitet tack vare 1k/15k:**
-   - På den gamla 1k/3.9k-hårdvaran hade en inlärningshastighet på $1.0x$ omedelbart drivit op-amparna till klippning och skenande svängning.
-   - Med det nya 1k/15k-motståndet är återkopplingsslingan så pass dämpad ($6.25\%$) att systemet förblir **helt linjärt och stabilt**, vilket tillät systemet att nå **$6.28\text{ bitar}$ ENOB ($26.35\text{ LSB}$ RMSE)**!
+### 2. Under 20 LSB i residualfel
+Vid **Epok 174** nådde systemet ett historiskt minimum:
+- **Residualfel (RMSE):** **$19.63\text{ LSB}$**
+- **ENOB:** **$6.71\text{ bitar}$**
+- Målsignal $Z_{target}$: `[-958.0, -944.0, -1256.0, -496.0, 666.0, 104.0] LSB`
+- Uppmätt ADC49: `[-971.0, -970.0, -1252.0, -466.5, 690.0, 106.0] LSB`
+- Residualfel per kanal: `[-13.0, -26.0, +4.0, +29.5, +24.0, +2.0] LSB`!
 
 ---
 
-## 4. Hur du spelar upp den dynamiska körningen i GUI:t
-Öppna den senaste körningen (Test 4) direkt i GUI:t:
+## 4. Spela upp 200-epokerskörningen i GUI:t
+Öppna den nya 200-epokerskörningen i analys-GUI:t:
 ```bash
-/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/mode_a_longterm_sweep/test_1k15k_k4_lr100p_40ep.json
+/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/mode_a_longterm_sweep/test_1k15k_k8_lr150p_200ep.json
 ```
 
-1. Klicka på **▶ Play Animation** eller dra i reglaget längst ner.
-2. Studera **3D Weight Surfaces**: Nu ser du hur både Matrix 8 och Matrix 3 rör sig aktivt från epok till epok!
-3. Vid **Epok 27** ser du den optimala dalen där residualfelet pressas ner till rekordlåga **$26.35\text{ LSB}$**!
+1. Klicka på **▶ Play Animation** och luta dig tillbaka!
+2. Studera **3D Weight Surfaces**: Se hur 3D-ytan för Matrix 8 och Matrix 3 gradvis växer fram, jämnar ut ojämnheterna och deformeras mjukt över alla 200 epoker.
+3. Vid **Epok 174** ser du hur residualfelet dyker ner under 20 LSB och når det nya rekordet **6.71 bitar**!
