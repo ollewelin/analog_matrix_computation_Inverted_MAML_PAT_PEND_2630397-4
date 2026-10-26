@@ -134,3 +134,41 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # True Batching (10 temporala tidsskikt med låst X * K oberoende vektorer) fungerar som en
 # matematisk Vernier-dämpare som tämjer 1k/3.9k-summeringsdämparen och bevisar att 2-lagers
 # Inverted MAML-nätverket konvergerar och generaliserar på fysiskt kisel.
+
+
+# ==============================================================================
+# 7. Hårdvaruanalys 1k / 15k Ohm Summeringspunkt (2026-10-26 kl 20:35)
+# ==============================================================================
+# Omlödning av summeringspunkten: Från 1k / 3.9k Ohm till 1k / 15k Ohm.
+#
+# A. Kretsteoretisk analys & Olles observation:
+#    - Parallellimpedansen vid summeringspunkten sätts av 1k-motståndet mot virtuell jord:
+#      * Vid 3.9k: 1k || 3.9k = 796 Ohm
+#      * Vid 15k:  1k || 15k  = 938 Ohm
+#      * Nodbredden/impedansen ändrades alltså marginellt (~140 Ohm).
+#    - MEN signalströmmen från Hadamard-kompensationsgrenen dämpades kraftigt:
+#      * Injektionsströmmen styrs av seriemotståndet R_comp (15k / 3.9k ~ 3.85x .. 5x dämpning).
+#      * Detta innebär att Hadamard-bärvågens spänningsmodulering vid ADC49 kapades med ~4-5 gånger!
+#
+# B. Uppmätt Hadamard-signalstyrka på kisel (FWHT-49):
+#    - Med 15k ohm uppmättes FWHT-49 känsligheterna till endast 2 .. 7 LSB!
+#    - ADC:ns (XC2361A) eget analoga brusgolv ligger runt +-4 .. 5 LSB.
+#    - Hadamard-bärvågen drunknar därmed i ADC-bruset.
+#    - Detta förklarar varför långtidskörningen uppvisade kraftig spikig förlust och linjär drift:
+#      * Små asymmetrier i ADC-bruset integreras över epoker (0.11 LSB/epok) och skickade Kolumn 5
+#        rakt upp i mättnadstaket (63 LSB) och Kolumn 4 till 0 LSB (det Olle såg på LED-dioderna).
+#
+# C. Kodgranskning & Verifiering av Partiella Derivator:
+#    - Git diff mot origin/main kontrollerades rad för rad:
+#      * Endast en ändring gjordes i maml_platform.c: Gränsen för lr_inner_q16 höjdes från 4096 till 32768.
+#      * Ingen kod i maml_fwht16_demodulate, maml_run_permuted_hadamard_sweep, Ekvation 2 (M8-gradient),
+#        Ekvation 4 (Bakåtpropagering), Ekvation 6 (Sigmoid-lutning) eller Ekvation 7 (M3-gradient) har rörts!
+#    - Fysiskt test på kisel:
+#      * 1 steg med MAML_CMD_STEP_OUTER bekräftade att partiella derivator beräknas och appliceras:
+#        Delta W8 uppdaterade 10 celler och Delta W3 uppdaterade 9 celler synkront.
+#      * Beräkningen av partiella derivator är 100% intakt.
+#
+# D. Att göra en annan dag:
+#    - Göra en dedikerad mätning av Hadamard-signalstyrka (SNR-svep över capture-RAM).
+#    - Utvärdera om summeringspunkten ska återställas till 3.9k Ohm (där 7.62 bitar ENOB uppnåddes)
+#      eller justeras till ett mer skonsamt mellanläge (t.ex. 4.7k Ohm).
