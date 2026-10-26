@@ -7,8 +7,17 @@
 > 
 > *See full license text in [LICENSE.md](LICENSE.md).*
 
-### 💡 A personal note, Olle Welin 2026-10-25
-*If you are wondering where this project is heading – to be honest, I don't know yet! I am building this entirely on my own as a private passion project, and I haven't decided yet whether everything will become pure open source in the future or not. However, the source code, schematics, and telemetry data are published because I believe in open science and want them to be available for anyone who is curious. Feel free to look around, test it, and do research on it – and please reach out if you build upon it!*
+### 💡 A personal note from the inventor, Olle Welin (October 2026)
+
+*If you are wondering where this project is heading – to be honest, I am taking it one day at a time! I am building, probing, and testing all of this entirely on my own as a private passion project on my lab bench.*
+
+*I believe deeply in open science and radical hardware transparency. That is why all source code, FPGA firmware, schematics, telemetry logs, and patent specifications are openly published here for anyone who is curious. Feel free to explore, replicate, benchmark, and research it.*
+
+*To make things completely clear on how you can use this work:*
+* **Discrete PCB Hardware (`/pcba_hardware`):** The physical PCBA implementation using discrete transistors, op-amps, and standard components is **fully open source**—including for commercial manufacturing, modification, building, and commercial sales without any restrictions.
+* **ASIC / Silicon & Core Architecture:** Universities, students, and researchers are completely free to study, simulate, test, or implement these designs in silicon, ASIC, or Integrated Circuit (IC) form for academic and non-commercial research. Commercial profit-driven silicon/ASIC/IC products remain reserved under Patent Pending SE 2630397-4 and require a separate written licensing agreement or partnership with me.
+
+*If you find this interesting, want to collaborate on silicon tapeouts, or build upon these ideas – please feel free to reach out!*
 
 ---
 
