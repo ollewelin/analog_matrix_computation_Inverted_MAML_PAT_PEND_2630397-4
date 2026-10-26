@@ -26,9 +26,16 @@ def run_experiment(k=8, lr=0.32, epochs=40, host="192.168.1.50", port=5000, out_
     client = MamlUdpClient(host=host, port=port, timeout=4.0)
     lr_inner_q16 = max(32, min(32768, int(round(1024 * lr))))
 
+    if out_json is None:
+        out_json = Path(f"FPGA_code/logs/mode_a_longterm_sweep/test_1k15k_k{k}_lr{int(round(lr*100)):02d}p_{epochs}ep.json")
+    else:
+        out_json = Path(out_json)
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+
     print("=" * 78)
     print("MODE A HARDWARE EXPERIMENT: 1k / 15k Ohm Summing Attenuator")
     print(f"Target: {host}:{port} | K={k} ({k*10} samples/step) | LR={lr:.2f}x (Q16={lr_inner_q16}) | Epochs={epochs}")
+    print(f"Log Destination: {out_json}")
     print("=" * 78)
 
     # 1. Initialize Mode A centered baseline
@@ -150,6 +157,28 @@ def run_experiment(k=8, lr=0.32, epochs=40, host="192.168.1.50", port=5000, out_
         })
 
         print(f"Ep {ep:2d}/{epochs} | Train {train_rmse:5.1f} | Val {val_rmse:5.1f} LSB | {val_enob:4.2f} b  | M8: {w8_diag} | r_M3={r_m3:+.4f}", flush=True)
+
+        # Checkpoint every 25 epochs
+        if ep % 25 == 0:
+            tmp_out = out_json.with_suffix(".tmp")
+            with open(tmp_out, "w") as f:
+                json.dump({
+                    "test": "1k_15k_hardware_experiment",
+                    "k": k, "lr": lr, "lr_inner_q16": lr_inner_q16, "num_epochs": ep,
+                    "target_epochs": epochs,
+                    "elapsed_s": time.time() - t_start,
+                    "best_rmse": best_rmse, "best_enob": best_enob, "best_ep": best_ep,
+                    "epochs": epoch_records,
+                    "records": epoch_records,
+                    "metadata": {
+                        "t_min_ms": 4.9,
+                        "t_max_ms": 5.1,
+                        "k": k,
+                        "lr": lr,
+                        "lr_scale": lr,
+                    }
+                }, f, indent=2)
+            tmp_out.replace(out_json)
 
     elapsed = time.time() - t_start
     print("-" * 78)
