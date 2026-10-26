@@ -175,11 +175,21 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 #    - Konflikten ("Balansgång på slak lina"):
 #      * Mode B (Payload): Kräver stor dämpning (15k eller 30k) för mikroskopisk Vernier-trimning.
 #      * Mode A (Hadamard): Kräver minimal dämpning (1:1 / 0 dB) för att inte drunkna i ADC-brus.
+#    - Matematiken bakom lösningen (Olles insikt):
+#      * Summatorn är en 100% linjär passiv krets. I kedjeregeln är dess derivata en ren konstant skalär:
+#        dL/dW8 = (dL/dV_sum) * (dV_sum/dV_M8) * (dV_M8/dW8)
+#        där dV_sum/dV_M8 = R_main / (R_main + R_comp) = 1k / (1k + 15k) = 1/16 (en ren siffra!).
+#      * Det finns alltså NOLL anledning att skicka den analoga Hadamard-signalen genom dämparen!
+#        Den konstanta dämpningsfaktorn multipliceras helt enkelt in digitalt i firmwaren (eller
+#        bakas in i Learning Rate eta).
 #    - Olles Lösning: Separera Mätning (Sensing) från Pådrag (Actuation)!
 #      * Tappa av Matris 8 med en dedikerad "Sparse ADC"-räcka (ADC_149) FÖRE summatormotståndet,
 #        på exakt samma sätt som ADC_45 mäter Matris 3 på Layer 1!
-#      * Då mäts Hadamard med full 0 dB signalstyrka (>30 dB SNR), medan summatormotståndet
-#        kan väljas hur stort som helst (15k .. 30k) för ultra-fin Vernier utan att störa bärvågen!
+#      * 5x STARKARE BÄRVÅG: Odämpad (0 dB) avtappning gör Hadamard-signalen 4.9x starkare än den
+#        någonsin var med 3.9k! Den slår med 150 .. 400 LSB rakt in i ADC(149) med >35 dB SNR.
+#      * Full frihet för Payload: Summatormotståndet kan väljas hur stort som helst (15k, 30k) för
+#        sub-LSB Vernier i Mode B, medan Hadamard-återkopplingen opererar med maximal analog dynamik!
+
 #
 # F. Möjlighet till Översampling på befintligt kisel:
 #    - Är vi förlorade i brusgolvet? NEJ!
