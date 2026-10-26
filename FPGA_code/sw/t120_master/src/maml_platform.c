@@ -1992,10 +1992,10 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                     g_hadamard_delay_us = (had_dly <= 9500u) ? had_dly : 9500u;
                 }
 
-                /* Optional byte 17-18: Programmable Inner-Loop Learning Rate Q0.16 (e.g. 1024=1.0x, 256=0.25x) */
+                /* Optional byte 17-18: Programmable Inner-Loop Learning Rate Q0.16 (e.g. 1024=1.0x, 5120=5.0x, max 32768=32.0x) */
                 if (req_len >= 19) {
                     uint16_t lr_val = (uint16_t)req[17] | ((uint16_t)req[18] << 8);
-                    if (lr_val >= 32u && lr_val <= 4096u) {
+                    if (lr_val >= 32u && lr_val <= 32768u) {
                         g_lr_inner_q16 = lr_val;
                     }
                 }
@@ -2206,7 +2206,7 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 uint16_t t_max_us   = (req_len >= 11) ? ((uint16_t)req[9] | ((uint16_t)req[10] << 8)) : 5100u;
                 if (req_len >= 13) {
                     uint16_t lr_val = (uint16_t)req[11] | ((uint16_t)req[12] << 8);
-                    if (lr_val >= 32u && lr_val <= 4096u) {
+                    if (lr_val >= 32u && lr_val <= 32768u) {
                         g_lr_inner_q16 = lr_val;
                     }
                 }

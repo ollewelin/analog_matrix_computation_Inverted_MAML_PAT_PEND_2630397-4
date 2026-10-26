@@ -24,7 +24,7 @@ from run_mode_a_longterm_batch_sweep import (
 
 def run_experiment(k=8, lr=0.32, epochs=40, host="192.168.1.50", port=5000, out_json=None):
     client = MamlUdpClient(host=host, port=port, timeout=4.0)
-    lr_inner_q16 = max(32, min(4096, int(round(1024 * lr))))
+    lr_inner_q16 = max(32, min(32768, int(round(1024 * lr))))
 
     print("=" * 78)
     print("MODE A HARDWARE EXPERIMENT: 1k / 15k Ohm Summing Attenuator")
