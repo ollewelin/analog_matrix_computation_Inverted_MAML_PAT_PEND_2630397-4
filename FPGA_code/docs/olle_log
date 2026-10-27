@@ -203,3 +203,47 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 
 
 
+# ==============================================================================
+# 8. Forskningssyften & Digital Strypning av Data och Vikter (2026-10-27 kl 06:20)
+# ==============================================================================
+# Olles granskning av insignalsvektorer och vikter:
+# Varför har inga slumpade insignaler över +-99 LSB eller tresiffriga tal (t.ex. +112, -121) synts?
+#
+# A. Bekräftelse av digital strypning i firmware (maml_platform.c sedan commit 237c9485):
+#    1. DATA LINE (DAC_2 / x_ref):
+#       - maml_platform.c rad 440:
+#         rnd = (int32_t)(prng_next() % 91u) - 45;
+#         Kommentar i koden: "keeping MOSFETs in linear triode region".
+#       - Insignalen är alltså hårt begränsad till [-45, +45] LSB (endast 35% av fullskalan [-128, +127]).
+#       - Detta drabbar ALLA 3 MATRISER (M33, M3, M8) samtidigt via den delade DAC2_D_ROW-bussen!
+#
+#    2. VIKTER (Weight lines):
+#       - Kompensationsmatriser M3 och M8:
+#         * Clampar vid träning via sat_w80_q14() (rad 41, 1450, 1458) till [-80, +80] LSB (63% av fullskala).
+#         * Initieras vid seed_weights (rad 970) till endast 28% av fullskala (~ +-35 LSB).
+#       - Payload-matris M33:
+#         * Låst till k_default_m33 (rad 335) med diagonaler +72 .. +84 och off-diagonaler -36 .. +44.
+#         * Aldrig tillåten att gå till extrema +-120 .. +127 LSB.
+#       - Slutsats: BÅDE Data line och Vikter har varit strypta digitalt!
+#
+# B. Tydliggörande av två skilda forskningssyften:
+#    1. SYFTE 1: Maximal Absolut ENOB (Linjärt Triod-fönster)
+#       - Strypning: Data [-45, +45], Vikter [-80, +80].
+#       - Fokus: Hålla kiseltransistorerna i sitt snälla, nästan-linjära område för att maximera
+#         absoluta ENOB-siffror (> 7 bitar).
+#
+#    2. SYFTE 2: Fullt Sving mot den Designade Analoga Hårdvaran (Relativt ENOB-Lyft)
+#       - Fullskala: Data [-120, +127], Vikter [-120, +127].
+#       - Fokus: Olles egentliga vision. Låta den analoga hårdvaran jobba i fullt sving, gå ut i
+#         transistorns kraftigt olinjära subthreshold- och mättningsområden, och undersöka om det
+#         2-lagers Inverted MAML-nätverket (M3 -> Sigmoid -> M8) har styrkan att RELATIVT LYFTA
+#         matrisen ur dessa analoga distorsioner.
+#
+# C. Framtida testkrav:
+#    - Alla tester och rapporter måste från och med nu explicit deklarera vilket syfte de undersöker:
+#      * [REGIME 1: MAX ENOB / LINEAR WINDOW]
+#      * [REGIME 2: FULL SWING / RELATIVE LIFT]
+
+
+
+

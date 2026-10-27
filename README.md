@@ -167,6 +167,24 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Hadamard Oversampling in Firmware:** Because the background node noise ($\sigma \approx 25\text{ LSB}$) acts as natural Gaussian dither across the SAR ADC transfer function, executing $M=16\times$ coherent burst averaging ($16 \times 28\text{ µs} = 448\text{ µs}$ within the $5.0\text{ ms}$ plateau) provides $\sqrt{16} = 4\times$ ($+12\text{ dB} = 2\text{ bits}$) processing gain to pull the carrier back out of the noise.
     - **Hardware Piggyback:** Paralleling a $4.7\text{ k}\Omega$ resistor across the $15\text{ k}\Omega$ ($15\text{k} \parallel 4.7\text{k} = 3.58\text{ k}\Omega \approx 3.9\text{ k}\Omega$) immediately restores full hardware SNR with only 6 solder joints.
 
+- **2026-10-27 (Scientific Method Clarification: Dual Research Regimes & Discovery of Data/Weight Digital Clamping):**
+  - **1. Discovery of Digital Range Clamping in Firmware:**
+    Following an audit of why random input vectors never exceeded $\pm 99\text{ LSB}$ or displayed 3 digits (e.g. $+112$, $-121$), code inspection revealed that both the Data line and Weight ranges were digitally restricted in firmware [`maml_platform.c`](FPGA_code/sw/t120_master/src/maml_platform.c) starting in commit `237c9485` (Oct 24, 2026):
+    - **Data Line (`DAC_2` / `x_ref`):** Restricted to $[-45, +45]\text{ LSB}$ ($35\%$ of full scale $[-128, +127]$) via `rnd = (prng_next() % 91u) - 45` (line 440) to *"keep MOSFETs in linear triode region"*. This affects all three matrices ($M_{33}, M_3, M_8$) simultaneously via the shared `DAC2_D_ROW[0..5]` physical bus.
+    - **Weight Range ($W$):**
+      * Compensation matrices $M_3$ & $M_8$ are clamped to $[-80, +80]\text{ LSB}$ ($63\%$ of full scale) via `sat_w80_q14()` (lines 41, 1450, 1458) and initialized at $28\%$ ($\approx \pm 35\text{ LSB}$) via Xavier/Kaiming auto-gain (line 970).
+      * Primary payload matrix $M_{33}$ is locked to `k_default_m33` with values confined to $[-36, +84]\text{ LSB}$ (line 335).
+  - **2. Formal Definition of Two Distinct Research Regimes:**
+    To ensure absolute scientific clarity, future experiments and reports must explicitly categorize which regime is under evaluation:
+    - **Regime 1: High Absolute ENOB (Linear Triode Window):**
+      - *Configuration:* Stiffened/clamped range ($\text{Data} \in [-45, +45]$, $W \in [-80, +80]$).
+      - *Objective:* Maximize total system precision (e.g. achieving $> 7\text{ bits}$ ENOB) by staying inside the well-behaved linear triode region of the dual-2T1C cells.
+    - **Regime 2: Full-Swing Analog Stress Test (Relative ENOB Lift):**
+      - *Configuration:* Unclamped full analog swing ($\text{Data} \in [-120, +127]$, $W \in [-120, +127]$).
+      - *Objective:* Test the core invention against real, brutal transistor physics (subthreshold pinch-off, channel transconductance collapse, and saturation). Evaluate whether the Inverted MAML 2-layer neural compensation network ($M_3 \to \text{Sigmoid} \to M_8$) possesses the raw mathematical power to **relatively lift** a severely non-linear matrix out of distortion.
+  - **3. Protocol Requirement Going Forward:**
+    All future test runs, telemetry logs, and benchmark reports must explicitly declare whether they operate under **Regime 1 (Maximal Absolute ENOB)** or **Regime 2 (Full-Swing Relative Lift)**.
+
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
 ![](Fig8_Hadamard_carrier_injection_circuit.png)
 
