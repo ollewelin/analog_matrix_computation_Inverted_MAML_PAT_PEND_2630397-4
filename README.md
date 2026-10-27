@@ -448,5 +448,33 @@ Direct bench oscilloscope probing conducted by Olle on **2026-10-22** clarified 
 - **Upgrade Isolated Strictly to Data Lines (`DAC2_D_ROW*`):**  
   The current-sourcing limitation was **strictly isolated to the In-Data row buffers (`DAC2`)**, which must supply continuous drain current to all conducting columns in parallel. Only the `DAC2` quad op-amps (`U1$CBB16`, `U2$CBB16`) were replaced with high-current units (**`MCP664-E/SL`**, completed 2026-10-23). Weight buffers remain original `MCP6024`.
 
+---
+
+## 🔗 Architectural Disclosure & Defensive Publication: Multi-Layer Daisy-Chained "Atomic Triads" (Deep Analog Pipeline with Sparse Digital State Propagation)
+**Publication Date:** 2026-10-27 | **Inventor:** Olle Welin | **Reference:** Extension to Patent Pending SE 2630397-4 (Priority: 2026-06-03)
+
+*This section constitutes an explicit public disclosure (Prior Art) of the multi-layer scaling topology for the Inverted MAML Analog In-Memory Computing (AIMC) architecture, ensuring complete freedom to operate across arbitrarily deep neural networks.*
+
+### 1. Elimination of Intermediate Full-Bandwidth DAC(2) and ADC(49)
+In a multi-layer neural network or deep matrix pipeline comprising $N$ cascaded **Atomic Triads** ($\text{Triad}_1, \text{Triad}_2, \dots, \text{Triad}_N$), intermediate full-bandwidth digital-to-analog and analog-to-digital conversion is completely eliminated during operational payload inference:
+* **Single Entry / Single Exit Full-Bandwidth Conversion:** Only the first triad ($\text{Triad}_1$) requires a full-bandwidth input `DAC(2)` to convert the external digital input vector $X^{(1)}$ into the analog domain. Similarly, only the final triad ($\text{Triad}_N$) requires a full-bandwidth output `ADC(49)` to digitize the final layer's output vector $Z^{(49, N)}$ at full payload throughput.
+* **Uninterrupted Analog Payload Daisy-Chain:** For all intermediate boundaries ($L = 1 \dots N-1$), the combined analog output vector from the summing stage `SUM(35)` of $\text{Triad}_L$ (where the primary matrix `33` output and the second correction layer `8 -> 10` output meet) is routed **directly in the analog domain** to the input row buffers (`26`) of the subsequent $\text{Triad}_{L+1}$ (driving both its first correction `Matrix(3)` and its `Primary Matrix(33)` in parallel).
+* **Inter-Triad Analog Conditioning:** Where required by transistor triode linear bounds (e.g., mapping the `SUM(35)` / `COLTIA` output swing around the $+1.65\text{ V}$ virtual ground to the optimal $250\text{ mV}$ linear row $V_{ds}$ envelope of the next stage), passive resistive attenuation, AC/DC coupling, or linear unity/scaled op-amp buffering is applied directly on the analog inter-triad bus without digitization.
+
+### 2. Sparse Digital State Propagation for Autonomous Multi-Triad Calibration
+While the payload signal propagates continuously through all $N$ triads at full analog bandwidth with near-zero latency, each intermediate triad ($\text{Triad}_1 \dots \text{Triad}_{N-1}$) retains only **low-power, sparse-sampling (low duty-cycle) ADCs**: specifically, a **Sparse `ADC(45)`** (between correction Layer 1 and Layer 2) and a **Sparse `ADC(49)`** tapped at the analog output node `SUM(35)` (inter-triad junction).
+
+During the short, periodic Hadamard calibration windows (`20, 24`, e.g., $28\ \mu\text{s}$ snapshot windows at $t = 5.0\text{ ms}$ within a $10\text{ ms}$ / $100\text{ Hz}$ refresh cycle, or across multi-strata batch intervals):
+1. **Sparse Inter-Layer Readout:** The digital controller of $\text{Triad}_L$ samples its Sparse `ADC(49)` to capture an instantaneous digital snapshot of its outgoing analog vector $\tilde{Z}^{(49, L)}$.
+2. **Digital State Forwarding:** $\text{Triad}_L$ propagates this sparse digital vector $\tilde{Z}^{(49, L)}$ over a low-bandwidth digital control bus to the digital controller (`9`) of the downstream $\text{Triad}_{L+1}$.
+3. **Downstream Reference Truth & Target Synthesis:** Because $\tilde{Z}^{(49, L)}$ constitutes the exact instantaneous input vector $X^{(L+1)}$ entering $\text{Triad}_{L+1}$ during that snapshot window, the digital controller of $\text{Triad}_{L+1}$ computes its local deterministic target vector $Z_{\text{target}}^{(L+1)} = f_{\text{ref}, L+1}\big(\tilde{Z}^{(49, L)}\big)$ from the frozen digital reference weights $W_A^{(33, L+1)}$ and evaluates its own local column error $Er_j^{(49, L+1)} = \tilde{Z}_j^{(49, L+1)} - Z_{\text{target}, j}^{(L+1)}$.
+4. **Implicit Analog Input Multiplication & Carrier Search (Equations 1–7):** Within $\text{Triad}_{L+1}$, orthogonal Hadamard weight perturbation ($V_{\text{PTU}}$ via $C_{\text{PTU}}$) is injected onto `Matrix(8)` and `Matrix(3)` during time-separated sub-windows. By virtue of the physical MOSFET triode multiplication at each crosspoint (Equations 2 & 7), the incoming analog signal from $\text{Triad}_L$ automatically modulates the Hadamard perturbation in hardware without requiring full-bandwidth input digitization. The sparse `ADC(45)` and sparse `ADC(49)` in $\text{Triad}_{L+1}$ extract the local gradients and perform the regularized maximum carrier wave search (`best_k`, Equations 5 & 6) exactly as in a standalone triad.
+
+### 3. Domino Error Cancellation & Power Scaling across Arbitrary Depth
+This daisy-chained architecture covers all sequential, pipelined, staggered, and synchronous/asynchronous multi-triad calibration schedules (including True Multi-Strata Batch accumulation across $K$ vectors and $M$ temporal strata):
+* **Local Error Truncation (No Exponential Analog Drift):** Each $\text{Triad}_L$ autonomously converges its local correction matrices (`3` and `8`) to match its ideal digital transfer function (~7+ bits ENOB), while any residual analog offset, buffer skew, or thermal drift crossing the inter-triad boundary is automatically observed and compensated within $\text{Triad}_{L+1}$.
+* **Radical Power & Silicon Area Reduction:** For an $N$-layer deep analog processor, $(N-1)$ full-bandwidth input DAC arrays (`DAC 2`) are completely removed, and $(N-1)$ full-bandwidth output ADC arrays (`ADC 49`) are replaced by ultra-low-duty-cycle sparse calibration ADCs (or a single time-multiplexed sparse calibration ADC shared across multiple triads via an analog mux).
+
+
 
 
