@@ -189,6 +189,16 @@ Working with analog computing is an act of balancing physics and precision. Very
       To eliminate the $-16\text{ dB}$ SNR carrier collapse and restore robust Hadamard feedback on the current PCBA revision (where Layer 2 Hadamard shares the summing resistor path to `ADC_49`), Olle Welin will restore the summing junction resistors from $15\text{ k}\Omega$ back to $3.9\text{ k}\Omega$ (or piggyback $4.7\text{ k}\Omega$ across $15\text{ k}\Omega \implies 3.58\text{ k}\Omega$). This immediately restores the pristine $+15\dots +20\text{ dB}$ Hadamard SNR ($30\dots 80\text{ LSB}$ modulation).
     - **Future Full-Swing (Regime 2) Stress Testing:**
       Once the $1\text{ k}\Omega / 3.9\text{ k}\Omega$ baseline is restored on hardware, comprehensive **Regime 2 (Full-Swing Relative Lift)** investigations will be executed: unclamping Data lines to $[-120, +127]\text{ LSB}$ and Weights to full scale to benchmark how powerfully the Inverted MAML 2-layer network ($M_3 \to \text{Sigmoid} \to M_8$) can compensate for severe non-linear FET distortion.
+  - **5. Architectural Roadmap for Version 2.0 ("Lagom" Holistically Harmonized Analog Co-Design):**
+    With the physical empirical behavior of the standard `DOX3134A` MOSFET multiplier cells now thoroughly understood on silicon (linear triode boundary, transconductance sag, and subthreshold turnaround), the next-generation PCBA (Version 2.0) will be co-designed from the ground up:
+    - **A. Full Digital Bit Dynamic Range ($0\dots 255$ / $\pm 127\text{ LSB}$):**
+      Instead of digitally clamping input data to $\pm 45\text{ LSB}$ or weights to $\pm 80\text{ LSB}$, the analog resistor networks and bias levels will be tailored so that the complete 8-bit digital range naturally spans the full physical dynamic range of the cell without artificial software throttling.
+    - **B. Harmonized S-Curves (Non-Linear Activation Shaping):**
+      The analog Sigmoid/$\tanh$ op-amp feedback networks on Layer 1 ($M_3 \to \text{Sigmoid 4}$) and Layer 2 ($M_8 \to \text{Sigmoid 10}$) will be rescaled so their linear transition regions and non-linear saturation knees perfectly encompass the physical voltage swings of Matrix 3 and Matrix 8. Activations will operate in their expressive full-swing region without premature rail clipping or saturation.
+    - **C. Dedicated Sparse $\text{ADC}_{149}$ Rack:**
+      Integrate a dedicated sparse ADC rack tapping Matrix 8 *before* the summing resistor (identical to `ADC_45` on Matrix 3). This decouples Hadamard derivative extraction ($>35\text{ dB}$ SNR, $0\text{ dB}$ attenuation) from the passive payload summing junction, allowing the summing resistor to be as large as desired ($15\text{ k}\Omega$ or $30\text{ k}\Omega$) for ultra-fine Vernier authority in Mode B.
+    - **D. The "Lagom" Design Principle:**
+      The entire analog-digital compute triad will be tuned to a balanced ("Lagom") operating point: every digital bit utilized, full physical analog swing, zero op-amp saturation, and maximal proprioceptive compensation authority.
 
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
 ![](Fig8_Hadamard_carrier_injection_circuit.png)
@@ -262,17 +272,17 @@ During physical bench bringup of the 3x 6x6 matrix PCB, direct oscilloscope prob
 2. **DAC Data Row Buffers (`DAC2_D_ROW*`) — Current Starvation Under Multi-Column Load:**
    - Unlike the weight buffers, each **In-Data row buffer (`DAC2`)** continuously drives the drain channels of all connected columns in parallel across Matrix 3, Matrix 8, and Matrix 33 simultaneously.
    - Under dynamic multi-column conduction, cumulative channel current exceeds the linear sourcing capacity of the `MCP6024` (<10 mA), causing the row voltage to sag by $\sim 188\text{ mV}_\text{pp}$.
-   - **Conclusion:** Only the `DAC2` In-Data row buffer op-amps require replacement with high-current pin-compatible op-amps in late November.
+   - **Conclusion:** Only the `DAC2` In-Data row buffer op-amps (`U1$CBB16`, `U2$CBB16`) required replacement. This upgrade was physically executed on **2026-10-23** by soldering **`MCP664-E/SL`** ($\pm 70\text{ mA}$, $60\text{ MHz}$) onto the board, completely eliminating row voltage sag. Weight op-amps remain the original `MCP6024`.
 
-#### Targeted High-Current SOIC-14 Upgrade Options (for DAC Data Row Buffers Only):
-The `MCP6024T-I/SL` uses the standard **14-pin SOIC Quad Op-Amp pinout**. Drop-in replacements for the `DAC2` data row buffers include:
+#### High-Current SOIC-14 Upgrade (Executed on DAC Data Row Buffers Only):
+The `MCP6024T-I/SL` uses the standard **14-pin SOIC Quad Op-Amp pinout**. Drop-in replacements evaluated and installed for the `DAC2` data row buffers (`U1$CBB16`, `U2$CBB16`) include:
 
-| Part Number | Manufacturer | Package | Output Current Capability | Bandwidth (GBW) | Key Advantage |
+| Part Number | Manufacturer | Package | Output Current Capability | Bandwidth (GBW) | Status & Role |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **MCP6024T-I/SL** *(Current)* | Microchip | SOIC-14 | $< 10\text{ mA}$ linear drive | $10\text{ MHz}$ | Perfect for Weight lines; sags $\sim 188\text{ mV}$ on parallel Data lines |
-| **AD8534ARZ** | Analog Devices | SOIC-14 | **$\pm 250\text{ mA}$ per channel** | $3\text{ MHz}$ | Massive current sourcing, Rail-to-Rail I/O; eliminates Data row sag |
-| **MCP664-E/SL** | Microchip | SOIC-14 | **$\pm 70\text{ mA}$ per channel** | **$60\text{ MHz}$** | Very fast settling ($32\text{ V/\mu s}$), stiff voltage rails |
-| **OPA4310IDR** | Texas Instruments | SOIC-14 | **$\pm 150\text{ mA}$ per channel** | $3\text{ MHz}$ | Robust $3.3\text{ V}$ linear drive, thermal shutdown protection |
+| **MCP6024T-I/SL** | Microchip | SOIC-14 | $< 10\text{ mA}$ linear drive | $10\text{ MHz}$ | **Retained:** 100% adequate for Weight lines; sagged $\sim 188\text{ mV}$ on parallel Data lines |
+| **MCP664-E/SL** | Microchip | SOIC-14 | **$\pm 70\text{ mA}$ per channel** | **$60\text{ MHz}$** | **INSTALLED (2026-10-23):** Fast settling ($32\text{ V/\mu s}$), stiff voltage rails, zero row sag |
+| **AD8534ARZ** | Analog Devices | SOIC-14 | **$\pm 250\text{ mA}$ per channel** | $3\text{ MHz}$ | Alternate evaluated candidate |
+| **OPA4310IDR** | Texas Instruments | SOIC-14 | **$\pm 150\text{ mA}$ per channel** | $3\text{ MHz}$ | Alternate evaluated candidate |
 
 ### Corrected Hadamard Carrier Modulation: 24 µs Contiguous Burst at 2.0 ms Post-Refresh
 
@@ -354,7 +364,7 @@ To understand how the `100 nF` 2T1C gate storage capacitors interact with the We
 - **Physical Phenomena Confirmed on Oscilloscope:**
   1. **Weight Memory Decay & Refresh Pulse (Blue):** The Blue trace clearly captures the sharp $100\text{ Hz}$ ($10\text{ ms}$ period) autonomous refresh edge charging the $100\text{ nF}$ analog memory gate up to its target voltage, followed by the predictable continuous decay ($\sim 328\text{ mV}_\text{pp}$) over the $10\text{ ms}$ interval between refresh cycles.
   2. **Op-Amp Output Sag & Dynamic Crosstalk Loading (Yellow):** The Yellow trace shows the `DAC2_D_ROW1` buffer sagging by $\sim 188\text{ mV}_\text{pp}$ synchronously when columns switch and during matrix operations. This confirms that the current `MCP6024` quad op-amp lacks sufficient current-sourcing capability ($<10\text{ mA}$) to maintain a stiff, invariant voltage rail under dynamic multi-cell loading.
-  3. **Targeted Scope of Upgrade:** Replacing only the In-Data row buffers (**`DAC2`**) with high-current op-amps (**`AD8534ARZ`** / **`MCP664-E/SL`**) in late November will eliminate the 188 mVpp row sag. The Weight buffers remain original `MCP6024` as their drive is verified fully adequate.
+  3. **Targeted Scope of Upgrade:** Replacing only the In-Data row buffers (**`DAC2`**, `U1$CBB16`, `U2$CBB16`) with high-current op-amps (**`MCP664-E/SL`**, completed 2026-10-23) eliminated the 188 mVpp row sag. The Weight buffers remain original `MCP6024` as their drive is verified fully adequate.
 
 #### Key Findings & Targeted Driver Upgrade (2026-10-22 Update):
 1. **PCB Copper Traces Are Free of Resistance:**
@@ -436,7 +446,7 @@ Direct bench oscilloscope probing conducted by Olle on **2026-10-22** clarified 
 - **No Extra Reservoir Capacitors Needed:**  
   Adding 100 nF reservoir capacitors to the weight buffer outputs is completely unnecessary; the original schematic and PCB layout for the Weight lines is 100% sound.
 - **Upgrade Isolated Strictly to Data Lines (`DAC2_D_ROW*`):**  
-  The current-sourcing limitation is **strictly isolated to the In-Data row buffers (`DAC2`)**, which must supply continuous drain current to all conducting columns in parallel. Only the `DAC2` quad op-amps will be replaced with high-current units (`AD8534ARZ` / `MCP664-E/SL`) in late November.
+  The current-sourcing limitation was **strictly isolated to the In-Data row buffers (`DAC2`)**, which must supply continuous drain current to all conducting columns in parallel. Only the `DAC2` quad op-amps (`U1$CBB16`, `U2$CBB16`) were replaced with high-current units (**`MCP664-E/SL`**, completed 2026-10-23). Weight buffers remain original `MCP6024`.
 
 
 

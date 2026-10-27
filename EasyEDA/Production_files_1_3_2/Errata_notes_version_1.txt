@@ -10,3 +10,21 @@ Critical LED1 resistor to CSI pin to T20 if set pull down set JTAG in Daisy chai
 Bug fix 2026-09-30:
 missing input net
 T120_CRESET_N
+
+4. 2026-10-07: Bug at Centertap 0-ohm to GND there should be 10nF to GND Eth Phy magnetics
+
+5. 2026-10-23: Op-amp upgrade for DAC(2) In-Data row buffers (ONLY U1$CBB16, U2$CBB16):
+   - Replaced the two quad op-amps U1$CBB16 and U2$CBB16 (formerly MCP6024) driving DAC(2) In-Data rows 1..6 with high-current MCP664-E/SL (+-70 mA, 60 MHz, 35 V/us).
+   - Direct oscilloscope verification confirmed this completely eliminates the ~188 mVpp row voltage sag under dynamic multi-column load.
+   - NOTE: Weight DAC buffers (MCP6024) remain 100% UNCHANGED and perform flawlessly (they only charge one column at a time).
+   - NOTE: Summing junction resistors remain at original 1k / 3.9k Ohm (no change).
+
+6. Architectural Errata / Roadmap for Version 2.0 (Next Generation PCBA):
+   - A. Sparse ADC Rack (ADC_149):
+     Add dedicated sparse ADC rack tapping Matrix 8 directly BEFORE the summing resistor (identical to how ADC_45 taps Matrix 3). Decouples Hadamard derivative sensing (>35 dB SNR, 0 dB attenuation) from payload summing attenuation.
+   - B. Holistically Harmonized Analog Dynamics ("Lagom" Tuning for Standard MOSFETs):
+     Now that the physical transfer characteristics of the DOX3134A MOSFET cells (linear triode regime, subthreshold turnaround, and saturation) are empirically mapped across the 10 ms cycle, redesign the analog signal chain:
+     * Full Digital Bit Utilization: Scale analog input and weight attenuators/references so that the full 8-bit DAC range (0..255 / +-127 LSB) corresponds to the optimal physical operating window of the transistor without artificial digital throttling.
+     * S-Curve Alignment: Rescale the analog Sigmoid/tanh non-linear activation circuits so their linear transition regions and saturation knees match the actual signal levels of Matrix 3 and Matrix 8 (preventing premature clipping while allowing full non-linear expressive power).
+     * The goal of Version 2.0 is an inherently balanced ("Lagom") analog-digital co-design: maximum physical dynamic range, full utilization of digital bits, and zero clipping or saturation.
+
