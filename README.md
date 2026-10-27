@@ -184,6 +184,11 @@ Working with analog computing is an act of balancing physics and precision. Very
       - *Objective:* Test the core invention against real, brutal transistor physics (subthreshold pinch-off, channel transconductance collapse, and saturation). Evaluate whether the Inverted MAML 2-layer neural compensation network ($M_3 \to \text{Sigmoid} \to M_8$) possesses the raw mathematical power to **relatively lift** a severely non-linear matrix out of distortion.
   - **3. Protocol Requirement Going Forward:**
     All future test runs, telemetry logs, and benchmark reports must explicitly declare whether they operate under **Regime 1 (Maximal Absolute ENOB)** or **Regime 2 (Full-Swing Relative Lift)**.
+  - **4. Hardware Action Plan & Immediate Roadmap:**
+    - **Physical Resolder to $1\text{ k}\Omega / 3.9\text{ k}\Omega$:**
+      To eliminate the $-16\text{ dB}$ SNR carrier collapse and restore robust Hadamard feedback on the current PCBA revision (where Layer 2 Hadamard shares the summing resistor path to `ADC_49`), Olle Welin will restore the summing junction resistors from $15\text{ k}\Omega$ back to $3.9\text{ k}\Omega$ (or piggyback $4.7\text{ k}\Omega$ across $15\text{ k}\Omega \implies 3.58\text{ k}\Omega$). This immediately restores the pristine $+15\dots +20\text{ dB}$ Hadamard SNR ($30\dots 80\text{ LSB}$ modulation).
+    - **Future Full-Swing (Regime 2) Stress Testing:**
+      Once the $1\text{ k}\Omega / 3.9\text{ k}\Omega$ baseline is restored on hardware, comprehensive **Regime 2 (Full-Swing Relative Lift)** investigations will be executed: unclamping Data lines to $[-120, +127]\text{ LSB}$ and Weights to full scale to benchmark how powerfully the Inverted MAML 2-layer network ($M_3 \to \text{Sigmoid} \to M_8$) can compensate for severe non-linear FET distortion.
 
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
 ![](Fig8_Hadamard_carrier_injection_circuit.png)

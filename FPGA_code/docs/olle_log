@@ -243,6 +243,13 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 #    - Alla tester och rapporter måste från och med nu explicit deklarera vilket syfte de undersöker:
 #      * [REGIME 1: MAX ENOB / LINEAR WINDOW]
 #      * [REGIME 2: FULL SWING / RELATIVE LIFT]
+#
+# D. Hårdvaruplan & Kommande steg:
+#    - Olle löder tillbaka summeringsmotståndet till 1k / 3.9k Ohm (eller piggybackar 4.7k över 15k -> 3.6k).
+#    - Detta återställer omedelbart Hadamard-bärvågen till > +15 dB SNR (30 .. 80 LSB modulering vid ADC49).
+#    - Därefter genomförs de planerade Full-Swing undersökningarna (Regime 2) med upplåsta data- och viktspärrar
+#      för att utvärdera 2-lagers Inverted MAML-nätverkets relativa förmåga att linjärisera transistorns fulla sving.
+
 
 
 
