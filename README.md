@@ -1,3 +1,18 @@
+# Analog 2T1C Matrix Computation with Inverted Meta-Learning (MAML)
+## Patent Application: SE 2630397-4 (Patent Pending)
+
+### 📄 Patent Documents & Architecture References:
+* **Primary Patent Document (English Translation):** [📄 `inverterad MAML_12_Eng.pdf`](inverterad%20MAML_12_Eng.pdf)
+* **Patent Addendum (Stratified Batching Update Weights):** [📄 `Inverted_MAML_Addendum_Stratified Batching Update Weights.pdf`](Inverted_MAML_Addendum_Stratified%20Batching%20Update%20Weights.pdf)
+* **Patent Application No:** SE 2630397-4
+* **Status:** Patent Pending
+* **Inventor:** Olle Welin
+* **Priority Date:** 2026-06-03
+
+![Patent Figure 1: Inverted MAML Analog Matrix Architecture with Autonomous Neural Compensation Network](Fig1.png)
+
+---
+
 > **⚖️ LICENSING & OPEN SCIENCE POLICY (SE 2630397-4)**
 > 
 > * **PCBA / Discrete Hardware (`/pcba_hardware`):** Full Open Source (aligned with CERN OHL-P / Permissive principles). Free for anyone to manufacture, distribute, modify, and sell commercially or non-commercially without any restrictions.
@@ -20,17 +35,6 @@
 *If you find this interesting, want to collaborate on silicon tapeouts, or build upon these ideas – please feel free to reach out!*
 
 ---
-
-# Analog Matrix Multiplication with Proprioception
-### Patent pending: document inverterad MAML_12_Eng.pdf translated
-`inverterad MAML_12_Eng.pdf`
-![](Fig1.png)
-
-#### PATENT APP NO: SE 2630397-4
-#### STATUS: PATENT PENDING
-#### INVENTOR: OLLE WELIN
-#### PRIORITY DATE: 2026-06-03
-## Analog 2T1C Matrix with Inverted Meta-Learning (MAML)
 
 ## Youtube Video Audio:
 https://youtu.be/LbWriQ0J6QY?si=GyIZ1UnNZuVdLi54
