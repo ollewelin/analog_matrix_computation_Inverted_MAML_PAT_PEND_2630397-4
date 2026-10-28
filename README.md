@@ -1,9 +1,8 @@
 # Analog 2T1C Matrix Computation with Inverted Meta-Learning (MAML)
 ## Patent Application: SE 2630397-4 (Patent Pending)
 
-### 📄 Patent Documents & Architecture References:
-* **Primary Patent Document (English Translation):** [📄 `inverterad MAML_12_Eng.pdf`](inverterad%20MAML_12_Eng.pdf)
-* **Patent Addendum (Stratified Batching Update Weights):** [📄 `Inverted_MAML_Addendum_Stratified Batching Update Weights.pdf`](Inverted_MAML_Addendum_Stratified%20Batching%20Update%20Weights.pdf)
+### 📄 Patent Document:
+* **Patent Specification (English Translation):** [📄 `inverterad MAML_12_Eng.pdf`](inverterad%20MAML_12_Eng.pdf)
 * **Patent Application No:** SE 2630397-4
 * **Status:** Patent Pending
 * **Inventor:** Olle Welin
