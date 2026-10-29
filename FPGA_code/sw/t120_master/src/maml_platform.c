@@ -928,16 +928,20 @@ static void maml_center_compensation_weights(void) {
         memset(g_basin_w_m3_q14[k], 0, sizeof(g_basin_w_m3_q14[k]));
         memset(g_basin_w_m8_q14[k], 0, sizeof(g_basin_w_m8_q14[k]));
     }
-    /* Keep Layer 1 diagonal pass-through + row 6 bias active on M3 and +24 linear pedestal
-     * on M8 so both single-supply COLTIA_3 and COLTIA_8 operate in their 1.65V linear center! */
+    /* Optimal S-curve knee baseline from 5.0ms characterization:
+     *   Cols 0, 1, 4: -16 LSB (Negative knee)
+     *   Cols 2, 3, 5: +16 LSB (Positive knee)
+     * Applied to both M3 (Layer 1) and M8 (Layer 2) across all active rows */
+    static const int16_t k_baseline_knee_lsb[6] = {-16, -16, 16, 16, -16, 16};
     for (int c = 0; c < 6; c++) {
-        g_w0_m3_q14[c][c] = (int16_t)(64 << 7);
-        g_w_m3_q14[c][c]  = (int16_t)(64 << 7);
-        g_w0_m3_q14[6][c] = (int16_t)(48 << 7);
-        g_w_m3_q14[6][c]  = (int16_t)(48 << 7);
+        int16_t knee_q14 = (int16_t)(k_baseline_knee_lsb[c] << 7);
+        for (int r = 0; r < 8; r++) {
+            g_w0_m3_q14[r][c] = knee_q14;
+            g_w_m3_q14[r][c]  = knee_q14;
+        }
         for (int r = 0; r < 6; r++) {
-            g_w0_m8_q14[r][c] = (int16_t)(24 << 7);
-            g_w_m8_q14[r][c]  = (int16_t)(24 << 7);
+            g_w0_m8_q14[r][c] = knee_q14;
+            g_w_m8_q14[r][c]  = knee_q14;
         }
     }
     /* Preserve Primary Payload Matrix M33 (k_default_m33) so COLTIA stays centered! */
@@ -946,15 +950,16 @@ static void maml_center_compensation_weights(void) {
     /* Calibrate quiescent zero-input baseline at DAC_2 = 128 and 100 Hz (10.0 ms) cadence */
     maml_calibrate_zero_baseline();
 
-    /* Restore M3 and M8 linear center weights after calibration */
+    /* Restore M3 and M8 optimal knee baseline weights after calibration */
     for (int c = 0; c < 6; c++) {
-        g_w0_m3_q14[c][c] = (int16_t)(64 << 7);
-        g_w_m3_q14[c][c]  = (int16_t)(64 << 7);
-        g_w0_m3_q14[6][c] = (int16_t)(48 << 7);
-        g_w_m3_q14[6][c]  = (int16_t)(48 << 7);
+        int16_t knee_q14 = (int16_t)(k_baseline_knee_lsb[c] << 7);
+        for (int r = 0; r < 8; r++) {
+            g_w0_m3_q14[r][c] = knee_q14;
+            g_w_m3_q14[r][c]  = knee_q14;
+        }
         for (int r = 0; r < 6; r++) {
-            g_w0_m8_q14[r][c] = (int16_t)(24 << 7);
-            g_w_m8_q14[r][c]  = (int16_t)(24 << 7);
+            g_w0_m8_q14[r][c] = knee_q14;
+            g_w_m8_q14[r][c]  = knee_q14;
         }
     }
 
@@ -981,6 +986,7 @@ static void maml_center_compensation_weights(void) {
         g_tel.basin_loss_milli[k] = g_tel.loss_total_milli;
     }
     maml_update_3d_landscape_coords();
+    maml_sync_shadow_bytes();
 }
 
 static void maml_seed_weights(uint8_t mode, uint8_t swing_pct) {
@@ -1407,17 +1413,18 @@ static void maml_execute_step(void) {
  *   - Batch Accumulation: Total Samples = M * k.
  *   - Weight Update: Exactly ONE single weight update to M3 and M8 per batch!
  * ============================================================================ */
-/* Centered W_null reference (identical to maml_center_compensation_weights pedestal):
- *   M3: diagonal pass-through +64, row 6 bias +48, others 0
- *   M8: rows 0..5 linear pedestal +24, row 6 = 0 */
+/* Centered W_null reference for L2 regularization attractor:
+ *   M3: optimal S-curve knee baseline [-16, -16, +16, +16, -16, +16]
+ *   M8: no regularization applied (returns current weight so decay is 0) */
 static inline int32_t maml_wnull_m3_q14(int r, int c) {
-    if (r == c && r < 6) return (64 << 7);
-    if (r == 6)          return (48 << 7);
+    (void)r;
+    static const int16_t k_knee[6] = {-16, -16, 16, 16, -16, 16};
+    if (c >= 0 && c < 6) return (int32_t)(k_knee[c] << 7);
     return 0;
 }
 static inline int32_t maml_wnull_m8_q14(int r, int c) {
-    (void)c;
-    return (r < 6) ? (24 << 7) : 0;
+    /* No regularization for M8: pull toward itself (zero decay) */
+    return (int32_t)g_w_m8_q14[r][c];
 }
 
 static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
