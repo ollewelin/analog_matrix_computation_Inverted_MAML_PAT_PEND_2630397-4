@@ -916,6 +916,24 @@ static void maml_load_default_m33(void) {
 static void maml_calibrate_zero_baseline(void);
 static void maml_wait_10ms_refresh_tick(void);
 
+static uint8_t g_baseline_mode = 0u; /* 0 = zero baseline (W=0), 1 = optimal knee baseline (±16 LSB) */
+
+static void maml_apply_baseline_weights(void) {
+    static const int16_t k_baseline_knee_lsb[6] = {-16, -16, 16, 16, -16, 16};
+    for (int c = 0; c < 6; c++) {
+        int16_t val_lsb = (g_baseline_mode == 1u) ? k_baseline_knee_lsb[c] : 0;
+        int16_t val_q14 = (int16_t)(val_lsb << 7);
+        for (int r = 0; r < 8; r++) {
+            g_w0_m3_q14[r][c] = val_q14;
+            g_w_m3_q14[r][c]  = val_q14;
+        }
+        for (int r = 0; r < 6; r++) {
+            g_w0_m8_q14[r][c] = val_q14;
+            g_w_m8_q14[r][c]  = val_q14;
+        }
+    }
+}
+
 static void maml_center_compensation_weights(void) {
     g_auto_random_data = 0u;
     memset(g_w0_m3_q14,  0, sizeof(g_w0_m3_q14));
@@ -928,40 +946,16 @@ static void maml_center_compensation_weights(void) {
         memset(g_basin_w_m3_q14[k], 0, sizeof(g_basin_w_m3_q14[k]));
         memset(g_basin_w_m8_q14[k], 0, sizeof(g_basin_w_m8_q14[k]));
     }
-    /* Optimal S-curve knee baseline from 5.0ms characterization:
-     *   Cols 0, 1, 4: -16 LSB (Negative knee)
-     *   Cols 2, 3, 5: +16 LSB (Positive knee)
-     * Applied to both M3 (Layer 1) and M8 (Layer 2) across all active rows */
-    static const int16_t k_baseline_knee_lsb[6] = {-16, -16, 16, 16, -16, 16};
-    for (int c = 0; c < 6; c++) {
-        int16_t knee_q14 = (int16_t)(k_baseline_knee_lsb[c] << 7);
-        for (int r = 0; r < 8; r++) {
-            g_w0_m3_q14[r][c] = knee_q14;
-            g_w_m3_q14[r][c]  = knee_q14;
-        }
-        for (int r = 0; r < 6; r++) {
-            g_w0_m8_q14[r][c] = knee_q14;
-            g_w_m8_q14[r][c]  = knee_q14;
-        }
-    }
+    /* Apply baseline weights according to active g_baseline_mode */
+    maml_apply_baseline_weights();
     /* Preserve Primary Payload Matrix M33 (k_default_m33) so COLTIA stays centered! */
     maml_load_default_m33();
 
     /* Calibrate quiescent zero-input baseline at DAC_2 = 128 and 100 Hz (10.0 ms) cadence */
     maml_calibrate_zero_baseline();
 
-    /* Restore M3 and M8 optimal knee baseline weights after calibration */
-    for (int c = 0; c < 6; c++) {
-        int16_t knee_q14 = (int16_t)(k_baseline_knee_lsb[c] << 7);
-        for (int r = 0; r < 8; r++) {
-            g_w0_m3_q14[r][c] = knee_q14;
-            g_w_m3_q14[r][c]  = knee_q14;
-        }
-        for (int r = 0; r < 6; r++) {
-            g_w0_m8_q14[r][c] = knee_q14;
-            g_w_m8_q14[r][c]  = knee_q14;
-        }
-    }
+    /* Restore M3 and M8 baseline weights after calibration */
+    maml_apply_baseline_weights();
 
     /* Apply active reference input vector x_ref and compute zero-referenced z_target */
     maml_generate_new_white_noise_ref();
@@ -2180,6 +2174,9 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
             break;
 
         case MAML_CMD_CENTER_WEIGHTS:
+            if (req_len >= 6) {
+                g_baseline_mode = req[5] ? 1u : 0u;
+            }
             maml_center_compensation_weights();
             aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
             break;

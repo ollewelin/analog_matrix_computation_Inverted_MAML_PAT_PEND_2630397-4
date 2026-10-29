@@ -94,7 +94,7 @@ class Matrix3PopupWindow(QDialog):
         ax1.set_xlabel("Columns 0..5")
         ax1.set_ylabel("Rows 0..7")
         ax1.set_zlabel("ΔWeight (LSB)")
-        ax1.set_zlim(-25, 25)
+        ax1.set_zlim(-50, 50)
 
         ax2 = self.fig.add_subplot(122, projection="3d")
         ax2.plot_surface(X, Y, w_m3, cmap="plasma", edgecolor="k", linewidth=0.5, alpha=0.9)
@@ -102,7 +102,7 @@ class Matrix3PopupWindow(QDialog):
         ax2.set_xlabel("Columns 0..5")
         ax2.set_ylabel("Rows 0..7")
         ax2.set_zlabel("Weight W (LSB)")
-        ax2.set_zlim(0, 127)
+        ax2.set_zlim(-50, 50)
 
         self.fig.tight_layout()
         self.canvas.draw()
@@ -523,7 +523,7 @@ class MamlPostAnalysisGUI(QMainWindow):
             ax_3d.set_xlabel("Columns 0..5")
             ax_3d.set_ylabel("Rows 0..7")
             ax_3d.set_zlabel("Weight W (LSB)")
-            ax_3d.set_zlim(0, 127)
+            ax_3d.set_zlim(-50, 50)
         elif view_mode == 2:  # M33 Target
             raw_w_m33 = rec.get("w_m33")
             if raw_w_m33 and len(raw_w_m33) == 6 and len(raw_w_m33[0]) == 6:
