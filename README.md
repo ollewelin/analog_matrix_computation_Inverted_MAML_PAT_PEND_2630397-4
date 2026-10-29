@@ -260,6 +260,21 @@ Working with analog computing is an act of balancing physics and precision. Very
     - Full documentation: [`FPGA_code/docs/M3_SIGMOID_STEP2_COLUMN_SCURVE_REPORT.pdf`](FPGA_code/docs/M3_SIGMOID_STEP2_COLUMN_SCURVE_REPORT.pdf) and [`.md`](FPGA_code/docs/M3_SIGMOID_STEP2_COLUMN_SCURVE_REPORT.md).
     - Characterization Skill: [`.agents/skills/m3-sigmoid-activation-mapping/SKILL.md`](.agents/skills/m3-sigmoid-activation-mapping/SKILL.md).
 
+  - **5. Breakthrough: Controlled 3-Stage 500-Epoch Experiment (Peak 7.90 Bits ENOB Without Digital Seed):**
+    To isolate operating point biasing from active learning, a 3-stage, 500-epoch continuous benchmark was executed directly on physical silicon at $t = 5.0\text{ ms}$:
+    - **Stage 1 (Epochs 0..99): Baseline 0 (OFF, $\text{LR}=0$):** Both $M_3$ and $M_8$ locked at strict physical zero ($W = 0\text{ LSB}$).
+    - **Stage 2 (Epochs 100..199): Baseline Knee (OFF, $\text{LR}=0$):** S-curve knee baseline $\mathbf{W} = [-16, -16, +16, +16, -16, +16]\text{ LSB}$ engaged on both $M_3$ and $M_8$, revealing the quiescent response shift without active learning.
+    - **Stage 3 (Epochs 200..500): Active Adaptation ON ($\text{LR}=0.25\times$):** Continuous 2-layer gradient adaptation across 300 arbitrary random white-noise vectors.
+    - **No Digital Pseudo-Random Seeding (`seed_pct = 0`):** Proved that the physical silicon's intrinsic thermal noise and transistor asymmetry naturally seed the inner loop, completely eliminating the need for artificial digital noise injection!
+    - **Physical Silicon Milestone:** Quadratic loss dropped by **$36.0\%$**, and at Epoch 427 the network achieved a new record peak precision of **$7.90\text{ bits}$ ENOB** (RMSE $8.59\text{ LSB}$, Loss $221.1\text{ LSB}^2$), demonstrating true near-8-bit analog computational resolution!
+
+    ![3-Stage 500-Epoch Silicon Benchmark Telemetry](FPGA_code/docs/figures/fig_m3_m8_3stage_500ep_stats.png)
+
+    *Figure: 3-Stage 500-Epoch physical silicon benchmark on PCB v1.3.2 @ 5.0 ms. Top: Quadratic loss showing baseline 0, baseline knee, and dramatic descent in Stage 3. Middle: Measured ENOB (green) and RMSE (orange) with peak performance reaching 7.90 bits at Epoch 427. Bottom: Matrix 8 Vernier weight trajectories migrating smoothly without rail saturation.*
+
+    - Full documentation: [`FPGA_code/docs/M3_M8_3STAGE_500EP_EXPERIMENT_REPORT.pdf`](FPGA_code/docs/M3_M8_3STAGE_500EP_EXPERIMENT_REPORT.pdf) and [`.md`](FPGA_code/docs/M3_M8_3STAGE_500EP_EXPERIMENT_REPORT.md).
+    - Previous 400-epoch knee baseline benchmark: [`FPGA_code/docs/M3_M8_OPTIMAL_BASELINE_ARBITRARY_400EP_REPORT.pdf`](FPGA_code/docs/M3_M8_OPTIMAL_BASELINE_ARBITRARY_400EP_REPORT.pdf).
+
 
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
 ![](Fig8_Hadamard_carrier_injection_circuit.png)
