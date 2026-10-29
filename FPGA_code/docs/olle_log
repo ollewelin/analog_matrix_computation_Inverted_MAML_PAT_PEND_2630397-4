@@ -10,15 +10,19 @@ echo -n "VERSION" | nc -u -w2 192.168.1.50 5000
 # 2. KOMPILERA OCH FLASHA NY MJUKVARA TILL T120 (Blixtsnabb, tar ~15 sekunder via JTAG):
 /home/olle/anaconda3/bin/python FPGA_code/scripts/flash_soc.py
 
-# 3. KÖR TEST MED BASELINE OFF (0..99) -> ON (100..400) PÅ FYSISKT KISEL:
-#    a) Roterande godtyckliga vektorer (ny slumpvektor varje epok, LR=0.25):
+# 3. KÖR TEST MED BASELINE OFF -> ON PÅ FYSISKT KISEL:
+#    a) 3-stegs 500-epokers benchmark (Baseline 0 -> Knäbaslinje -> Träning ON):
+/home/olle/anaconda3/bin/python FPGA_code/scripts/run_3stage_baseline_experiment.py --epochs 500 --stage2-ep 100 --train-ep 200 --lr 0.25
+#    b) Roterande godtyckliga vektorer (ny slumpvektor varje epok, LR=0.25):
 /home/olle/anaconda3/bin/python FPGA_code/scripts/run_fixed_vector_gui_experiment.py --baseline-epochs 100 --epochs 400 --lr 0.25
-#    b) En fast låst vektor (samma vektor genom hela körningen, LR=0.25):
+#    c) En fast låst vektor (samma vektor genom hela körningen, LR=0.25):
 /home/olle/anaconda3/bin/python FPGA_code/scripts/run_fixed_vector_gui_experiment.py --baseline-epochs 100 --epochs 400 --lr 0.25 --fixed
 
 # 4. STARTA 3D TELEMETRY & ANIMATION GUI:
-/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/virtual_gain_experiments/fixed_vector_scratch_300ep.json
-#    (Tips: lägg till --play för direkt start av animation)
+#    Spela upp 3-stegs 500-epokerskörningen (7.90b rekordet):
+/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py --data FPGA_code/logs/virtual_gain_experiments/m3_m8_3stage_500ep_run.json --play
+#    Eller live scratch spegel:
+/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/virtual_gain_experiments/fixed_vector_scratch_300ep.json --play
 
 # 5. DIAGNOSTIK & HÅRDVARUKOMMANDON:
 ping -c 3 192.168.1.50
