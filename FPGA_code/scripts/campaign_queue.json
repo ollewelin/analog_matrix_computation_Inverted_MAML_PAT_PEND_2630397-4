@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Nominal_1_1_30000ep_k4_telem100: Full Swing 1/1 Fast 1/100 Telemetry Run (30000 ep)",
+    "d_line": 1,
+    "w33": 1,
+    "target_gain": 1.0,
+    "clamp": 120,
+    "k": 4,
+    "lr": 0.05,
+    "epochs": 30000
+  },
+  {
+    "name": "Nominal_1_1_100000ep_k4_warmstart: 100k Epoch Warm Start from 30k Converged Weights",
+    "d_line": 1,
+    "w33": 1,
+    "target_gain": 1.0,
+    "clamp": 120,
+    "k": 4,
+    "lr": 0.05,
+    "epochs": 100000,
+    "warm_start": true
+  }
+]

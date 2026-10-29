@@ -267,7 +267,7 @@ class MamlPostAnalysisGUI(QMainWindow):
         flow_layout = QGridLayout(flow_box)
 
         self.table_signal = QTableWidget(6, 6)
-        self.table_signal.setHorizontalHeaderLabels(["Input X", "Z Target", "M33 (ADC45)", "Triad (ADC49)", "Error", "M8 Diag W"])
+        self.table_signal.setHorizontalHeaderLabels(["Input X", "Z Target", "M3 (ADC45)", "Triad (ADC49)", "Error", "M8 Diag W"])
         self.table_signal.setVerticalHeaderLabels([f"Col {c}" for c in range(6)])
         self.table_signal.horizontalHeader().setStretchLastSection(True)
         flow_layout.addWidget(self.table_signal, 0, 0, 1, 2)

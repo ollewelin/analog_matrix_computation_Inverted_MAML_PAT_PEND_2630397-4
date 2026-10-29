@@ -1664,8 +1664,14 @@ static void maml_probe_charge_column(uint8_t matrix_id, uint8_t row, uint8_t col
     int16_t w_q14 = (int16_t)(w_signed << 7);
     if (col < 6u) {
         g_focus_col = col;
-        if (matrix_id == 0u && row < 8u) {
-            g_w_m3_q14[row][col] = w_q14;
+        if (matrix_id == 0u) {
+            if (row < 8u) {
+                g_w_m3_q14[row][col] = w_q14;
+            } else if (row == 0xFFu) {
+                for (int r = 0; r < 8; r++) {
+                    g_w_m3_q14[r][col] = w_q14;
+                }
+            }
         }
         if (matrix_id == 1u && row < 7u) {
             /* Matrix 8 rows 0..5 are driven by ACT(4)_D_ROW[0..5] (Layer 1 Matrix 3 outputs).
@@ -1776,6 +1782,10 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
             g_dac_row7_code = off_to_dac_u8(+(int32_t)x_amp);
         } else if (row == 7u) {
             g_dac_row8_code = off_to_dac_u8(+(int32_t)x_amp);
+        } else if (row == 0xFFu) {
+            for (int r = 0; r < 6; r++) d2_pos[r] = off_to_dac_u8(+(int32_t)x_amp);
+            g_dac_row7_code = off_to_dac_u8(+(int32_t)x_amp);
+            g_dac_row8_code = off_to_dac_u8(+(int32_t)x_amp);
         }
         aio_load_dac2(d2_pos);
         maml_refresh_all_columns();
@@ -1792,6 +1802,10 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
             g_dac_row7_code = off_to_dac_u8(-(int32_t)x_amp);
         } else if (row == 7u) {
             g_dac_row8_code = off_to_dac_u8(-(int32_t)x_amp);
+        } else if (row == 0xFFu) {
+            for (int r = 0; r < 6; r++) d2_neg[r] = off_to_dac_u8(-(int32_t)x_amp);
+            g_dac_row7_code = off_to_dac_u8(-(int32_t)x_amp);
+            g_dac_row8_code = off_to_dac_u8(-(int32_t)x_amp);
         }
         aio_load_dac2(d2_neg);
         maml_refresh_all_columns();
@@ -1800,8 +1814,14 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
 
         if (mode_flag & 0x02u) {
             /* Hold static (X = +x_amp, W = w_fixed) active on the board */
-            g_dac_row7_code = (row == 6u) ? off_to_dac_u8(+(int32_t)x_amp) : 128u;
-            g_dac_row8_code = (row == 7u) ? off_to_dac_u8(+(int32_t)x_amp) : 128u;
+            if (row == 0xFFu) {
+                for (int r = 0; r < 6; r++) d2_pos[r] = off_to_dac_u8(+(int32_t)x_amp);
+                g_dac_row7_code = off_to_dac_u8(+(int32_t)x_amp);
+                g_dac_row8_code = off_to_dac_u8(+(int32_t)x_amp);
+            } else {
+                g_dac_row7_code = (row == 6u) ? off_to_dac_u8(+(int32_t)x_amp) : 128u;
+                g_dac_row8_code = (row == 7u) ? off_to_dac_u8(+(int32_t)x_amp) : 128u;
+            }
             aio_load_dac2(d2_pos);
             maml_refresh_all_columns();
             g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
@@ -1830,6 +1850,10 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
         } else if (row == 6u) {
             g_dac_row7_code = off_to_dac_u8(+(int32_t)x_amp);
         } else if (row == 7u) {
+            g_dac_row8_code = off_to_dac_u8(+(int32_t)x_amp);
+        } else if (row == 0xFFu) {
+            for (int r = 0; r < 6; r++) d2[r] = off_to_dac_u8(+(int32_t)x_amp);
+            g_dac_row7_code = off_to_dac_u8(+(int32_t)x_amp);
             g_dac_row8_code = off_to_dac_u8(+(int32_t)x_amp);
         }
         aio_load_dac2(d2);

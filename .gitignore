@@ -91,3 +91,8 @@ FPGA_code/docs/efinix_datasheets/
 *.pyc
 
 .gemini/
+campaign_day.log
+live_training.log
+FPGA_code/logs/on_off_campaign/
+FPGA_code/logs/virtual_gain_experiments/
+FPGA_code/logs/mode_a_longterm_sweep/
