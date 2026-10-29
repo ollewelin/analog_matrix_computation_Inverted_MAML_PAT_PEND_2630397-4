@@ -37,9 +37,12 @@ static inline int16_t sat_q14(int32_t v) {
     return (int16_t)v;
 }
 
-/* Linear-regime saturation for Dual-2T1C compensation weights [-80, +80] DAC LSBs */
-static inline int16_t sat_w80_q14(int32_t v) {
-    const int32_t lim = (80 << 7);
+static uint8_t  g_w_comp_clamp   = 80u;  /* Dynamic compensation weight limit (80..127 LSB) */
+static uint16_t g_reg_lambda_q16 = 0u;   /* L2 weight-decay toward W_null in batch mode (Q0.16, 0 = off) */
+
+/* Dynamic saturation for Dual-2T1C compensation weights [-g_w_comp_clamp, +g_w_comp_clamp] DAC LSBs */
+static inline int16_t sat_comp_w_q14(int32_t v) {
+    int32_t lim = ((int32_t)g_w_comp_clamp << 7);
     if (v >  lim) return (int16_t)lim;
     if (v < -lim) return (int16_t)(-lim);
     return (int16_t)v;
@@ -273,6 +276,13 @@ static void aio_load_weight_banks(const uint8_t w15[8], const uint8_t w12[8], co
  *     1. Charge Positive Half-Cell (G_Pj_MAT_*): W+ = 128 + w_eff
  *     2. Charge Negative Half-Cell (G_Nj_MAT_*): W- = 128 - w_eff
  * ============================================================================ */
+/* ============================================================================
+ * Virtual Gain Experiment Knobs (Virtual Attenuator Emulation on PCB v1.3.2)
+ * ============================================================================ */
+static uint8_t  g_d_line_div     = 1u;   /* 1 = nominal [-45, +45], 2 = [-22, +22], 4 = [-11, +11] */
+static uint8_t  g_w33_div        = 1u;   /* 1 = nominal k_default_m33, 2 = /2, 4 = /4 */
+static uint16_t g_target_gain_q8 = 256u; /* Q8.8 target gain demand: 256 = 1.0x, 512 = 2.0x, 1024 = 4.0x */
+
 static void maml_sync_shadow_bytes(void) {
     for (int r = 0; r < 8; r++)
         for (int c = 0; c < 6; c++)
@@ -285,6 +295,12 @@ static void maml_sync_shadow_bytes(void) {
     for (int r = 0; r < 6; r++)
         for (int c = 0; c < 6; c++)
             g_tel.w_m33[r][c] = sat_dac_off(rshift_rne(g_w_m33_q14[r][c], 7));
+
+    g_tel.d_line_div     = g_d_line_div;
+    g_tel.w33_div        = g_w33_div;
+    g_tel.target_gain_q8 = g_target_gain_q8;
+    g_tel.w_comp_clamp   = g_w_comp_clamp;
+    g_tel.reg_lambda_q16 = g_reg_lambda_q16;
 }
 
 /* Matrix P/N gate mask bits for pay[1] of T20_OP_PULSE_COL_GATES (CH 0x05 OP 0x4):
@@ -420,13 +436,17 @@ static void maml_refresh_all_columns(void) {
  *   across all M shuffled strata slots before advancing!
  * ============================================================================ */
 static void maml_recompute_z_target(void) {
-    /* Compute ideal digital target output Z_target = g_adc49_zero_cal + M33_ideal * x_ref */
+    /* Compute ideal digital target output Z_target = g_adc49_zero_cal + Target_Gain * (M33 * x_ref)
+     * When g_target_gain_q8 > 256 (e.g. 1024 = 4.0x), the digital supervisor demands excess gain
+     * above the attenuated M33 physical output, forcing M3 -> Sig4 -> M8 -> Sig10 to supply the difference! */
+    uint16_t gain_q8 = (g_target_gain_q8 > 0) ? g_target_gain_q8 : 256u;
     for (int j = 0; j < 6; j++) {
         int32_t acc = 0;
         for (int i = 0; i < 6; i++) {
             acc += (int32_t)g_tel.w_m33[i][j] * (int32_t)g_tel.x_ref[i];
         }
-        int32_t z_scaled = (int32_t)g_adc49_zero_cal[j] + rshift_rne(acc * 8, 8);
+        int32_t acc_boosted = rshift_rne((int32_t)acc * (int32_t)gain_q8, 8);
+        int32_t z_scaled = (int32_t)g_adc49_zero_cal[j] + rshift_rne(acc_boosted * 8, 8);
         if (z_scaled > 2047)  z_scaled = 2047;
         if (z_scaled < -2048) z_scaled = -2048;
         g_tel.z_target[j] = (int16_t)z_scaled;
@@ -435,9 +455,12 @@ static void maml_recompute_z_target(void) {
 
 static void maml_generate_new_white_noise_ref(void) {
     uint8_t d2_codes[6];
+    int32_t max_span = 45 / (int32_t)((g_d_line_div >= 1) ? g_d_line_div : 1u);
+    if (max_span < 5) max_span = 5;
+    uint32_t range = (uint32_t)(2 * max_span + 1);
     for (int i = 0; i < 6; i++) {
-        /* Uniform white noise in [-45, +45] (DAC2 codes 83..173, keeping MOSFETs in linear triode region) */
-        int32_t rnd = (int32_t)(prng_next() % 91u) - 45;
+        /* Uniform white noise in [-max_span, +max_span] keeping MOSFETs in linear triode region */
+        int32_t rnd = (int32_t)(prng_next() % range) - max_span;
         g_tel.x_ref[i] = (int16_t)rnd;
         d2_codes[i]    = off_to_dac_u8(rnd);
     }
@@ -880,9 +903,11 @@ static void maml_update_3d_landscape_coords(void) {
  * Seed Randomization & Center Compensation Weights (128)
  * ============================================================================ */
 static void maml_load_default_m33(void) {
+    uint8_t div = (g_w33_div >= 1) ? g_w33_div : 1u;
     for (int r = 0; r < 6; r++) {
         for (int c = 0; c < 6; c++) {
-            g_w_m33_q14[r][c] = (int16_t)((int32_t)k_default_m33[r][c] << 7);
+            int32_t w = (int32_t)k_default_m33[r][c] / (int32_t)div;
+            g_w_m33_q14[r][c] = (int16_t)(w << 7);
         }
     }
     maml_sync_shadow_bytes();
@@ -1222,7 +1247,7 @@ static void maml_execute_step(void) {
                 if (g_tel.cur_inner_step == 0) g_grad_init_m3[r][c] = g_avg;
                 g_grad_final_m3[r][c] = g_avg;
                 int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
-                g_w_m3_q14[r][c] = sat_w80_q14((int32_t)g_w_m3_q14[r][c] - step_w);
+                g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - step_w);
                 if (g_hid_amp_dac == 0) {
                     g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
                 }
@@ -1237,7 +1262,7 @@ static void maml_execute_step(void) {
                 if (g_tel.cur_inner_step == 0) g_grad_init_m8[r][c] = g_avg;
                 g_grad_final_m8[r][c] = g_avg;
                 int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
-                g_w_m8_q14[r][c] = sat_w80_q14((int32_t)g_w_m8_q14[r][c] - step_w);
+                g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - step_w);
                 if (g_hid_amp_dac == 0) {
                     g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
                 }
@@ -1382,6 +1407,19 @@ static void maml_execute_step(void) {
  *   - Batch Accumulation: Total Samples = M * k.
  *   - Weight Update: Exactly ONE single weight update to M3 and M8 per batch!
  * ============================================================================ */
+/* Centered W_null reference (identical to maml_center_compensation_weights pedestal):
+ *   M3: diagonal pass-through +64, row 6 bias +48, others 0
+ *   M8: rows 0..5 linear pedestal +24, row 6 = 0 */
+static inline int32_t maml_wnull_m3_q14(int r, int c) {
+    if (r == c && r < 6) return (64 << 7);
+    if (r == 6)          return (48 << 7);
+    return 0;
+}
+static inline int32_t maml_wnull_m8_q14(int r, int c) {
+    (void)c;
+    return (r < 6) ? (24 << 7) : 0;
+}
+
 static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
                                       uint16_t t_min_us, uint16_t t_max_us) {
     if (k_batch < 1)  k_batch = 1;
@@ -1442,20 +1480,28 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
         }
     }
 
-    /* Perform EXACTLY ONE weight update using the batch-averaged gradient */
+    /* Perform EXACTLY ONE weight update using the batch-averaged gradient.
+     * Note: In batch mode, gradients are pre-averaged over total_samples.
+     * rshift_rne with shift 8 provides proper single-step authority (Q7 weight units)
+     * so weights actively adapt across 200 epochs without double-attenuation underflow. */
     for (int r = 0; r < 8; r++) {
         for (int c = 0; c < 6; c++) {
             int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)total_samples);
-            int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
-            g_w_m3_q14[r][c] = sat_w80_q14((int32_t)g_w_m3_q14[r][c] - step_w);
+            int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
+            /* L2 weight-decay toward centered W_null: dW -= lambda * (W - W_null) */
+            int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
+                                       (int32_t)g_reg_lambda_q16, 16);
+            g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - step_w - decay);
             g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
         }
     }
     for (int r = 0; r < 7; r++) {
         for (int c = 0; c < 6; c++) {
             int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)total_samples);
-            int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
-            g_w_m8_q14[r][c] = sat_w80_q14((int32_t)g_w_m8_q14[r][c] - step_w);
+            int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
+            int32_t decay = rshift_rne(((int32_t)g_w_m8_q14[r][c] - maml_wnull_m8_q14(r, c)) *
+                                       (int32_t)g_reg_lambda_q16, 16);
+            g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - step_w - decay);
             g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
         }
     }
@@ -2210,8 +2256,28 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                         g_lr_inner_q16 = lr_val;
                     }
                 }
+                /* Optional bytes 13-14: L2 weight-decay lambda (Q0.16). Absent => 0 (off, legacy behaviour).
+                 * Capped at 16384 (0.25) to prevent the decay from dominating the gradient. */
+                if (req_len >= 15) {
+                    uint16_t reg_val = (uint16_t)req[13] | ((uint16_t)req[14] << 8);
+                    g_reg_lambda_q16 = (reg_val <= 16384u) ? reg_val : 16384u;
+                } else {
+                    g_reg_lambda_q16 = 0u;
+                }
                 maml_execute_strata_batch(k_batch, num_strata, t_min_us, t_max_us);
             }
+            break;
+
+        case MAML_CMD_CONFIG_GAIN_EXP:
+            if (req_len >= 9) {
+                uint8_t  d_line   = req[5];
+                uint8_t  w33      = req[6];
+                uint16_t gain_q8  = (uint16_t)req[7] | ((uint16_t)req[8] << 8);
+                uint8_t  clamp    = (req_len >= 10) ? req[9] : 80u;
+                maml_set_gain_experiment_config(d_line, w33, gain_q8, clamp);
+            }
+            t20_sync_heater_and_wdog();
+            maml_sync_shadow_bytes();
             break;
 
         default:
@@ -2220,5 +2286,23 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
 
     memcpy(resp_buf, &g_tel, sizeof(g_tel));
     return (uint16_t)sizeof(g_tel);
+}
+
+void maml_set_gain_experiment_config(uint8_t d_line, uint8_t w33, uint16_t gain_q8, uint8_t clamp) {
+    g_d_line_div     = (d_line >= 1 && d_line <= 16) ? d_line : 1u;
+    g_w33_div        = (w33 >= 1 && w33 <= 16) ? w33 : 1u;
+    g_target_gain_q8 = (gain_q8 >= 32 && gain_q8 <= 4096) ? gain_q8 : 256u;
+    g_w_comp_clamp   = (clamp >= 40 && clamp <= 127) ? clamp : 80u;
+
+    maml_load_default_m33();
+    maml_generate_new_white_noise_ref();
+    maml_refresh_all_columns();
+}
+
+void maml_get_gain_experiment_config(uint8_t *d_line, uint8_t *w33, uint16_t *gain_q8, uint8_t *clamp) {
+    if (d_line)  *d_line  = g_d_line_div;
+    if (w33)     *w33     = g_w33_div;
+    if (gain_q8) *gain_q8 = g_target_gain_q8;
+    if (clamp)   *clamp   = g_w_comp_clamp;
 }
 

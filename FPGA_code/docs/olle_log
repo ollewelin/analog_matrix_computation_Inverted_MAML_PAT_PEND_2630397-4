@@ -49,6 +49,8 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 
 /home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/mode_a_extended_training/mode_a_50ep_4p9to5p1ms_locked_xref.json
 
+/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/virtual_gain_experiments/fixed_vector_scratch_300ep.json
+/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/virtual_gain_experiments/fixed_vector_scratch_300ep.json
 ==============================
 # 2026-10-25: Inverted MAML Mode A 2-Layer Wakeup & Catastrophic Forgetting Log
 # 1. Blixtsnabb C-kompilering & JTAG-programmering (15 sekunder!):
@@ -253,4 +255,18 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 
 
 
+
+
+# ==============================================================================
+# DATUM: 2026-10-28 19:08 CET
+# HÅRDVARUMODIFIERING: 1k / 5.1k Ohm Summeringsdämpare (PCB v1.3.2)
+# ==============================================================================
+# Hårdvaruändring utförd av Olle Welin:
+# - Ersatt tidigare summeringsdämpare med nya inlödda motstånd: 1k / 5.1k Ohm (5100 Ohm).
+# - Teoretisk summeringskvot:
+#     V_ADC49 = (5.1 / (1.0 + 5.1)) * V_main + (1.0 / (1.0 + 5.1)) * V_comp
+#             = 0.8361 * V_main + 0.1639 * V_comp
+# - Auktoritet för kompensationsgrenen: ~16.4% (kontra 20.4% vid 1k/3.9k och 23.3% vid 1k/3.3k).
+# - Teststatus: Kortet kraftcyklat och redo för verifiering av Hadamard-bärvåg på samtliga 6 kolumner.
+# ==============================================================================
 

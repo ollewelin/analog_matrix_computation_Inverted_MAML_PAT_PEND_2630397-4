@@ -3,9 +3,12 @@
 Post-Data Analysis & Multi-Dimensional Visualization GUI
 ========================================================
 Interactive graphical suite for deep empirical inspection of Inverted MAML Mode A
-physical silicon training and temporal window experiments.
+physical silicon training, Virtual Gain campaigns, and temporal window dynamics.
+
+Title: "Injected FORWARD Propagation" (What you need for Analog Neural Network to fly)
 
 Features:
+  - Dynamic dataset parameter ingestion (K, Strata, LR, Telemetry Stride, Window ms, Emulation).
   - Step-by-step Epoch slider & playback animation (Play / Pause / Speed).
   - 3D Weight Surface Topography (Matrix 33 static target, Matrix 3, Matrix 8).
   - 3D Convergence Trajectory in State Space (RMSE, Loss, ENOB).
@@ -15,6 +18,7 @@ Features:
 """
 
 from __future__ import annotations
+import argparse
 import json
 import math
 import os
@@ -54,8 +58,8 @@ from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import Axes3D
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_JSON = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training" / "mode_a_extended_training_telemetry.json"
-TEST_JSON = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training" / "test_trial_3epochs.json"
+DEFAULT_JSON = REPO_ROOT / "FPGA_code" / "logs" / "virtual_gain_experiments" / "gain_exp_d1_w1_g100p_c120_k4_lr05p_30000ep_run2.json"
+TEST_JSON = REPO_ROOT / "FPGA_code" / "logs" / "virtual_gain_experiments" / "gain_exp_d1_w1_g100p_c120_k4_lr05p_10000ep.json"
 
 
 class Matrix3PopupWindow(QDialog):
@@ -98,17 +102,17 @@ class Matrix3PopupWindow(QDialog):
         ax2.set_xlabel("Columns 0..5")
         ax2.set_ylabel("Rows 0..7")
         ax2.set_zlabel("Weight W (LSB)")
-        ax2.set_zlim(-25, 85)
+        ax2.set_zlim(0, 127)
 
         self.fig.tight_layout()
         self.canvas.draw()
 
 
 class MamlPostAnalysisGUI(QMainWindow):
-    def __init__(self, json_path: Optional[str] = None):
+    def __init__(self, json_path: Optional[str] = None, auto_play: bool = False):
         super().__init__()
-        self.setWindowTitle("Inverted MAML: Mode A Post-Data Analysis & 3D Telemetry Studio")
-        self.resize(1500, 950)
+        self.setWindowTitle("Injected FORWARD Propagation: Inverted MAML Silicon Studio & 3D Telemetry")
+        self.resize(1540, 980)
 
         self.dataset = None
         self.epochs_data: List[dict] = []
@@ -126,38 +130,42 @@ class MamlPostAnalysisGUI(QMainWindow):
         target_path = json_path or (str(DEFAULT_JSON) if DEFAULT_JSON.exists() else str(TEST_JSON) if TEST_JSON.exists() else None)
         if target_path and os.path.exists(target_path):
             self.load_dataset(target_path)
+            if auto_play:
+                QTimer.singleShot(250, self._toggle_playback)
 
     def _init_ui(self):
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         main_layout = QVBoxLayout(main_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(8)
+        main_layout.setSpacing(6)
 
         # --- Top Header & Controls Panel ---
         ctrl_box = QGroupBox("Experiment Controls & Playback")
+        ctrl_box.setStyleSheet("QGroupBox { font-weight: bold; color: #1e3a8a; }")
         ctrl_layout = QHBoxLayout(ctrl_box)
 
         self.btn_load = QPushButton("📂 Load Data JSON")
+        self.btn_load.setStyleSheet("font-weight: bold; padding: 5px 10px;")
         self.btn_load.clicked.connect(self._on_browse_file)
         ctrl_layout.addWidget(self.btn_load)
 
         self.lbl_file_info = QLabel("No dataset loaded")
-        self.lbl_file_info.setStyleSheet("color: #2b5797; font-weight: bold;")
+        self.lbl_file_info.setStyleSheet("color: #0f172a; font-weight: bold;")
         ctrl_layout.addWidget(self.lbl_file_info, stretch=1)
 
         self.btn_play = QPushButton("▶ Play Animation")
-        self.btn_play.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
+        self.btn_play.setStyleSheet("background-color: #16a34a; color: white; font-weight: bold; padding: 6px 14px; border-radius: 4px;")
         self.btn_play.clicked.connect(self._toggle_playback)
         ctrl_layout.addWidget(self.btn_play)
 
         ctrl_layout.addWidget(QLabel("Speed (ms):"))
         self.spin_speed = QSpinBox()
         self.spin_speed.setRange(20, 2000)
-        self.spin_speed.setValue(150)
+        self.spin_speed.setValue(120)
         ctrl_layout.addWidget(self.spin_speed)
 
-        ctrl_layout.addWidget(QLabel("Epoch:"))
+        ctrl_layout.addWidget(QLabel("Epoch Marker:"))
         self.slider_epoch = QSlider(Qt.Horizontal)
         self.slider_epoch.setRange(0, 0)
         self.slider_epoch.valueChanged.connect(self._on_slider_changed)
@@ -165,9 +173,48 @@ class MamlPostAnalysisGUI(QMainWindow):
 
         self.lbl_epoch_val = QLabel("0 / 0")
         self.lbl_epoch_val.setFont(QFont("Monospace", 10, QFont.Bold))
+        self.lbl_epoch_val.setStyleSheet("color: #2563eb; padding: 2px 6px; background: #eff6ff; border-radius: 3px;")
         ctrl_layout.addWidget(self.lbl_epoch_val)
 
         main_layout.addWidget(ctrl_box)
+
+        # --- Dynamic Silicon Parameter Dashboard (Ingested dynamically from JSON) ---
+        param_box = QGroupBox("Injected FORWARD Propagation: Dynamic Hardware Parameters (Read From Silicon Dataset)")
+        param_box.setStyleSheet("QGroupBox { font-weight: bold; color: #0f172a; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 5px; margin-top: 4px; padding-top: 10px; }")
+        param_layout = QHBoxLayout(param_box)
+        param_layout.setContentsMargins(8, 6, 8, 6)
+
+        badge_style = "background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 8px; font-weight: bold;"
+
+        self.lbl_k_param = QLabel("K: --")
+        self.lbl_k_param.setStyleSheet(badge_style + " color: #1e3a8a;")
+        param_layout.addWidget(self.lbl_k_param)
+
+        self.lbl_strata_param = QLabel("Strata: --")
+        self.lbl_strata_param.setStyleSheet(badge_style + " color: #0284c7;")
+        param_layout.addWidget(self.lbl_strata_param)
+
+        self.lbl_lr_param = QLabel("LR: --")
+        self.lbl_lr_param.setStyleSheet(badge_style + " color: #b45309;")
+        param_layout.addWidget(self.lbl_lr_param)
+
+        self.lbl_stride_param = QLabel("Mean Stride: --")
+        self.lbl_stride_param.setStyleSheet(badge_style + " color: #7c3aed;")
+        param_layout.addWidget(self.lbl_stride_param)
+
+        self.lbl_window_param = QLabel("Window: -- ms")
+        self.lbl_window_param.setStyleSheet(badge_style + " color: #059669;")
+        param_layout.addWidget(self.lbl_window_param)
+
+        self.lbl_emul_param = QLabel("Condition: --")
+        self.lbl_emul_param.setStyleSheet(badge_style + " color: #334155;")
+        param_layout.addWidget(self.lbl_emul_param)
+
+        self.lbl_best_param = QLabel("Best: --")
+        self.lbl_best_param.setStyleSheet(badge_style + " color: #dc2626; background-color: #fef2f2;")
+        param_layout.addWidget(self.lbl_best_param)
+
+        main_layout.addWidget(param_box)
 
         # --- Main Splitter: Left 3D Visualizer, Right 2D Signal Flow & Metrics ---
         splitter = QSplitter(Qt.Horizontal)
@@ -198,27 +245,25 @@ class MamlPostAnalysisGUI(QMainWindow):
 
         self.btn_m3_popup = QPushButton("🪟 Pop-up 3D Matrix 3")
         self.btn_m3_popup.setToolTip("Open independent synchronized 3D window for Matrix 3")
-        self.btn_m3_popup.setStyleSheet("background-color: #5c6bc0; color: white; font-weight: bold; padding: 4px 10px; border-radius: 4px;")
         self.btn_m3_popup.clicked.connect(self._open_m3_popup)
         view_sel_layout.addWidget(self.btn_m3_popup)
 
         left_layout.addLayout(view_sel_layout)
-
         splitter.addWidget(left_widget)
 
-        # === Right Panel: 2D Signal Flow, Convergence Charts & Numerics ===
+        # === Right Panel: 2D Signal Flow, Vector Table & Real-Time Plots ===
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 2D Convergence Charts Canvas
-        self.fig_2d = Figure(figsize=(7, 4), dpi=100)
-        self.fig_2d.patch.set_facecolor("#f8f9fa")
+        # Matplotlib 2D Graphs (Loss trajectory, ENOB progression, M8 weights)
+        self.fig_2d = Figure(figsize=(7, 4.5), dpi=100)
+        self.fig_2d.patch.set_facecolor("#ffffff")
         self.canvas_2d = FigureCanvas(self.fig_2d)
         right_layout.addWidget(self.canvas_2d, stretch=2)
 
-        # Numerical Matrix & Vector Flow Box
-        flow_box = QGroupBox("Signal Flow & Real-Time Numerics (Current Epoch)")
+        # 2D Signal Flow Box: Table of Inputs, Targets, M33, Compensator, Error
+        flow_box = QGroupBox("Signal Flow & Real-Time Channel Diagnostics (Hardware ADC Readouts)")
         flow_layout = QGridLayout(flow_box)
 
         self.table_signal = QTableWidget(6, 6)
@@ -259,19 +304,81 @@ class MamlPostAnalysisGUI(QMainWindow):
                 self.epochs_data = []
 
             meta = self.dataset.get("metadata", {})
+            t_params = meta.get("training_params", {})
+            prov = meta.get("provenance", {})
+            emul = prov.get("virtual_emulation", {})
+            summary = self.dataset.get("summary", {})
+
             self.static_m33 = np.array(self.dataset.get("static_weights", {}).get("w_m33", np.zeros((6, 6))))
 
-            n_epochs = len(self.epochs_data)
-            self.slider_epoch.setRange(0, max(0, n_epochs - 1))
+            n_records = len(self.epochs_data)
+            self.slider_epoch.setRange(0, max(0, n_records - 1))
             self.slider_epoch.setValue(0)
             self.current_idx = 0
 
-            lr_display = meta.get('lr_scale', self.dataset.get('lr', 1.0))
+            # Dynamic extraction of K, Strata, LR, Window, Stride
+            k_val = t_params.get("k", meta.get("k", "--"))
+            strata_val = t_params.get("strata", meta.get("strata", "--"))
+            lr_val = t_params.get("lr", meta.get("lr", "--"))
+            lr_q16 = t_params.get("lr_inner_q16", meta.get("lr_inner_q16", None))
+            lr_str = f"{lr_val}x" if lr_val != "--" else "--"
+            if lr_q16 is not None:
+                lr_str += f" (Q16={lr_q16})"
+
+            # Temporal window
+            t_min_us = t_params.get("t_min_us", meta.get("t_min_us", 4900))
+            t_max_us = t_params.get("t_max_us", meta.get("t_max_us", 5100))
+            if t_min_us == t_max_us:
+                window_str = f"{t_min_us/1000.0:.2f} ms"
+            else:
+                window_str = f"[{t_min_us/1000.0:.2f} - {t_max_us/1000.0:.2f}] ms"
+
+            # Telemetry stride / mean calc setting (calculated dynamically from epoch deltas)
+            stride = 1
+            if len(self.epochs_data) >= 3:
+                ep_diffs = [
+                    self.epochs_data[i]["epoch"] - self.epochs_data[i-1]["epoch"]
+                    for i in range(1, min(6, len(self.epochs_data)))
+                    if "epoch" in self.epochs_data[i] and "epoch" in self.epochs_data[i-1]
+                ]
+                if ep_diffs:
+                    stride = int(round(np.median(ep_diffs)))
+            elif len(self.epochs_data) == 2:
+                stride = max(1, self.epochs_data[1].get("epoch", 1) - self.epochs_data[0].get("epoch", 0))
+
+            stride_str = f"1/{stride} ep" if stride > 1 else "1/1 (All ep)"
+
+            # Condition / Emulation tag
+            d_line = emul.get("d_line", t_params.get("d_line", 1))
+            w33 = emul.get("w33", t_params.get("w33", 1))
+            gain = emul.get("target_gain", t_params.get("target_gain", 1.0))
+            clamp = emul.get("w_clamp", t_params.get("clamp", 120))
+            cond_str = f"D={d_line}x, W33={w33}x, G={gain:.1f}x, C=±{clamp}"
+            reg_val = t_params.get("reg_lambda", 0.0) or 0.0
+            cond_str += f", λ={reg_val:.4f}" if reg_val > 0 else ", λ=off"
+
+            # Best epoch / metrics
+            best_ep = summary.get("best_epoch", "--")
+            best_loss = summary.get("best_loss", None)
+            best_enob = summary.get("best_enob", None)
+            if best_loss is not None and best_enob is not None:
+                best_str = f"Ep #{best_ep} ({best_loss:.0f} LSB², {best_enob:.2f} b)"
+            else:
+                best_str = f"Ep #{best_ep}"
+
+            # Update Parameter Banner Badges
+            self.lbl_k_param.setText(f"K = {k_val} vecs")
+            self.lbl_strata_param.setText(f"Strata = {strata_val}")
+            self.lbl_lr_param.setText(f"LR = {lr_str}")
+            self.lbl_stride_param.setText(f"Stride = {stride_str}")
+            self.lbl_window_param.setText(f"Window = {window_str}")
+            self.lbl_emul_param.setText(f"Mode = {cond_str}")
+            self.lbl_best_param.setText(f"Best: {best_str}")
+
+            total_epochs_target = t_params.get("epochs", len(self.epochs_data))
             info = (
-                f"Loaded: {os.path.basename(file_path)} | "
-                f"Epochs: {n_epochs} | "
-                f"Window: [{meta.get('t_min_ms', 5.0):.1f} - {meta.get('t_max_ms', 5.0):.1f}] ms | "
-                f"LR: {lr_display}"
+                f"File: {os.path.basename(file_path)} | "
+                f"Records: {n_records} | Target Ep: {total_epochs_target}"
             )
             self.lbl_file_info.setText(info)
             self._update_all()
@@ -288,14 +395,14 @@ class MamlPostAnalysisGUI(QMainWindow):
             self.timer.stop()
             self.is_playing = False
             self.btn_play.setText("▶ Play Animation")
-            self.btn_play.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
+            self.btn_play.setStyleSheet("background-color: #16a34a; color: white; font-weight: bold; padding: 6px 14px; border-radius: 4px;")
         else:
             if not self.epochs_data or not isinstance(self.epochs_data, list):
                 return
             self.timer.start(self.spin_speed.value())
             self.is_playing = True
             self.btn_play.setText("⏸ Pause Animation")
-            self.btn_play.setStyleSheet("background-color: #f44336; color: white; font-weight: bold; padding: 6px 12px;")
+            self.btn_play.setStyleSheet("background-color: #dc2626; color: white; font-weight: bold; padding: 6px 14px; border-radius: 4px;")
 
     def _on_play_step(self):
         if not self.epochs_data or not isinstance(self.epochs_data, list):
@@ -308,7 +415,8 @@ class MamlPostAnalysisGUI(QMainWindow):
     def _on_slider_changed(self, val: int):
         self.current_idx = val
         n_eps = len(self.epochs_data) if isinstance(self.epochs_data, list) else 0
-        self.lbl_epoch_val.setText(f"{val} / {max(0, n_eps - 1)}")
+        cur_ep = self.epochs_data[val].get("epoch", val) if self.epochs_data and val < len(self.epochs_data) else val
+        self.lbl_epoch_val.setText(f"Rec #{val} (Ep {cur_ep})")
         self._update_all()
 
     def _update_all(self):
@@ -319,31 +427,36 @@ class MamlPostAnalysisGUI(QMainWindow):
         self._update_plots()
 
     def _update_table_and_metrics(self, rec: dict):
-        x_ref = rec.get("x_ref", [0] * 6)
+        x_ref = rec.get("ref_x", rec.get("x_ref", [0] * 6))
         z_target = rec.get("z_target", [0] * 6)
-        adc45 = rec.get("adc45", [0] * 6)
-        adc49 = rec.get("adc49", [0] * 6)
-        err49 = rec.get("err49", [0] * 6)
+        adc45 = rec.get("adc45", rec.get("adc45_sig", [0] * 6))
+        adc49 = rec.get("adc49", rec.get("adc49_sig", [0] * 6))
+        err = rec.get("err49", [z_target[i] - adc49[i] for i in range(6)])
         w8_diag = rec.get("w8_diag", [0] * 6)
 
         for col in range(6):
+            def _fmt_val(v):
+                try:
+                    return f"{int(round(float(v))):+d}"
+                except Exception:
+                    return f"{v}"
+
             vals = [
-                f"{x_ref[col]:+d}",
-                f"{z_target[col]:.1f}",
-                f"{adc45[col]:.1f}",
-                f"{adc49[col]:.1f}",
-                f"{err49[col]:+.1f}",
-                f"{w8_diag[col]:+d}",
+                _fmt_val(x_ref[col]),
+                _fmt_val(z_target[col]),
+                _fmt_val(adc45[col]),
+                _fmt_val(adc49[col]),
+                _fmt_val(err[col]),
+                _fmt_val(w8_diag[col]),
             ]
-            for r, v in enumerate(vals):
-                item = QTableWidgetItem(v)
+            for r, val in enumerate(vals):
+                item = QTableWidgetItem(val)
                 item.setTextAlignment(Qt.AlignCenter)
-                if r == 4: # Error column
-                    err_val = abs(err49[col])
-                    if err_val < 20:
-                        item.setBackground(QColor("#c8e6c9"))
-                    elif err_val < 60:
-                        item.setBackground(QColor("#fff9c4"))
+                if r == 4:  # Error column
+                    if abs(err[col]) < 25:
+                        item.setBackground(QColor("#d4edda"))
+                    elif abs(err[col]) < 60:
+                        item.setBackground(QColor("#fff3cd"))
                     else:
                         item.setBackground(QColor("#ffcdd2"))
                 self.table_signal.setItem(col, r, item)
@@ -351,32 +464,12 @@ class MamlPostAnalysisGUI(QMainWindow):
         enob = rec.get("enob_bits", 0.0)
         rmse = rec.get("rmse_lsb", 0.0)
         loss = rec.get("loss_lsb2", 0.0)
-        w_enob = rec.get("window_mean_enob_bits")
-        base_ep = self.dataset.get("metadata", {}).get("baseline_epochs", 0)
-        vec_id = rec.get("vector_id")
-        phase = rec.get("phase", "BASELINE" if rec.get("epoch", 0) <= base_ep and base_ep > 0 else "TRAINING")
-        eff_lr = rec.get("effective_lr", 0.0 if phase == "BASELINE" else self.dataset.get("metadata", {}).get("active_lr_scale", 0.2))
+        cur_ep = rec.get("epoch", self.current_idx)
 
-        if vec_id:
-            phase_tag = f"[Vector {vec_id} | Ep {rec.get('epoch', 0)}] "
-        elif base_ep > 0:
-            phase_tag = f"[{phase} | LR={eff_lr:.2f}] "
-        else:
-            phase_tag = ""
-
-        enob_txt = f"{phase_tag}Nominal 5ms ENOB: {enob:.2f} bits"
-        if w_enob is not None:
-            enob_txt += f" | Window Mean ENOB: {w_enob:.2f} bits"
+        enob_txt = f"Epoch #{cur_ep} | Hardware Settled ENOB: {enob:.2f} bits"
         self.lbl_enob.setText(enob_txt)
-        if phase == "BASELINE":
-            self.lbl_enob.setStyleSheet("font-weight: bold; color: #795548;")
-        elif vec_id == "A":
-            self.lbl_enob.setStyleSheet("font-weight: bold; color: #1565c0;")
-        elif vec_id == "B":
-            self.lbl_enob.setStyleSheet("font-weight: bold; color: #00695c;")
-        else:
-            self.lbl_enob.setStyleSheet("font-weight: bold; color: #2e7d32;")
-        self.lbl_rmse.setText(f"RMSE: {rmse:.2f} LSB | Quadratic Loss: {loss:.1f} LSB²")
+        self.lbl_enob.setStyleSheet("font-size: 14px; font-weight: bold; color: #15803d;")
+        self.lbl_rmse.setText(f"RMSE: {rmse:.2f} LSB | Quadratic Output Loss: {loss:.1f} LSB²")
 
     def _open_m3_popup(self):
         if self.m3_popup is None:
@@ -399,7 +492,7 @@ class MamlPostAnalysisGUI(QMainWindow):
         ax_3d = self.fig_3d.add_subplot(111, projection="3d")
         view_mode = self.combo_3d_view.currentIndex()
 
-        if view_mode == 0: # M8 Vernier
+        if view_mode == 0:  # M8 Vernier
             raw_w_m8 = rec.get("w_m8")
             if raw_w_m8 and len(raw_w_m8) == 7 and len(raw_w_m8[0]) == 6:
                 w_m8 = np.array(raw_w_m8)
@@ -410,12 +503,12 @@ class MamlPostAnalysisGUI(QMainWindow):
                     w_m8[i, i] = diag[i]
             X, Y = np.meshgrid(np.arange(6), np.arange(7))
             surf = ax_3d.plot_surface(X, Y, w_m8, cmap="viridis", edgecolor="k", linewidth=0.5, alpha=0.9)
-            ax_3d.set_title(f"Matrix 8 (Vernier Layer) — Epoch {rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
+            ax_3d.set_title(f"Matrix 8 (Vernier Compensation Layer) — Ep #{rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
             ax_3d.set_xlabel("Columns 0..5")
             ax_3d.set_ylabel("Rows 0..6")
             ax_3d.set_zlabel("Weight W (LSB)")
             ax_3d.set_zlim(-50, 50)
-        elif view_mode == 1: # M3 Hidden
+        elif view_mode == 1:  # M3 Hidden
             raw_w_m3 = rec.get("w_m3")
             if raw_w_m3 and len(raw_w_m3) == 8 and len(raw_w_m3[0]) == 6:
                 w_m3 = np.array(raw_w_m3)
@@ -426,109 +519,155 @@ class MamlPostAnalysisGUI(QMainWindow):
                     w_m3[i, i] = diag[i]
             X, Y = np.meshgrid(np.arange(6), np.arange(8))
             surf = ax_3d.plot_surface(X, Y, w_m3, cmap="plasma", edgecolor="k", linewidth=0.5, alpha=0.9)
-            ax_3d.set_title(f"Matrix 3 (Hidden Layer) — Epoch {rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
+            ax_3d.set_title(f"Matrix 3 (Projection Hidden Layer) — Ep #{rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
             ax_3d.set_xlabel("Columns 0..5")
             ax_3d.set_ylabel("Rows 0..7")
             ax_3d.set_zlabel("Weight W (LSB)")
-        elif view_mode == 2: # M33 Static
+            ax_3d.set_zlim(0, 127)
+        elif view_mode == 2:  # M33 Target
+            raw_w_m33 = rec.get("w_m33")
+            if raw_w_m33 and len(raw_w_m33) == 6 and len(raw_w_m33[0]) == 6:
+                w_m33 = np.array(raw_w_m33)
+            else:
+                w_m33 = self.static_m33
             X, Y = np.meshgrid(np.arange(6), np.arange(6))
-            surf = ax_3d.plot_surface(X, Y, self.static_m33, cmap="coolwarm", edgecolor="k", linewidth=0.5, alpha=0.9)
-            ax_3d.set_title("Matrix 33 (Frozen Static Target Matrix)", fontsize=11, fontweight="bold")
+            surf = ax_3d.plot_surface(X, Y, w_m33, cmap="coolwarm", edgecolor="k", linewidth=0.5, alpha=0.9)
+            ax_3d.set_title("Matrix 33 (Static Target Payload Task)", fontsize=11, fontweight="bold")
             ax_3d.set_xlabel("Columns 0..5")
             ax_3d.set_ylabel("Rows 0..5")
-            ax_3d.set_zlabel("Weight W (LSB)")
-        else: # Multi-strata
-            samples = sorted(rec.get("strata_samples", []), key=lambda s: s["t_us"])
-            if samples:
-                times = [s["t_us"] / 1000.0 for s in samples]
-                cols = np.arange(6)
-                T, C = np.meshgrid(times, cols)
-                err_mat = np.array([[abs(s["err49"][c]) for s in samples] for c in range(6)])
-                surf = ax_3d.plot_surface(T, C, err_mat, cmap="magma", edgecolor="k", linewidth=0.5, alpha=0.85)
-                ax_3d.set_title(f"Temporal Error Across Window — Epoch {rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
-                ax_3d.set_xlabel("Snapshot Time (ms)")
-                ax_3d.set_ylabel("Column Index")
-                ax_3d.set_zlabel("|Error| (LSB)")
-            else:
-                ax_3d.text(0.5, 0.5, 0.5, "Single Delay Mode (No Strata Sweep)", ha="center")
+            ax_3d.set_zlabel("W33 (LSB)")
+        elif view_mode == 3:  # 3D Multi-Strata Loss Landscape
+            epochs = [e.get("epoch", i) for i, e in enumerate(self.epochs_data)]
+            losses = [e.get("loss_lsb2", 0.0) for e in self.epochs_data]
+            enobs = [e.get("enob_bits", 0.0) for e in self.epochs_data]
+            ax_3d.plot(epochs, enobs, losses, color="#2563eb", linewidth=2.0, alpha=0.85)
+            cur_loss = rec.get("loss_lsb2", 0.0)
+            cur_enob = rec.get("enob_bits", 0.0)
+            ax_3d.scatter([rec.get("epoch", 0)], [cur_enob], [cur_loss], color="red", s=80, edgecolors="k", zorder=10)
+            ax_3d.set_title(f"State-Space Trajectory: Epoch #{rec.get('epoch', 0)}", fontsize=11, fontweight="bold")
+            ax_3d.set_xlabel("Epoch")
+            ax_3d.set_ylabel("ENOB (bits)")
+            ax_3d.set_zlabel("Loss (LSB²)")
 
+        self.fig_3d.tight_layout()
         self.canvas_3d.draw()
 
-        # 2. --- Update 2D Trajectory & Convergence Plot ---
+        # 2. --- Update 2D Trajectory Graphs ---
         self.fig_2d.clear()
         ax_loss = self.fig_2d.add_subplot(311)
         ax_rmse = self.fig_2d.add_subplot(312)
-        ax_w8   = self.fig_2d.add_subplot(313)
+        ax_w8 = self.fig_2d.add_subplot(313)
 
         epochs = [e.get("epoch", i) for i, e in enumerate(self.epochs_data)]
-        rmses = [e.get("rmse_lsb", 0) for e in self.epochs_data]
-        enobs = [e.get("enob_bits", 0) for e in self.epochs_data]
-        losses = [e.get("loss_lsb2", e.get("loss_milli", 0)) for e in self.epochs_data]
-        base_ep = self.dataset.get("metadata", {}).get("baseline_epochs", 0)
+        losses = [e.get("loss_lsb2", 0.0) for e in self.epochs_data]
+        rmses = [e.get("rmse_lsb", 0.0) for e in self.epochs_data]
+        enobs = [e.get("enob_bits", 0.0) for e in self.epochs_data]
+        cur_ep = rec.get("epoch", self.current_idx)
 
-        # Visual indicator for baseline phase (LR=0)
-        if base_ep > 0:
-            for ax in [ax_loss, ax_rmse, ax_w8]:
-                ax.axvspan(0, base_ep, color="#ebebeb", alpha=0.65, zorder=0)
-                ax.axvline(base_ep, color="#ff9800", linestyle=":", linewidth=1.5, alpha=0.9)
-            if losses:
-                ax_loss.text(base_ep / 2.0, max(losses) * 0.85, "BASELINE (LR=0)", 
-                             color="#666666", fontsize=8, ha="center", fontweight="bold")
-            if rmses:
-                ax_rmse.text(base_ep + 0.3, max(rmses) * 0.85, "Training Start ➔", 
-                             color="#e65100", fontsize=8, fontweight="bold")
-
-        # Visual indicator for vector switch (40+40 transfer)
-        switch_ep = self.dataset.get("metadata", {}).get("switch_epoch", 0)
-        if switch_ep > 0:
-            for ax in [ax_loss, ax_rmse, ax_w8]:
-                ax.axvline(switch_ep, color="#00bcd4", linestyle="--", linewidth=1.8, alpha=0.9)
-            if losses:
-                max_l = max(losses) if max(losses) > 0 else 1.0
-                ax_loss.text(switch_ep / 2.0, max_l * 0.9, "Vector A (XA)", color="#1565c0", fontsize=8, ha="center", fontweight="bold")
-                ax_loss.text(switch_ep + (len(epochs) - switch_ep) / 2.0, max_l * 0.9, "Vector B (XB)", color="#00695c", fontsize=8, ha="center", fontweight="bold")
-
-        # Top: Quadratic Loss (LSB²)
-        ax_loss.plot(epochs, losses, "m-s", markersize=2.5, label="Loss (LSB²)", alpha=0.8)
-        ax_loss.axvline(rec.get("epoch", 0), color="r", linestyle="--", alpha=0.8)
-        ax_loss.set_ylabel("Loss (LSB²)", color="m")
+        # Top: Loss & Marker
+        ax_loss.plot(epochs, losses, color="#94a3b8", alpha=0.45, linewidth=1.0, label="Raw Sample Loss")
+        if len(losses) >= 10:
+            w_s = min(20, len(losses) // 4)
+            if w_s >= 2:
+                loss_smooth = np.convolve(losses, np.ones(w_s)/w_s, mode='valid')
+                ax_loss.plot(epochs[w_s-1:], loss_smooth, color="#2563eb", linewidth=2.0, label=f"{w_s}-Point Rolling Mean")
+        ax_loss.axvline(cur_ep, color="#0284c7", linestyle="-", linewidth=1.8, alpha=0.85, label=f"Current: Ep #{cur_ep}")
+        ax_loss.set_ylabel("Loss (LSB²)")
         ax_loss.grid(True, linestyle=":", alpha=0.6)
-        ax_loss.legend(loc="upper right", fontsize=8)
 
         # Middle: RMSE & Current Epoch Marker + ENOB
-        ax_rmse.plot(epochs, rmses, "b-o", markersize=2.5, label="RMSE (LSB)", alpha=0.7)
-        ax_rmse.axvline(rec.get("epoch", 0), color="r", linestyle="--", alpha=0.8, label=f"Current: Ep {rec.get('epoch', 0)}")
-        ax_rmse.set_ylabel("RMSE (LSB)", color="b")
+        ax_rmse.plot(epochs, rmses, color="#ea580c", alpha=0.8, linewidth=1.5, label="RMSE (LSB)")
+        ax_rmse.axvline(cur_ep, color="#0284c7", linestyle="-", linewidth=1.8, alpha=0.85)
+        ax_rmse.set_ylabel("RMSE (LSB)", color="#ea580c")
         ax_rmse.grid(True, linestyle=":", alpha=0.6)
-        ax_rmse.legend(loc="upper right", fontsize=8)
 
         # Secondary Y axis for ENOB
         ax_enob = ax_rmse.twinx()
-        ax_enob.plot(epochs, enobs, "g--", alpha=0.7, label="ENOB (bits)")
-        ax_enob.set_ylabel("ENOB (bits)", color="g")
+        ax_enob.plot(epochs, enobs, color="#16a34a", alpha=0.85, linewidth=1.8, label="ENOB (bits)")
+        ax_enob.set_ylabel("ENOB (bits)", color="#16a34a")
+        ax_enob.set_ylim(4.0, max(7.5, max(enobs) + 0.5 if enobs else 7.5))
 
         # Bottom: Matrix 8 Adaptive Diagonal Weights
         w8_hist = np.array([[e.get("w8_diag", [0]*6)[c] for e in self.epochs_data] for c in range(6)])
         for c in range(6):
             ax_w8.plot(epochs, w8_hist[c], label=f"W8[{c},{c}]", alpha=0.85)
-        ax_w8.axvline(rec.get("epoch", 0), color="r", linestyle="--", alpha=0.8)
+        ax_w8.axvline(cur_ep, color="#0284c7", linestyle="-", linewidth=1.8, alpha=0.85)
         ax_w8.set_xlabel("Training Epoch")
         ax_w8.set_ylabel("M8 Diag W (LSB)")
         ax_w8.grid(True, linestyle=":", alpha=0.6)
         ax_w8.legend(loc="upper left", ncol=3, fontsize=7)
+
+        # Baseline Boundary: Red thick dashed vertical line with text "OFF" to the left
+        summary = self.dataset.get("summary", {}) if isinstance(self.dataset, dict) else {}
+        baseline_ep = summary.get("baseline_epochs", None)
+        if baseline_ep is None and self.epochs_data:
+            for e in self.epochs_data:
+                if e.get("phase") in ("TRAIN", "TRAINING"):
+                    baseline_ep = e.get("epoch", 40)
+                    break
+        if baseline_ep is None and len(epochs) > 40:
+            w0 = self.epochs_data[0].get("w8_diag", [24]*6)
+            w40 = self.epochs_data[min(40, len(self.epochs_data)-1)].get("w8_diag", [24]*6)
+            if w0 == w40 and w0 != self.epochs_data[-1].get("w8_diag", [24]*6):
+                baseline_ep = 40
+
+        if baseline_ep is not None and 0 < baseline_ep < max(epochs):
+            for ax in (ax_loss, ax_rmse, ax_w8):
+                ax.axvline(baseline_ep, color="#dc2626", linestyle="--", linewidth=2.8, alpha=0.95, zorder=6)
+
+            dx = max(1.5, max(epochs) * 0.015)
+            # Annotate OFF / ON on Loss plot
+            y_loss = ax_loss.get_ylim()
+            y_pos_loss = y_loss[0] + 0.85 * (y_loss[1] - y_loss[0])
+            ax_loss.text(
+                baseline_ep - dx, y_pos_loss, "OFF",
+                color="#dc2626", fontsize=10, fontweight="heavy", ha="right", va="center",
+                bbox=dict(boxstyle="square,pad=0.2", facecolor="#fee2e2", edgecolor="#dc2626", linewidth=1.2, alpha=0.95),
+                zorder=7
+            )
+            ax_loss.text(
+                baseline_ep + dx, y_pos_loss, "ON",
+                color="#16a34a", fontsize=10, fontweight="heavy", ha="left", va="center",
+                bbox=dict(boxstyle="square,pad=0.2", facecolor="#dcfce7", edgecolor="#16a34a", linewidth=1.2, alpha=0.95),
+                zorder=7
+            )
+
+            # Annotate OFF / ON on M8 Diag W plot
+            y_w8 = ax_w8.get_ylim()
+            y_pos_w8 = y_w8[0] + 0.78 * (y_w8[1] - y_w8[0])
+            ax_w8.text(
+                baseline_ep - dx, y_pos_w8, "OFF",
+                color="#dc2626", fontsize=9, fontweight="heavy", ha="right", va="center",
+                bbox=dict(boxstyle="square,pad=0.15", facecolor="#fee2e2", edgecolor="#dc2626", linewidth=1.0, alpha=0.95),
+                zorder=7
+            )
+            ax_w8.text(
+                baseline_ep + dx, y_pos_w8, "ON",
+                color="#16a34a", fontsize=9, fontweight="heavy", ha="left", va="center",
+                bbox=dict(boxstyle="square,pad=0.15", facecolor="#dcfce7", edgecolor="#16a34a", linewidth=1.0, alpha=0.95),
+                zorder=7
+            )
+
+        ax_loss.legend(loc="upper right", fontsize=8)
 
         self.fig_2d.tight_layout()
         self.canvas_2d.draw()
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Injected FORWARD Propagation: Inverted MAML Post-Analysis GUI")
+    parser.add_argument("json_path", nargs="?", default=None, help="Path to telemetry JSON file")
+    parser.add_argument("--play", "-p", action="store_true", help="Auto-start animation on load")
+    parser.add_argument("--speed", "-s", type=int, default=120, help="Animation speed in ms per frame (default 120)")
+    args = parser.parse_args()
+
     app = QApplication(sys.argv)
-    target_json = sys.argv[1] if len(sys.argv) > 1 else None
-    gui = MamlPostAnalysisGUI(json_path=target_json)
+    gui = MamlPostAnalysisGUI(json_path=args.json_path, auto_play=args.play)
+    if args.speed:
+        gui.spin_speed.setValue(args.speed)
     gui.show()
     sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
     main()
-

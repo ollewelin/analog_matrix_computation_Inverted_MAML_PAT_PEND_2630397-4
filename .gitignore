@@ -73,6 +73,8 @@ FPGA_code/docs/efinix_datasheets/
 
 # Staging and temporary references
 **/ref_staging/
+**/FPGA_code/docs/deprecated/
+**/FPGA_code/docs/deprecated
 
 # Software build artifacts and binaries
 **/build/

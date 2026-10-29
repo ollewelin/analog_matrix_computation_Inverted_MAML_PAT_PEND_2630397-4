@@ -30,6 +30,7 @@ MAML_CMD_STEP_OUTER     = 0x18
 MAML_CMD_DIAG_HADAMARD  = 0x19
 MAML_CMD_RAND_DATA      = 0x1A
 MAML_CMD_BATCH_STEP     = 0x1B
+MAML_CMD_CONFIG_GAIN_EXP = 0x1C
 
 # Matrix IDs matching maml_platform.h (0=M3, 1=M8, 2=M33)
 MAT_M3  = 0
@@ -104,11 +105,24 @@ class MamlTelemetry:
     ref_x: List[int] = field(default_factory=lambda: [180, -140, 210, -95, 130, -195])
     z_target: List[int] = field(default_factory=lambda: [0] * 6)
     sigma2_slope: List[int] = field(default_factory=lambda: [0] * 6)
+    w_m3: List[List[int]] = field(default_factory=lambda: [[0] * 6 for _ in range(8)])
+    w_m8: List[List[int]] = field(default_factory=lambda: [[0] * 6 for _ in range(7)])
+    w_m33: List[List[int]] = field(default_factory=lambda: [[0] * 6 for _ in range(6)])
+    w8_diag: List[int] = field(default_factory=lambda: [24] * 6)
+    w3_diag: List[int] = field(default_factory=lambda: [64] * 6)
     t20_h_ack_ok: int = 0
     t20_h_ack_miss: int = 0
     t20_h_lat_last: int = 0
+    d_line_div: int = 1
+    w33_div: int = 1
+    target_gain_q8: int = 256
+    w_comp_clamp: int = 80
     connected_hw: bool = False
     status_text: str = "Digital Twin Active (Ready)"
+
+    @property
+    def target_gain_mult(self) -> float:
+        return self.target_gain_q8 / 256.0
 
     @property
     def enob_bits(self) -> float:
@@ -254,26 +268,44 @@ class MamlUdpClient:
         bit_prec_comp_centi = u[30]
         bit_prec_uncomp_centi = u[31]
 
-        x_ref = list(u[32:38])
-        z_target = list(u[38:44])
-        adc45_sig = list(u[44:50])
-        adc49_sig = list(u[50:56])
-        sigma2_slope = list(u[56:62])
+        # Exact byte-sliced vector and matrix unpacking directly matching maml_telemetry_pkt_t
+        x_ref = list(struct.unpack("<6h", raw[50:62]))
+        z_target = list(struct.unpack("<6h", raw[62:74]))
+        adc45_sig = list(struct.unpack("<6h", raw[74:86]))
+        adc49_sig = list(struct.unpack("<6h", raw[86:98]))
+        sigma2_slope = list(struct.unpack("<6h", raw[98:110]))
 
-        # w_m3: 62..110 (48), w_m8: 110..152 (42), w_m33: 152..188 (36)
-        trim_dac_38 = u[188]
-        hid_trim_offset = u[189]
-        w0_coord_x = u[190]
-        w0_coord_y = u[191]
-        w0_loss_milli = u[192]
-        basin_coord_x = list(u[193:197])
-        basin_coord_y = list(u[197:201])
-        basin_loss_milli = list(u[201:205])
-        basin_hess_dot = list(u[205:209])
-        basin_spread_milli = u[209]
-        t20_h_ack_ok = u[210]
-        t20_h_ack_miss = u[211]
-        t20_h_lat_last = u[212]
+        # Dual-2T1C Signed Differential Weights (-128..+127 DAC LSBs)
+        # w_m3 (8x6): offset 110..158
+        w_m3 = [[b if b < 128 else b - 256 for b in raw[110 + 6 * r : 110 + 6 * (r + 1)]] for r in range(8)]
+        # w_m8 (7x6): offset 158..200
+        w_m8 = [[b if b < 128 else b - 256 for b in raw[158 + 6 * r : 158 + 6 * (r + 1)]] for r in range(7)]
+        # w_m33 (6x6): offset 200..236
+        w_m33 = [[b if b < 128 else b - 256 for b in raw[200 + 6 * r : 200 + 6 * (r + 1)]] for r in range(6)]
+
+        w8_diag = [w_m8[i][i] for i in range(6)]
+        w3_diag = [w_m3[i][i] for i in range(6)]
+
+        trim_dac_38 = raw[236] if raw[236] < 128 else raw[236] - 256
+        hid_trim_offset = raw[237] if raw[237] < 128 else raw[237] - 256
+        w0_coord_x, w0_coord_y, w0_loss_milli = struct.unpack("<hhI", raw[238:246])
+        basin_coord_x = list(struct.unpack("<4h", raw[246:254]))
+        basin_coord_y = list(struct.unpack("<4h", raw[254:262]))
+        basin_loss_milli = list(struct.unpack("<4I", raw[262:278]))
+        basin_hess_dot = list(struct.unpack("<4h", raw[278:286]))
+        basin_spread_milli = struct.unpack("<H", raw[286:288])[0]
+        t20_h_ack_ok, t20_h_ack_miss, t20_h_lat_last = struct.unpack("<IIH", raw[288:298])
+
+        d_line_div = 1
+        w33_div = 1
+        target_gain_q8 = 256
+        w_comp_clamp = 80
+        if len(raw) >= 306:
+            u_ext = struct.unpack("<BBHB3x", raw[298:306])
+            d_line_div = u_ext[0]
+            w33_div = u_ext[1]
+            target_gain_q8 = u_ext[2]
+            w_comp_clamp = u_ext[3]
 
         enob_comp_q8 = int((bit_prec_comp_centi / 100.0) * 256.0)
         enob_uncomp_q8 = int((bit_prec_uncomp_centi / 100.0) * 256.0)
@@ -319,13 +351,22 @@ class MamlUdpClient:
             ref_x=x_ref,
             z_target=z_target,
             sigma2_slope=sigma2_slope,
+            w_m3=w_m3,
+            w_m8=w_m8,
+            w_m33=w_m33,
+            w8_diag=w8_diag,
+            w3_diag=w3_diag,
             t20_h_ack_ok=t20_h_ack_ok,
             t20_h_ack_miss=t20_h_ack_miss,
             t20_h_lat_last=t20_h_lat_last,
+            d_line_div=d_line_div,
+            w33_div=w33_div,
+            target_gain_q8=target_gain_q8,
+            w_comp_clamp=w_comp_clamp,
             connected_hw=True,
             status_text=(
-                f"LIVE HW ({self.host}:{self.port}) — Settle={settle_cycles*20}ns | "
-                f"H-ACK OK={t20_h_ack_ok} MISS={t20_h_ack_miss} LAT={t20_h_lat_last}"
+                f"LIVE HW ({self.host}:{self.port}) — G_exp: {d_line_div}x/{w33_div}x -> {target_gain_q8/256.0:.2f}x (clamp {w_comp_clamp}) | "
+                f"Settle={settle_cycles*20}ns | H-ACK OK={t20_h_ack_ok} MISS={t20_h_ack_miss} LAT={t20_h_lat_last}"
             ),
         )
         self.sim_telemetry = t
@@ -518,6 +559,27 @@ class MamlUdpClient:
 
     def restore_compensation_weights(self) -> None:
         self.seed_weights(self.sim_telemetry.seed_mode, self.sim_telemetry.seed_pct)
+
+    def set_gain_experiment(
+        self,
+        d_line: int = 1,
+        w33: int = 1,
+        target_gain: float = 1.0,
+        clamp: int = 80,
+    ) -> Optional[MamlTelemetry]:
+        """
+        Dynamically configures the Virtual Gain Experiment parameters on physical silicon:
+          - d_line: Data line divider (1 => [-45, +45] LSB, 2 => [-22, +22] LSB, 4 => [-11, +11] LSB)
+          - w33: Matrix 33 weight divider (1 => nominal W33, 2 => W33/2, 4 => W33/4)
+          - target_gain: Digital supervisor demand multiplier (1.0x, 2.0x, 4.0x)
+          - clamp: Maximum weight clamp for M3/M8 (80 .. 120 LSB)
+        """
+        gain_q8 = max(32, min(4096, int(round(target_gain * 256.0))))
+        payload = struct.pack("<BBHB", max(1, min(16, d_line)), max(1, min(16, w33)), gain_q8, max(40, min(127, clamp)))
+        raw = self._send_binary(MAML_CMD_CONFIG_GAIN_EXP, payload)
+        if raw is not None:
+            return self._parse_hw_telemetry(raw)
+        return None
 
     def step_outer_loop(self) -> MamlTelemetry:
         self.sim_comp_centered = False
