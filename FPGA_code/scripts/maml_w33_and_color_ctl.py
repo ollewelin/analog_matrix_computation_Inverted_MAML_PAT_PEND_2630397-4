@@ -63,6 +63,8 @@ def print_telemetry_status(tel, client):
     print(f"Refresh Counter        : {tel.refresh_cnt}")
     print(f"Comp Centered / Active : {'YES' if tel.connected_hw else 'NO'}")
     print(f"ENOB (Sustained/Comp)  : {tel.enob_bits:.2f} bits (Uncomp: {tel.enob_uncomp_bits:.2f} bits)")
+    clip_warn = " [!] HEADROOM MARGIN EXCEEDED - CLIPPING" if tel.col_clip_mask != 0 else " OK (Linear)"
+    print(f"ColTIA Saturation Guard: {tel.clip_events_cnt} clipped epochs suppressed | Mask=0b{tel.col_clip_mask:06b} (ADC{tel.last_clip_adc_id}){clip_warn}")
     print("-" * 80)
     color_desc = COLOR_NAMES.get(tel.color_mode, f"UNKNOWN ({tel.color_mode})")
     print(f"Noise Equalizer Mode   : [{tel.color_mode}] {color_desc}")

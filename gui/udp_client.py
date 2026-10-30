@@ -132,6 +132,9 @@ class MamlTelemetry:
     color_mode: int = 0
     color_rho_q8: int = 180
     w33_is_custom: int = 0
+    clip_events_cnt: int = 0
+    col_clip_mask: int = 0
+    last_clip_adc_id: int = 0
     connected_hw: bool = False
     status_text: str = "Digital Twin Active (Ready)"
 
@@ -400,7 +403,23 @@ class MamlUdpClient:
         color_mode = 0
         color_rho_q8 = 180
         w33_is_custom = 0
-        if len(raw) >= 310:
+        clip_events_cnt = 0
+        col_clip_mask = 0
+        last_clip_adc_id = 0
+        if len(raw) >= 312:
+            u_ext = struct.unpack("<BBHBHBBBHBB", raw[298:312])
+            d_line_div = u_ext[0]
+            w33_div = u_ext[1]
+            target_gain_q8 = u_ext[2]
+            w_comp_clamp = u_ext[3]
+            reg_lambda_q16 = u_ext[4]
+            color_mode = u_ext[5]
+            color_rho_q8 = u_ext[6]
+            w33_is_custom = u_ext[7]
+            clip_events_cnt = u_ext[8]
+            col_clip_mask = u_ext[9]
+            last_clip_adc_id = u_ext[10]
+        elif len(raw) >= 310:
             u_ext = struct.unpack("<BBHBHBBB2x", raw[298:310])
             d_line_div = u_ext[0]
             w33_div = u_ext[1]
@@ -478,6 +497,9 @@ class MamlUdpClient:
             color_mode=color_mode,
             color_rho_q8=color_rho_q8,
             w33_is_custom=w33_is_custom,
+            clip_events_cnt=clip_events_cnt,
+            col_clip_mask=col_clip_mask,
+            last_clip_adc_id=last_clip_adc_id,
             connected_hw=True,
             status_text=(
                 f"LIVE HW ({self.host}:{self.port}) — G_exp: {d_line_div}x/{w33_div}x -> {target_gain_q8/256.0:.2f}x (clamp {w_comp_clamp}) | "
@@ -780,6 +802,13 @@ class MamlUdpClient:
             self._send_binary(MAML_CMD_RAND_DATA)
         else:
             self._send_binary(MAML_CMD_RAND_DATA, struct.pack("<B", 1 if enable else 0))
+
+    def draw_fresh_vector(self) -> Optional[MamlTelemetry]:
+        """Draw a single fresh locked random/colored vector on physical silicon without resetting weights."""
+        raw = self._send_binary(MAML_CMD_RAND_DATA, struct.pack("<B", 2))
+        if raw is not None:
+            return self._parse_hw_telemetry(raw)
+        return None
 
     def run_single_cell_multiplier_curve(
         self,

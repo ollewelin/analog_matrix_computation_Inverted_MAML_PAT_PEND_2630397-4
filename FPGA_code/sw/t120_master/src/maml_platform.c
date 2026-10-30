@@ -323,6 +323,9 @@ static int8_t   g_active_m33[6][6] = {
 static uint8_t  g_w33_is_custom      = 0u;   /* 0 = default hardcoded k_default_m33, 1 = custom loaded */
 static uint8_t  g_color_mode         = COLOR_WHITE;
 static uint8_t  g_color_rho_q8       = 180u; /* Default ~0.70 LLM correlation (180/256) */
+static uint16_t g_clip_events_cnt    = 0u;   /* Counter of suppressed updates due to ColTIA clipping */
+static uint8_t  g_col_clip_mask      = 0u;   /* Bitmask of clipped columns (0..5) */
+static uint8_t  g_last_clip_adc_id   = 0u;   /* 45 or 49 */
 
 static void maml_sync_shadow_bytes(void) {
     for (int r = 0; r < 8; r++)
@@ -337,14 +340,17 @@ static void maml_sync_shadow_bytes(void) {
         for (int c = 0; c < 6; c++)
             g_tel.w_m33[r][c] = sat_dac_off(rshift_rne(g_w_m33_q14[r][c], 7));
 
-    g_tel.d_line_div     = g_d_line_div;
-    g_tel.w33_div        = g_w33_div;
-    g_tel.target_gain_q8 = g_target_gain_q8;
-    g_tel.w_comp_clamp   = g_w_comp_clamp;
-    g_tel.reg_lambda_q16 = g_reg_lambda_q16;
-    g_tel.color_mode     = g_color_mode;
-    g_tel.color_rho_q8   = g_color_rho_q8;
-    g_tel.w33_is_custom  = g_w33_is_custom;
+    g_tel.d_line_div        = g_d_line_div;
+    g_tel.w33_div           = g_w33_div;
+    g_tel.target_gain_q8    = g_target_gain_q8;
+    g_tel.w_comp_clamp      = g_w_comp_clamp;
+    g_tel.reg_lambda_q16    = g_reg_lambda_q16;
+    g_tel.color_mode        = g_color_mode;
+    g_tel.color_rho_q8      = g_color_rho_q8;
+    g_tel.w33_is_custom     = g_w33_is_custom;
+    g_tel.clip_events_cnt   = g_clip_events_cnt;
+    g_tel.col_clip_mask     = g_col_clip_mask;
+    g_tel.last_clip_adc_id  = g_last_clip_adc_id;
 }
 
 /* Matrix P/N gate mask bits for pay[1] of T20_OP_PULSE_COL_GATES (CH 0x05 OP 0x4):
@@ -558,6 +564,22 @@ static void maml_generate_new_white_noise_ref(void) {
                 val[i] = raw[i];
             }
             break;
+    }
+
+    /* Zero-Mean Centering (Hardware LayerNorm):
+     * For correlated modes (Pink, Red, LLM), spatial correlation can shift the collective sum
+     * of the 6 inputs strongly positive or negative. Subtracting the spatial mean sum(x_i)/6
+     * eliminates net common-mode DC current through the analog multipliers and prevents
+     * driving the single-supply ColTIA transimpedance amplifiers into saturation rails! */
+    if (g_color_mode != COLOR_WHITE) {
+        int32_t mean_sum = 0;
+        for (int i = 0; i < 6; i++) {
+            mean_sum += val[i];
+        }
+        int32_t mean_val = mean_sum / 6;
+        for (int i = 0; i < 6; i++) {
+            val[i] -= mean_val;
+        }
     }
 
     for (int i = 0; i < 6; i++) {
@@ -808,6 +830,30 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     t20_hadamard_tristate_center();
     bsp_uDelay(10);
     aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
+
+    /* 1b. Check physical headroom against ADC rails (+/-2047 LSB).
+     *     Physical maximum Hadamard perturbation step swing measured on physical silicon is 243 LSB.
+     *     If |ADC| >= COLTIA_CLIP_THRESHOLD_LSB (1797 LSB), the Hadamard perturbation will hit the
+     *     op-amp/ADC rail and clip, destroying orthogonality and generating phantom gradient bursts.
+     *     We detect any clipping column, log alarms in telemetry, and set g_col_clip_mask. */
+    g_col_clip_mask = 0u;
+    for (int c = 0; c < 6; c++) {
+        int16_t v45 = g_tel.adc45_sig[c];
+        int16_t v49 = g_tel.adc49_sig[c];
+        if (v45 <= -COLTIA_CLIP_THRESHOLD_LSB || v45 >= COLTIA_CLIP_THRESHOLD_LSB) {
+            g_col_clip_mask |= (1u << c);
+            g_last_clip_adc_id = 45u;
+        }
+        if (v49 <= -COLTIA_CLIP_THRESHOLD_LSB || v49 >= COLTIA_CLIP_THRESHOLD_LSB) {
+            g_col_clip_mask |= (1u << c);
+            g_last_clip_adc_id = 49u;
+        }
+    }
+    if (g_col_clip_mask != 0u) {
+        if (g_clip_events_cnt < 0xFFFFu) {
+            g_clip_events_cnt++;
+        }
+    }
 
     /* 2. Sub-Window A: Perturb Matrix 8 FIRST (active rows 0..5 = 0x3F00, M3 3-stated Hi-Z)
      *    Per NON_BACKPROP_HADAMARD_GRADIENT_RULES.md §2: M8 is perturbed first while M3 is quiet! */
@@ -1339,6 +1385,16 @@ static void maml_execute_step(void) {
         uint8_t m = 1u;
         g_tel.cur_stratum_slot = g_slot_perm[0];
         maml_measure_and_extract_gradients(g_tel.cur_stratum_slot, gm3, gm8);
+
+        /* Headroom Saturation Protection:
+         * If any column clipped against the rail margin (|ADC| >= 1797 LSB), the Hadamard perturbation
+         * was distorted. Gradient extraction is invalid and contains runaway phantom bursts.
+         * Suppress weight update for this sample completely! */
+        if (g_col_clip_mask != 0u) {
+            maml_update_3d_landscape_coords();
+            return;
+        }
+
         for (int r = 0; r < 8; r++)
             for (int c = 0; c < 6; c++)
                 g_acc_grad_m3[r][c] = gm3[r][c];
@@ -1476,6 +1532,13 @@ static void maml_execute_step(void) {
         }
 
         maml_measure_and_extract_gradients(slot, gm3, gm8);
+
+        /* Headroom Saturation Protection:
+         * Suppress gradient accumulation if clipped against the rail margin */
+        if (g_col_clip_mask != 0u) {
+            return;
+        }
+
         for (int r = 0; r < 8; r++)
             for (int c = 0; c < 6; c++)
                 g_acc_grad_m3[r][c] += gm3[r][c];

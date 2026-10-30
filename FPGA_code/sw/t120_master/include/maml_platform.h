@@ -49,6 +49,12 @@
 #define COLOR_LLM_TOEPLITZ       3   /* Kac-Murdock-Szegö AR(1) spatial covariance rho^|i-j| */
 #define COLOR_LLM_SPARSE_GELU    4   /* Correlated Toeplitz with half-wave rectified/GELU sparsity */
 
+/* Physical ColTIA Headroom Saturation Guard (Anti-Clip Distortion Guard)
+ * Measured physical maximum Hadamard perturbation step swing = 243 LSB on ADC45.
+ * We enforce a safety headroom margin of 250 LSB from the 12-bit ADC rails (+/-2047 LSB): */
+#define HADAMARD_MAX_SWING_LSB        250
+#define COLTIA_CLIP_THRESHOLD_LSB     (2047 - HADAMARD_MAX_SWING_LSB)  /* 1797 LSB */
+
 /* Run Modes */
 #define MAML_MODE_IDLE          0
 #define MAML_MODE_BASE_TRAIN    1   /* Ref 40 (Outer) + Ref 41 (Inner), 100% duty, Hidden Offset ON */
@@ -147,7 +153,9 @@ typedef struct {
     uint8_t  color_mode;            /* 0=White, 1=Pink, 2=Red, 3=LLM Toeplitz, 4=LLM Sparse GELU */
     uint8_t  color_rho_q8;          /* Spatial correlation rho (0..255 = 0.0 .. 1.0) */
     uint8_t  w33_is_custom;         /* 0=k_default_m33, 1=Custom loaded W33 */
-    uint8_t  reserved_gain[2];      /* 4-byte struct alignment */
+    uint16_t clip_events_cnt;       /* Total clipped epochs where weight update was suppressed */
+    uint8_t  col_clip_mask;         /* Bitmask (bits 0..5) of columns exceeding headroom margin */
+    uint8_t  last_clip_adc_id;      /* 45 or 49 indicating which stage hit margin */
 } maml_telemetry_pkt_t;
 
 /* Cell Self-Diagnosis Response Packet */
