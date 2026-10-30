@@ -597,7 +597,7 @@ class MamlPostAnalysisGUI(QMainWindow):
         ax_w8.grid(True, linestyle=":", alpha=0.6)
         ax_w8.legend(loc="upper left", ncol=3, fontsize=7)
 
-        # Baseline Boundary: Red thick dashed vertical line with text "OFF" to the left
+        # Baseline & Regularization Transitions: Vertical dashed lines and badges
         summary = self.dataset.get("summary", {}) if isinstance(self.dataset, dict) else {}
         baseline_ep = summary.get("baseline_epochs", None)
         if baseline_ep is None and self.epochs_data:
@@ -611,42 +611,60 @@ class MamlPostAnalysisGUI(QMainWindow):
             if w0 == w40 and w0 != self.epochs_data[-1].get("w8_diag", [24]*6):
                 baseline_ep = 40
 
-        if baseline_ep is not None and 0 < baseline_ep < max(epochs):
-            for ax in (ax_loss, ax_rmse, ax_w8):
-                ax.axvline(baseline_ep, color="#dc2626", linestyle="--", linewidth=2.8, alpha=0.95, zorder=6)
+        transition_markers = []
+        if "transitions" in summary:
+            transition_markers = summary["transitions"]
+        elif max(epochs) >= 800:
+            transition_markers = [
+                {"epoch": 100, "label": "Knee Base", "color": "#d97706", "bg": "#fef3c7"},
+                {"epoch": 200, "label": "Train ON (Reg ON)", "color": "#16a34a", "bg": "#dcfce7"},
+                {"epoch": 500, "label": "Reg OFF", "color": "#e11d48", "bg": "#ffe4e6"},
+                {"epoch": 800, "label": "Reg ON", "color": "#2563eb", "bg": "#dbeafe"},
+            ]
+        elif max(epochs) >= 400:
+            transition_markers = [
+                {"epoch": 100, "label": "Knee Base", "color": "#d97706", "bg": "#fef3c7"},
+                {"epoch": 200, "label": "Train ON", "color": "#16a34a", "bg": "#dcfce7"},
+            ]
+        elif baseline_ep is not None and 0 < baseline_ep < max(epochs):
+            transition_markers = [
+                {"epoch": baseline_ep, "label": "ON", "prev_label": "OFF", "color": "#dc2626", "bg": "#fee2e2"}
+            ]
 
-            dx = max(1.5, max(epochs) * 0.015)
-            # Annotate OFF / ON on Loss plot
-            y_loss = ax_loss.get_ylim()
-            y_pos_loss = y_loss[0] + 0.85 * (y_loss[1] - y_loss[0])
-            ax_loss.text(
-                baseline_ep - dx, y_pos_loss, "OFF",
-                color="#dc2626", fontsize=10, fontweight="heavy", ha="right", va="center",
-                bbox=dict(boxstyle="square,pad=0.2", facecolor="#fee2e2", edgecolor="#dc2626", linewidth=1.2, alpha=0.95),
-                zorder=7
-            )
-            ax_loss.text(
-                baseline_ep + dx, y_pos_loss, "ON",
-                color="#16a34a", fontsize=10, fontweight="heavy", ha="left", va="center",
-                bbox=dict(boxstyle="square,pad=0.2", facecolor="#dcfce7", edgecolor="#16a34a", linewidth=1.2, alpha=0.95),
-                zorder=7
-            )
+        # Draw vertical transition lines and annotations
+        dx = max(1.5, max(epochs) * 0.012)
+        for t in transition_markers:
+            t_ep = t["epoch"]
+            if t_ep < max(epochs):
+                for ax in (ax_loss, ax_rmse, ax_w8):
+                    ax.axvline(t_ep, color=t["color"], linestyle="--", linewidth=2.0, alpha=0.9, zorder=6)
 
-            # Annotate OFF / ON on M8 Diag W plot
-            y_w8 = ax_w8.get_ylim()
-            y_pos_w8 = y_w8[0] + 0.78 * (y_w8[1] - y_w8[0])
-            ax_w8.text(
-                baseline_ep - dx, y_pos_w8, "OFF",
-                color="#dc2626", fontsize=9, fontweight="heavy", ha="right", va="center",
-                bbox=dict(boxstyle="square,pad=0.15", facecolor="#fee2e2", edgecolor="#dc2626", linewidth=1.0, alpha=0.95),
-                zorder=7
-            )
-            ax_w8.text(
-                baseline_ep + dx, y_pos_w8, "ON",
-                color="#16a34a", fontsize=9, fontweight="heavy", ha="left", va="center",
-                bbox=dict(boxstyle="square,pad=0.15", facecolor="#dcfce7", edgecolor="#16a34a", linewidth=1.0, alpha=0.95),
-                zorder=7
-            )
+                # Annotate on Loss plot
+                y_loss = ax_loss.get_ylim()
+                y_pos_loss = y_loss[0] + 0.82 * (y_loss[1] - y_loss[0])
+                if "prev_label" in t:
+                    ax_loss.text(
+                        t_ep - dx, y_pos_loss, t["prev_label"],
+                        color=t["color"], fontsize=9, fontweight="heavy", ha="right", va="center",
+                        bbox=dict(boxstyle="square,pad=0.2", facecolor="#fee2e2", edgecolor=t["color"], linewidth=1.0, alpha=0.9),
+                        zorder=7
+                    )
+                ax_loss.text(
+                    t_ep + dx, y_pos_loss, t["label"],
+                    color=t["color"], fontsize=9, fontweight="heavy", ha="left", va="center",
+                    bbox=dict(boxstyle="square,pad=0.2", facecolor=t.get("bg", "#f1f5f9"), edgecolor=t["color"], linewidth=1.0, alpha=0.9),
+                    zorder=7
+                )
+
+                # Annotate on M8 Diag W plot
+                y_w8 = ax_w8.get_ylim()
+                y_pos_w8 = y_w8[0] + 0.78 * (y_w8[1] - y_w8[0])
+                ax_w8.text(
+                    t_ep + dx, y_pos_w8, t["label"],
+                    color=t["color"], fontsize=8, fontweight="heavy", ha="left", va="center",
+                    bbox=dict(boxstyle="square,pad=0.15", facecolor=t.get("bg", "#f1f5f9"), edgecolor=t["color"], linewidth=1.0, alpha=0.9),
+                    zorder=7
+                )
 
         ax_loss.legend(loc="upper right", fontsize=8)
 

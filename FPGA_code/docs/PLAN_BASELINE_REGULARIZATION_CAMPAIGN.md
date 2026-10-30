@@ -1,6 +1,6 @@
 # Inverted MAML: Action Plan & Roadmap for Baseline Regularization
 **Date:** 2026-10-29  
-**Target:** Trion T120 Master SoC (192.168.1.50:5000) on PCB v1.3.2  
+**Target:** Trion T120 Master SoC (192.168.1.50:5000) on PCB v1.3.2 (Summing attenuator: 1k / 5.1k Ohm installed)  
 **Patent Pending:** SE 2630397-4 (Open Science Hardware)  
 
 ---
@@ -75,3 +75,4 @@ To rigorously determine the optimal regularization strategy, we will execute an 
 2. CLI and Python script support (`--reg-lambda`, `--reg-m8`) in `run_3stage_baseline_experiment.py` and `run_fixed_vector_gui_experiment.py`.
 3. Automated comparative test script executing the multi-run campaign.
 4. Aggregated statistical report with boxplots and trajectory overlays comparing unregularized vs. regularized performance.
+

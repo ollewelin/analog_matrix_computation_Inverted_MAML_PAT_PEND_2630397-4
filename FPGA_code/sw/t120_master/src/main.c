@@ -538,7 +538,7 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
                 if (bin_len > 0) {
                     payload_len = bin_len;
                 } else {
-                    char ver_msg[200];
+                    char ver_msg[256];
                     if (pay_len >= 9 && memcmp(payload, "RESET_LOW", 9) == 0) {
                         // Assert reset (drive CRESET_N LOW = 0)
                         T20_REG(T20_CRESET_CTRL) = 0;
@@ -566,7 +566,28 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
                         char t20_status_str[96];
                         t20_ping_sbus(t20_status_str, sizeof(t20_status_str));
 
-                        strcpy(ver_msg, "T120_SOC_ETH_FW v2.0-MAML (Build 2026-10-11)\r\nStatus: ");
+                        uint32_t hw_ver = AIO_REG(AIO_HW_VERSION);
+                        uint32_t hw_id  = AIO_REG(AIO_HW_ID);
+                        char hw_id_str[5];
+                        hw_id_str[0] = (char)((hw_id >> 24) & 0xFF);
+                        hw_id_str[1] = (char)((hw_id >> 16) & 0xFF);
+                        hw_id_str[2] = (char)((hw_id >> 8) & 0xFF);
+                        hw_id_str[3] = (char)(hw_id & 0xFF);
+                        hw_id_str[4] = '\0';
+
+                        char hw_ver_hex[12];
+                        const char hex_chars[] = "0123456789ABCDEF";
+                        hw_ver_hex[0] = '0'; hw_ver_hex[1] = 'x';
+                        for (int i = 7; i >= 0; i--) {
+                            hw_ver_hex[2 + (7 - i)] = hex_chars[(hw_ver >> (i * 4)) & 0xF];
+                        }
+                        hw_ver_hex[10] = '\0';
+
+                        strcpy(ver_msg, "T120_SOC_ETH_FW v2.1-MAML (SW Build " __DATE__ " " __TIME__ ")\r\nHW_LOGIC: ");
+                        strcat(ver_msg, hw_ver_hex);
+                        strcat(ver_msg, " (ID=");
+                        strcat(ver_msg, hw_id_str);
+                        strcat(ver_msg, ")\r\nStatus: ");
                         strcat(ver_msg, t20_status_str);
                         strcat(ver_msg, "\r\n");
                     }

@@ -31,6 +31,8 @@ MAML_CMD_DIAG_HADAMARD  = 0x19
 MAML_CMD_RAND_DATA      = 0x1A
 MAML_CMD_BATCH_STEP     = 0x1B
 MAML_CMD_CONFIG_GAIN_EXP = 0x1C
+MAML_CMD_SET_REG        = 0x1D
+MAML_CMD_CENTER_WEIGHTS = 0x15
 
 # Matrix IDs matching maml_platform.h (0=M3, 1=M8, 2=M33)
 MAT_M3  = 0
@@ -117,8 +119,13 @@ class MamlTelemetry:
     w33_div: int = 1
     target_gain_q8: int = 256
     w_comp_clamp: int = 80
+    reg_lambda_q16: int = 0
     connected_hw: bool = False
     status_text: str = "Digital Twin Active (Ready)"
+
+    @property
+    def x_ref(self) -> List[int]:
+        return self.ref_x
 
     @property
     def target_gain_mult(self) -> float:
@@ -231,6 +238,50 @@ class MamlUdpClient:
     def query_version(self) -> str:
         return self.send_ascii("VERSION")
 
+    def get_versions(self) -> dict:
+        """Parse HW Logic and SW Firmware versions from T120 UDP response."""
+        raw = self.query_version()
+        hw_ver = "Unknown"
+        hw_id = "Unknown"
+        sw_ver = "Unknown"
+        sw_build = "Unknown"
+        status = "Unknown"
+
+        for line in raw.splitlines():
+            line = line.strip()
+            if "HW_LOGIC:" in line:
+                # HW_LOGIC: 0x20261030 (ID=MAM1)
+                parts = line.split("HW_LOGIC:", 1)[1].strip()
+                if "(ID=" in parts:
+                    hw_ver, rest = parts.split("(ID=", 1)
+                    hw_ver = hw_ver.strip()
+                    hw_id = rest.rstrip(")").strip()
+                else:
+                    hw_ver = parts
+            elif "T120_SOC_ETH_FW" in line:
+                # T120_SOC_ETH_FW v2.1-MAML (SW Build Oct 30 2026 07:xx:xx)
+                tokens = line.split()
+                if len(tokens) > 1:
+                    sw_ver = tokens[1]
+                if "(" in line and ")" in line:
+                    sw_build = line[line.find("(") + 1:line.rfind(")")]
+            elif "Status:" in line:
+                status = line.split("Status:", 1)[1].strip()
+
+        return {
+            "hw_version": hw_ver,
+            "hw_id": hw_id,
+            "sw_version": sw_ver,
+            "sw_build": sw_build,
+            "status": status,
+            "raw": raw,
+        }
+
+    def set_regularization(self, lambda_q16: int) -> bool:
+        """Set dynamic L2 weight decay strength (Q0.16, 0=OFF, 512..16384=ON)."""
+        res = self._send_binary(MAML_CMD_SET_REG, struct.pack("<H", max(0, min(16384, int(lambda_q16)))))
+        return res is not None
+
     def jump_t20_app(self) -> str:
         return self.send_ascii("JUMP_APP")
 
@@ -300,12 +351,14 @@ class MamlUdpClient:
         w33_div = 1
         target_gain_q8 = 256
         w_comp_clamp = 80
+        reg_lambda_q16 = 0
         if len(raw) >= 306:
-            u_ext = struct.unpack("<BBHB3x", raw[298:306])
+            u_ext = struct.unpack("<BBHBH1x", raw[298:306])
             d_line_div = u_ext[0]
             w33_div = u_ext[1]
             target_gain_q8 = u_ext[2]
             w_comp_clamp = u_ext[3]
+            reg_lambda_q16 = u_ext[4]
 
         enob_comp_q8 = int((bit_prec_comp_centi / 100.0) * 256.0)
         enob_uncomp_q8 = int((bit_prec_uncomp_centi / 100.0) * 256.0)
@@ -363,6 +416,7 @@ class MamlUdpClient:
             w33_div=w33_div,
             target_gain_q8=target_gain_q8,
             w_comp_clamp=w_comp_clamp,
+            reg_lambda_q16=reg_lambda_q16,
             connected_hw=True,
             status_text=(
                 f"LIVE HW ({self.host}:{self.port}) — G_exp: {d_line_div}x/{w33_div}x -> {target_gain_q8/256.0:.2f}x (clamp {w_comp_clamp}) | "
@@ -445,6 +499,10 @@ class MamlUdpClient:
         self.sim_telemetry.connected_hw = False
         self.sim_telemetry.status_text = "Physics Digital Twin Mode (Hardware Offline or Sim Selected)"
         return self.sim_telemetry
+
+    def get_telemetry(self) -> MamlTelemetry:
+        """Alias for poll_telemetry()."""
+        return self.poll_telemetry()
 
     def set_config(
         self,

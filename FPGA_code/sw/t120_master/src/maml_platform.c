@@ -62,6 +62,22 @@ static inline uint8_t off_to_dac_u8(int32_t off) {
     return (uint8_t)code;
 }
 
+/* Centered W_null reference for L2 regularization attractor:
+ *   M3: optimal S-curve knee baseline [-16, -16, +16, +16, -16, +16]
+ *   M8: optimal S-curve knee baseline [-16, -16, +16, +16, -16, +16] */
+static inline int32_t maml_wnull_m3_q14(int r, int c) {
+    (void)r;
+    static const int16_t k_knee[6] = {-16, -16, 16, 16, -16, 16};
+    if (c >= 0 && c < 6) return (int32_t)(k_knee[c] << 7);
+    return 0;
+}
+static inline int32_t maml_wnull_m8_q14(int r, int c) {
+    (void)r;
+    static const int16_t k_knee[6] = {-16, -16, 16, 16, -16, 16};
+    if (c >= 0 && c < 6) return (int32_t)(k_knee[c] << 7);
+    return 0;
+}
+
 /* ============================================================================
  * Natural 16x16 Sylvester Walsh-Hadamard Matrix Rows (bits 0..14 used, bit 15=0)
  *   Bit b (0..14) of HADAMARD_16[k] is 1 (+1) iff popcount(k & (b + 1)) is even:
@@ -1247,7 +1263,12 @@ static void maml_execute_step(void) {
                 if (g_tel.cur_inner_step == 0) g_grad_init_m3[r][c] = g_avg;
                 g_grad_final_m3[r][c] = g_avg;
                 int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
-                g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - step_w);
+                int32_t decay = 0;
+                if (g_reg_lambda_q16 > 0u) {
+                    decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
+                                       (int32_t)g_reg_lambda_q16, 16);
+                }
+                g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - step_w - decay);
                 if (g_hid_amp_dac == 0) {
                     g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
                 }
@@ -1262,7 +1283,12 @@ static void maml_execute_step(void) {
                 if (g_tel.cur_inner_step == 0) g_grad_init_m8[r][c] = g_avg;
                 g_grad_final_m8[r][c] = g_avg;
                 int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 12);
-                g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - step_w);
+                int32_t decay = 0;
+                if (g_reg_lambda_q16 > 0u) {
+                    decay = rshift_rne(((int32_t)g_w_m8_q14[r][c] - maml_wnull_m8_q14(r, c)) *
+                                       (int32_t)g_reg_lambda_q16, 16);
+                }
+                g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - step_w - decay);
                 if (g_hid_amp_dac == 0) {
                     g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
                 }
@@ -1407,20 +1433,6 @@ static void maml_execute_step(void) {
  *   - Batch Accumulation: Total Samples = M * k.
  *   - Weight Update: Exactly ONE single weight update to M3 and M8 per batch!
  * ============================================================================ */
-/* Centered W_null reference for L2 regularization attractor:
- *   M3: optimal S-curve knee baseline [-16, -16, +16, +16, -16, +16]
- *   M8: no regularization applied (returns current weight so decay is 0) */
-static inline int32_t maml_wnull_m3_q14(int r, int c) {
-    (void)r;
-    static const int16_t k_knee[6] = {-16, -16, 16, 16, -16, 16};
-    if (c >= 0 && c < 6) return (int32_t)(k_knee[c] << 7);
-    return 0;
-}
-static inline int32_t maml_wnull_m8_q14(int r, int c) {
-    /* No regularization for M8: pull toward itself (zero decay) */
-    return (int32_t)g_w_m8_q14[r][c];
-}
-
 static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
                                       uint16_t t_min_us, uint16_t t_max_us) {
     if (k_batch < 1)  k_batch = 1;
@@ -2232,6 +2244,12 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
 
         case MAML_CMD_STEP_ONCE:
             {
+                /* Optional bytes 5-6: Dynamic L2 regularization lambda (Q0.16) */
+                if (req_len >= 7) {
+                    uint16_t reg_val = (uint16_t)req[5] | ((uint16_t)req[6] << 8);
+                    g_reg_lambda_q16 = (reg_val <= 16384u) ? reg_val : 16384u;
+                }
+
                 /* Synchronize to the exact 10.0 ms (100 Hz) capacitor refresh boundary */
                 uint32_t period_ticks = g_refresh_period_us * 50u;
                 while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks) {
@@ -2305,6 +2323,17 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 maml_set_gain_experiment_config(d_line, w33, gain_q8, clamp);
             }
             t20_sync_heater_and_wdog();
+            maml_sync_shadow_bytes();
+            break;
+
+        case MAML_CMD_SET_REG:
+            if (req_len >= 7) {
+                uint16_t reg_val = (uint16_t)req[5] | ((uint16_t)req[6] << 8);
+                g_reg_lambda_q16 = (reg_val <= 16384u) ? reg_val : 16384u;
+            } else if (req_len >= 6) {
+                g_reg_lambda_q16 = req[5] ? 512u : 0u;
+            }
+            g_tel.reg_lambda_q16 = g_reg_lambda_q16;
             maml_sync_shadow_bytes();
             break;
 

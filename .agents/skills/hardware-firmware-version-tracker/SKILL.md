@@ -17,7 +17,7 @@ Whenever experiments are conducted on physical silicon (Trion T120 Master + T20 
 | Parameter | Current Silicon Setup | Next PCB Spin (Target) |
 | :--- | :--- | :--- |
 | **Carrier Board PCB** | **PCB v1.3.2** | PCB v1.4 / v2.0 |
-| **Summing Attenuator Mod** | **$1\text{ k}\Omega / 3.3\text{ k}\Omega$ SMD network** ($\sim 23.3\%$ compensation authority) | $1\text{ k}\Omega / 15\text{ k}\Omega$ ($\sim 6.25\%$) |
+| **Summing Attenuator Mod** | **$1\text{ k}\Omega / 5.1\text{ k}\Omega$ SMD network** ($\sim 16.4\%$ compensation authority) | $1\text{ k}\Omega / 15\text{ k}\Omega$ ($\sim 6.25\%$) |
 | **ADC Architecture** | Primary $M_{33}$ (ADC45) + Summed Triad (ADC49) (XC2361A 12-bit differential) | Dedicated intermediate ADC149 rack (6 extra ADCs) |
 | **Target FPGAs** | Efinix Trion T120F324 Master SoC (`192.168.1.50:5000`) + T20F256 Controller | Same or Titanium Ti180 |
 | **Operational Mode** | Mode A (Jumper mode 3: Layer 1 $M_3 \to$ COLTIA3 $\to$ Layer 2 $M_8 \to$ COLTIA8) | Mode A |
@@ -58,7 +58,7 @@ Every experiment log written to `FPGA_code/logs/` MUST contain the following roo
 {
   "provenance": {
     "pcb_version": "v1.3.2",
-    "hardware_mods": "1k / 3.3k ohm summing attenuator (no ADC149)",
+    "hardware_mods": "1k / 5.1k ohm summing attenuator (no ADC149)",
     "git_commit": "<current_short_hash>",
     "git_dirty": false,
     "soc_target": "Efinix Trion T120F324 @ 192.168.1.50:5000",
@@ -82,7 +82,7 @@ Every markdown and PDF report generated MUST present the following standardized 
 
 ```markdown
 ### Hardware & Firmware Provenance
-- **Carrier Board:** PCB v1.3.2 (Summing attenuator: 1k / 3.3k Ohm installed)
+- **Carrier Board:** PCB v1.3.2 (Summing attenuator: 1k / 5.1k Ohm installed)
 - **Silicon:** Efinix Trion T120F324 Master SoC (`192.168.1.50:5000`) + T20F256
 - **Firmware Commit:** `<git_hash>` (`maml_platform.c`)
 - **Virtual Emulation:** `[VIRTUAL_HARDWARE_EMULATION]` $D_{line}=2$, $D_{w33}=2$, $G_{req}=4.0\times$, $W_{clamp}=120\text{ LSB}$

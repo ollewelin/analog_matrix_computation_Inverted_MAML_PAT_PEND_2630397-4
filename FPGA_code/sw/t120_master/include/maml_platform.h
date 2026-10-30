@@ -38,6 +38,7 @@
 #define MAML_CMD_RAND_DATA      0x1A
 #define MAML_CMD_BATCH_STEP     0x1B
 #define MAML_CMD_CONFIG_GAIN_EXP 0x1C
+#define MAML_CMD_SET_REG         0x1D
 
 /* Run Modes */
 #define MAML_MODE_IDLE          0

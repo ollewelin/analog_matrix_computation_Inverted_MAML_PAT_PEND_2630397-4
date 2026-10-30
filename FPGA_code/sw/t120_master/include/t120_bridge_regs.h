@@ -84,6 +84,8 @@
 #define AIO_CMD              0x00C   /* W1: [0] d2 [1] w15 [2] w12 [3] w34 [4] adc_trig [5] dac_center_all */
 #define AIO_SETTLE_CYCLES    0x010   /* [15:0] settle_cycles (default 100 = 2.0 us @ 50 MHz) [23:16] conv_cycles */
 #define AIO_DAC_OVR_CFG      0x014   /* [7:0] ovr_val [10:8] ovr_ch [13:12] ovr_bank */
+#define AIO_HW_VERSION       0x018   /* RO: HW logic synthesis version e.g. 0x20261030 */
+#define AIO_HW_ID            0x01C   /* RO: HW logic subsystem ID e.g. 0x4D414D31 ("MAM1") */
 
 #define AIO_DAC2_LO          0x020   /* {d2[3], d2[2], d2[1], d2[0]} */
 #define AIO_DAC2_HI          0x024   /* {16'd0, d2[5], d2[4]} */

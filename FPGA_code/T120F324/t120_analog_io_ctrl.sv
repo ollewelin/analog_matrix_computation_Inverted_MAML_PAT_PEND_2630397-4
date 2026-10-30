@@ -621,22 +621,10 @@ module t120_analog_io_ctrl (
                         end
                         store_sub <= 2'd1;
                     end else if (store_sub == 2'd1) begin
-                        if (adc_is_h_trig) begin
-                            cap45_ram[{dst_step, 2'd0}] <= {adc45_sig_lat[1], adc45_sig_lat[0]};
-                            cap49_ram[{dst_step, 2'd0}] <= {adc49_sig_lat[1], adc49_sig_lat[0]};
-                        end
                         store_sub <= 2'd2;
                     end else if (store_sub == 2'd2) begin
-                        if (adc_is_h_trig) begin
-                            cap45_ram[{dst_step, 2'd1}] <= {adc45_sig_lat[3], adc45_sig_lat[2]};
-                            cap49_ram[{dst_step, 2'd1}] <= {adc49_sig_lat[3], adc49_sig_lat[2]};
-                        end
                         store_sub <= 2'd3;
                     end else begin
-                        if (adc_is_h_trig) begin
-                            cap45_ram[{dst_step, 2'd2}] <= {adc45_sig_lat[5], adc45_sig_lat[4]};
-                            cap49_ram[{dst_step, 2'd2}] <= {adc49_sig_lat[5], adc49_sig_lat[4]};
-                        end
                         sample_cnt       <= sample_cnt + 16'd1;
                         quiet_freeze_q   <= 1'b0;
                         adc_busy         <= 1'b0; // Releases h_hold_busy so H-bus sequencer shifts next Hadamard state!
@@ -649,9 +637,48 @@ module t120_analog_io_ctrl (
         end
     end
 
-    // Synchronous read port for Capture RAMs
+    // Dedicated Dual-Port Block RAM Write & Read Ports (no asynchronous reset on array)
+    logic        cap_ram_we;
+    logic [5:0]  cap_ram_waddr;
+    logic [31:0] cap45_ram_wdata, cap49_ram_wdata;
+
+    always_comb begin
+        cap_ram_we      = 1'b0;
+        cap_ram_waddr   = 6'd0;
+        cap45_ram_wdata = 32'd0;
+        cap49_ram_wdata = 32'd0;
+        if (adc_state == ADC_STORE && adc_is_h_trig) begin
+            case (store_sub)
+                2'd1: begin
+                    cap_ram_we      = 1'b1;
+                    cap_ram_waddr   = {dst_step, 2'd0};
+                    cap45_ram_wdata = {adc45_sig_lat[1], adc45_sig_lat[0]};
+                    cap49_ram_wdata = {adc49_sig_lat[1], adc49_sig_lat[0]};
+                end
+                2'd2: begin
+                    cap_ram_we      = 1'b1;
+                    cap_ram_waddr   = {dst_step, 2'd1};
+                    cap45_ram_wdata = {adc45_sig_lat[3], adc45_sig_lat[2]};
+                    cap49_ram_wdata = {adc49_sig_lat[3], adc49_sig_lat[2]};
+                end
+                2'd3: begin
+                    cap_ram_we      = 1'b1;
+                    cap_ram_waddr   = {dst_step, 2'd2};
+                    cap45_ram_wdata = {adc45_sig_lat[5], adc45_sig_lat[4]};
+                    cap49_ram_wdata = {adc49_sig_lat[5], adc49_sig_lat[4]};
+                end
+                default: ;
+            endcase
+        end
+    end
+
+    // Synchronous read and write port for Capture RAMs
     logic [31:0] cap45_rd_q, cap49_rd_q;
     always_ff @(posedge pclk) begin
+        if (cap_ram_we) begin
+            cap45_ram[cap_ram_waddr] <= cap45_ram_wdata;
+            cap49_ram[cap_ram_waddr] <= cap49_ram_wdata;
+        end
         cap45_rd_q <= cap45_ram[paddr[7:2]];
         cap49_rd_q <= cap49_ram[paddr[7:2]];
     end
@@ -674,6 +701,8 @@ module t120_analog_io_ctrl (
                                  quiet_bus_freeze, h_hold_busy, adc_busy, dac_busy};
                 6'h04: prdata = {8'd0, r_conv_cycles, r_settle_cycles};
                 6'h05: prdata = {18'd0, r_ovr_bank, 1'b0, r_ovr_ch, r_ovr_val};
+                6'h06: prdata = 32'h2026_1030; // HW Logic Version Date: 2026-10-30 (BCD)
+                6'h07: prdata = 32'h4D41_4D31; // HW Logic Subsystem: "MAM1" (Mode A Logic v1)
                 6'h08: prdata = r_dac2_lo;
                 6'h09: prdata = r_dac2_hi;
                 6'h0A: prdata = r_w15_lo;
