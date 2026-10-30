@@ -117,10 +117,10 @@ def main():
     client.set_gain_experiment(d_line=1, w33=1, target_gain=1.0, clamp=120)
     time.sleep(0.03)
 
-    # 2. Configure Mode A: LEDs ON (led_switches=3), seed_pct=0, 5000 us delay
+    # 2. Configure initial Mode A: Training OFF (mode=0), LEDs ON, jumper_mode=3
     lr_inner_q16 = max(32, min(4096, int(round(1024 * args.lr))))
     client.set_config(
-        mode=1, jumper_mode=3, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
+        mode=0, jumper_mode=3, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
         inner_loop_n=100, seed_pct=0, seed_mode=0, w_hid_mag=0, trim_hid_mag=0,
         hadamard_delay_us=5000, lr_inner_q16=lr_inner_q16
     )
@@ -130,34 +130,31 @@ def main():
     client._send_binary(0x13, struct.pack("<BB", 1, 1))
     time.sleep(0.02)
 
-    # 3. Configure Noise Equalizer to LLM Toeplitz with rho=0.85
+    # 3. Configure Noise Equalizer to LLM Toeplitz with specified rho
     print(f"[*] Setting In-Data Equalizer to LLM_TOEPLITZ (mode={COLOR_LLM_TOEPLITZ}, rho={args.rho})...")
     client.set_data_color(COLOR_LLM_TOEPLITZ, args.rho)
     time.sleep(0.03)
 
-    # 4. Set Initial Baseline (Knee baseline ±16 LSB) and Set L2 Regularization
-    print(f"[*] Initializing weights to Knee Baseline (±16 LSB)...")
-    client._send_binary(MAML_CMD_CENTER_WEIGHTS, struct.pack("<B", 1))
-    time.sleep(0.03)
-
-    print(f"[*] Arming L2 Regularization: lambda = {args.reg_lambda}...")
-    client.set_regularization(args.reg_lambda)
-    time.sleep(0.03)
+    # 4. Phase 1 Init (Epoch 0..99): Baseline 0 (W = 0 LSB, Center Zero, Training OFF)
+    print(f"[*] Stage 1 Init: Setting Baseline 0 (W = 0 LSB) on M3 & M8 (Training OFF)...")
+    client._send_binary(MAML_CMD_CENTER_WEIGHTS, struct.pack("<B", 0))
+    client.set_regularization(0)
+    time.sleep(0.05)
 
     # Draw fresh LLM vector
     client.draw_fresh_vector()
     time.sleep(0.03)
 
     t0 = get_averaged_telemetry(client, n_avg=3)
-    print(f"  Ep   0 [INITIAL ]: Loss={t0['loss_lsb2']:.1f} LSB² | RMSE={t0['rmse_lsb']:.2f} LSB | ENOB={t0['enob_bits']:.2f} b | W8={t0['w8_diag']}")
+    print(f"  Ep   0 [BASE 0   ]: Loss={t0['loss_lsb2']:.1f} LSB² | RMSE={t0['rmse_lsb']:.2f} LSB | ENOB={t0['enob_bits']:.2f} b | W8={t0['w8_diag']}")
     print("-" * 80)
     print(f"{'Ep #':<6} {'Phase':<16} {'Reg λ':<7} | {'Loss (LSB²)':<12} | {'RMSE (LSB)':<11} | {'ENOB (b)':<10} | {'W8 Diag (Cols 0..5)':<25}")
     print("-" * 80)
 
     records = [{
         "epoch": 0,
-        "phase": "INIT",
-        "reg_lambda_q16": args.reg_lambda,
+        "phase": "BASELINE_ZERO",
+        "reg_lambda_q16": 0,
         **t0,
     }]
 
@@ -168,19 +165,50 @@ def main():
     t_start = time.time()
 
     for ep in range(1, args.epochs + 1):
+        if ep < 100:
+            phase = "BASELINE_ZERO"
+            cur_reg = 0
+            is_training = False
+        elif ep < 200:
+            phase = "BASELINE_KNEE"
+            cur_reg = 0
+            is_training = False
+        else:
+            phase = "TRAIN_REG_ON"
+            cur_reg = args.reg_lambda
+            is_training = True
+
+        # Phase switchover triggers
+        if ep == 100:
+            print("=" * 80)
+            print(f">>> [EPOCH 100]: SMACKING ON KNEE BASELINE (±16 LSB) ON M3 & M8! (Training OFF)")
+            print("=" * 80)
+            client._send_binary(MAML_CMD_CENTER_WEIGHTS, struct.pack("<B", 1))
+            client.set_regularization(0)
+            time.sleep(0.04)
+        elif ep == 200:
+            print("=" * 80)
+            print(f">>> [EPOCH 200]: ACTIVE TRAINING ON! REGULARIZATION ON (λ = {args.reg_lambda}, LR = {args.lr:.2f}x)")
+            print("=" * 80)
+            client.set_regularization(args.reg_lambda)
+            time.sleep(0.03)
+
         # Draw fresh rotating LLM vector every epoch
         client.draw_fresh_vector()
         time.sleep(0.012)
 
-        # Execute Inverted MAML Mode A outer optimization step
-        client._send_binary(MAML_CMD_STEP_OUTER, struct.pack("<H", args.reg_lambda))
-        time.sleep(0.015)
+        # Execute training step only during active training phase (Epoch 200+)
+        if is_training:
+            client._send_binary(MAML_CMD_STEP_OUTER, struct.pack("<H", cur_reg))
+            time.sleep(0.015)
+        else:
+            time.sleep(0.015)
 
         t_cur = get_averaged_telemetry(client, n_avg=3)
         rec = {
             "epoch": ep,
-            "phase": "TRAIN_REG_ON",
-            "reg_lambda_q16": args.reg_lambda,
+            "phase": phase,
+            "reg_lambda_q16": cur_reg,
             **t_cur,
         }
         records.append(rec)
@@ -191,12 +219,12 @@ def main():
         if t_cur["enob_bits"] > best_enob:
             best_enob = t_cur["enob_bits"]
 
-        if ep % 25 == 0 or ep == 1 or ep == args.epochs:
+        if ep % 25 == 0 or ep == 1 or ep == 100 or ep == 200 or ep == args.epochs:
             dt = time.time() - t_start
             rate = ep / max(dt, 0.001)
             eta = (args.epochs - ep) / max(rate, 0.001)
             print(
-                f"  Ep {ep:3d} TRAIN_REG_ON   {args.reg_lambda:<7d} | "
+                f"  Ep {ep:3d} {phase:<15} {cur_reg:<7d} | "
                 f"{t_cur['loss_lsb2']:<12.1f} | {t_cur['rmse_lsb']:<11.2f} | "
                 f"{t_cur['enob_bits']:<10.2f} | {str(t_cur['w8_diag']):<25} "
                 f"({rate:.1f} ep/s, ETA {eta:.0f}s)"
@@ -247,6 +275,8 @@ def main():
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True, dpi=150)
     ax1.plot(ep_list, loss_list, color="#1e40af", lw=1.2, label=f"Mode A Loss (LLM Toeplitz ρ={args.rho:.2f}, Reg λ={args.reg_lambda})")
+    ax1.axvline(100, color="#d97706", ls="--", lw=1.0, label="Ep 100: Knee Baseline (±16 LSB)")
+    ax1.axvline(200, color="#16a34a", ls="--", lw=1.0, label="Ep 200: Training ON")
     ax1.set_ylabel("Quadratic Loss (LSB²)", fontweight="bold")
     ax1.set_yscale("log")
     ax1.grid(True, which="both", ls="--", alpha=0.5)
@@ -254,6 +284,8 @@ def main():
     ax1.set_title("Inverted MAML: 500-Epoch Mode A Training under LLM Correlated In-Data", fontweight="bold")
 
     ax2.plot(ep_list, enob_list, color="#047857", lw=1.2, label=f"Effective Resolution (ENOB)")
+    ax2.axvline(100, color="#d97706", ls="--", lw=1.0)
+    ax2.axvline(200, color="#16a34a", ls="--", lw=1.0)
     ax2.axhline(best_enob, color="#dc2626", ls=":", lw=1.0, label=f"Peak ENOB = {best_enob:.2f} b")
     ax2.set_ylabel("Sustained ENOB (bits)", fontweight="bold")
     ax2.set_xlabel("Epoch Number", fontweight="bold")
