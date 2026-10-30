@@ -39,6 +39,15 @@
 #define MAML_CMD_BATCH_STEP     0x1B
 #define MAML_CMD_CONFIG_GAIN_EXP 0x1C
 #define MAML_CMD_SET_REG         0x1D
+#define MAML_CMD_SET_W33         0x1E
+#define MAML_CMD_SET_DATA_COLOR  0x1F
+
+/* Data Line Equalizer Color Modes */
+#define COLOR_WHITE              0   /* Independent multivariate flat Gaussian white noise */
+#define COLOR_PINK               1   /* 1/f spectral rolloff across channel dimensions */
+#define COLOR_RED                2   /* 1/f^2 Brownian random walk across row activations */
+#define COLOR_LLM_TOEPLITZ       3   /* Kac-Murdock-Szegö AR(1) spatial covariance rho^|i-j| */
+#define COLOR_LLM_SPARSE_GELU    4   /* Correlated Toeplitz with half-wave rectified/GELU sparsity */
 
 /* Run Modes */
 #define MAML_MODE_IDLE          0
@@ -129,13 +138,16 @@ typedef struct {
     uint32_t t20_h_ack_miss;
     uint16_t t20_h_lat_last;
 
-    /* Virtual Gain Experiment Knobs (Virtual Attenuator Emulation) */
+    /* Virtual Gain & Dynamic Experiment Knobs */
     uint8_t  d_line_div;            /* 1, 2, 4 ... Data line attenuation factor */
     uint8_t  w33_div;               /* 1, 2, 4 ... Matrix 33 weight attenuation factor */
     uint16_t target_gain_q8;        /* Q8.8 Target gain multiplier (256 = 1.0x, 512 = 2.0x, 1024 = 4.0x) */
     uint8_t  w_comp_clamp;          /* Weight clamp for M3/M8 (80 .. 120 LSB) */
     uint16_t reg_lambda_q16;        /* L2 weight-decay toward W_null (Q0.16, 65536 = 1.0, 0 = off) */
-    uint8_t  reserved_gain[1];      /* 4-byte struct alignment */
+    uint8_t  color_mode;            /* 0=White, 1=Pink, 2=Red, 3=LLM Toeplitz, 4=LLM Sparse GELU */
+    uint8_t  color_rho_q8;          /* Spatial correlation rho (0..255 = 0.0 .. 1.0) */
+    uint8_t  w33_is_custom;         /* 0=k_default_m33, 1=Custom loaded W33 */
+    uint8_t  reserved_gain[2];      /* 4-byte struct alignment */
 } maml_telemetry_pkt_t;
 
 /* Cell Self-Diagnosis Response Packet */

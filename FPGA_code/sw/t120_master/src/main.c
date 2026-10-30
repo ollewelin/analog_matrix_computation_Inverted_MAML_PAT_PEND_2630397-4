@@ -583,7 +583,7 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
                         }
                         hw_ver_hex[10] = '\0';
 
-                        strcpy(ver_msg, "T120_SOC_ETH_FW v2.1-MAML (SW Build " __DATE__ " " __TIME__ ")\r\nHW_LOGIC: ");
+                        strcpy(ver_msg, "T120_SOC_ETH_FW v2.2-MAML (SW Build " __DATE__ " " __TIME__ ")\r\nHW_LOGIC: ");
                         strcat(ver_msg, hw_ver_hex);
                         strcat(ver_msg, " (ID=");
                         strcat(ver_msg, hw_id_str);

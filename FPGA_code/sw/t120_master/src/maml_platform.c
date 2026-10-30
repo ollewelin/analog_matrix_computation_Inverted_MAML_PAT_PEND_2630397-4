@@ -299,6 +299,31 @@ static uint8_t  g_d_line_div     = 1u;   /* 1 = nominal [-45, +45], 2 = [-22, +2
 static uint8_t  g_w33_div        = 1u;   /* 1 = nominal k_default_m33, 2 = /2, 4 = /4 */
 static uint16_t g_target_gain_q8 = 256u; /* Q8.8 target gain demand: 256 = 1.0x, 512 = 2.0x, 1024 = 4.0x */
 
+/* Primary Payload Matrix M33 (full-rank 6x6 target matrix with positive column
+ * pedestal so single-supply COLTIA amplifiers U1/U2$CBB15 stay in the center
+ * of their linear operating window around 1.65V / 0 LSB at t = 5.0 ms) */
+static const int8_t k_default_m33[6][6] = {
+    { +76, -20, +28,  -4, +44, -36 },
+    { -20, +84, -12, +44,  -4, +36 },
+    { +36,  -4, +80, -16, +32,  -4 },
+    {  -4, +40,  -8, +72, -12, +44 },
+    { +44, -12, +28, -12, +76,  -8 },
+    { -28, +32,  -4, +40,  -8, +82 }
+};
+
+/* Active M33 weights (initialized to k_default_m33, can be overridden via MAML_CMD_SET_W33) */
+static int8_t   g_active_m33[6][6] = {
+    { +76, -20, +28,  -4, +44, -36 },
+    { -20, +84, -12, +44,  -4, +36 },
+    { +36,  -4, +80, -16, +32,  -4 },
+    {  -4, +40,  -8, +72, -12, +44 },
+    { +44, -12, +28, -12, +76,  -8 },
+    { -28, +32,  -4, +40,  -8, +82 }
+};
+static uint8_t  g_w33_is_custom      = 0u;   /* 0 = default hardcoded k_default_m33, 1 = custom loaded */
+static uint8_t  g_color_mode         = COLOR_WHITE;
+static uint8_t  g_color_rho_q8       = 180u; /* Default ~0.70 LLM correlation (180/256) */
+
 static void maml_sync_shadow_bytes(void) {
     for (int r = 0; r < 8; r++)
         for (int c = 0; c < 6; c++)
@@ -317,6 +342,9 @@ static void maml_sync_shadow_bytes(void) {
     g_tel.target_gain_q8 = g_target_gain_q8;
     g_tel.w_comp_clamp   = g_w_comp_clamp;
     g_tel.reg_lambda_q16 = g_reg_lambda_q16;
+    g_tel.color_mode     = g_color_mode;
+    g_tel.color_rho_q8   = g_color_rho_q8;
+    g_tel.w33_is_custom  = g_w33_is_custom;
 }
 
 /* Matrix P/N gate mask bits for pay[1] of T20_OP_PULSE_COL_GATES (CH 0x05 OP 0x4):
@@ -361,17 +389,6 @@ static uint8_t  g_dac_row7_code      = 128u;  /* DAC2_D_ROW7 (w34[6], TRIM_B1) *
 static uint8_t  g_dac_row8_code      = 128u;  /* DAC2_D_ROW8 (w34[7], TRIM_REF) */
 static uint8_t  g_auto_random_data   = 0u;    /* Autonomous 100 Hz white-noise In-Data generator */
 
-/* Primary Payload Matrix M33 (full-rank 6x6 target matrix with positive column
- * pedestal so single-supply COLTIA amplifiers U1/U2$CBB15 stay in the center
- * of their linear operating window around 1.65V / 0 LSB at t = 5.0 ms) */
-static const int8_t k_default_m33[6][6] = {
-    { +76, -20, +28,  -4, +44, -36 },
-    { -20, +84, -12, +44,  -4, +36 },
-    { +36,  -4, +80, -16, +32,  -4 },
-    {  -4, +40,  -8, +72, -12, +44 },
-    { +44, -12, +28, -12, +76,  -8 },
-    { -28, +32,  -4, +40,  -8, +82 }
-};
 
 static void maml_refresh_all_columns(void) {
     maml_sync_shadow_bytes();
@@ -474,11 +491,80 @@ static void maml_generate_new_white_noise_ref(void) {
     int32_t max_span = 45 / (int32_t)((g_d_line_div >= 1) ? g_d_line_div : 1u);
     if (max_span < 5) max_span = 5;
     uint32_t range = (uint32_t)(2 * max_span + 1);
+
+    int32_t raw[6];
+    /* Step 1: Draw independent uniform random variables in [-max_span, +max_span] */
     for (int i = 0; i < 6; i++) {
-        /* Uniform white noise in [-max_span, +max_span] keeping MOSFETs in linear triode region */
-        int32_t rnd = (int32_t)(prng_next() % range) - max_span;
-        g_tel.x_ref[i] = (int16_t)rnd;
-        d2_codes[i]    = off_to_dac_u8(rnd);
+        raw[i] = (int32_t)(prng_next() % range) - max_span;
+    }
+
+    int32_t val[6];
+    uint32_t rho = (uint32_t)g_color_rho_q8; /* 0..255 */
+
+    switch (g_color_mode) {
+        case COLOR_PINK:
+            /* 1/f spectral rolloff across channel dimensions: rolling spatial filter */
+            val[0] = raw[0];
+            for (int i = 1; i < 6; i++) {
+                val[i] = (val[i - 1] + raw[i]) / 2;
+            }
+            break;
+
+        case COLOR_RED:
+            /* 1/f^2 Brownian random walk across adjacent row activations */
+            val[0] = raw[0];
+            for (int i = 1; i < 6; i++) {
+                int32_t step = raw[i] / 2;
+                int32_t next_v = val[i - 1] + step;
+                if (next_v > max_span)  next_v = max_span;
+                if (next_v < -max_span) next_v = -max_span;
+                val[i] = next_v;
+            }
+            break;
+
+        case COLOR_LLM_TOEPLITZ:
+            /* Kac-Murdock-Szegö AR(1) spatial covariance rho^|i-j|:
+             * x[0] = raw[0], x[i] = (rho * x[i-1] + (256 - rho) * raw[i]) / 256 */
+            val[0] = raw[0];
+            for (int i = 1; i < 6; i++) {
+                int32_t acc = (int32_t)rho * val[i - 1] + (int32_t)(256 - rho) * raw[i];
+                val[i] = acc >> 8;
+            }
+            break;
+
+        case COLOR_LLM_SPARSE_GELU:
+            /* Realistic Transformer MLP activations:
+             * High spatial correlation (Toeplitz) + Rectified sparsity (GELU/ReLU non-linearity)
+             * Quiescent inactive channels zeroed out, active channels amplified into linear triode region */
+            val[0] = raw[0];
+            for (int i = 1; i < 6; i++) {
+                int32_t acc = (int32_t)rho * val[i - 1] + (int32_t)(256 - rho) * raw[i];
+                val[i] = acc >> 8;
+            }
+            for (int i = 0; i < 6; i++) {
+                if (val[i] < 0) {
+                    val[i] = 0;
+                } else {
+                    int32_t boosted = val[i] * 2;
+                    if (boosted > max_span) boosted = max_span;
+                    val[i] = boosted;
+                }
+            }
+            break;
+
+        case COLOR_WHITE:
+        default:
+            for (int i = 0; i < 6; i++) {
+                val[i] = raw[i];
+            }
+            break;
+    }
+
+    for (int i = 0; i < 6; i++) {
+        if (val[i] > max_span)  val[i] = max_span;
+        if (val[i] < -max_span) val[i] = -max_span;
+        g_tel.x_ref[i] = (int16_t)val[i];
+        d2_codes[i]    = off_to_dac_u8(val[i]);
     }
     aio_load_dac2(d2_codes);
     maml_recompute_z_target();
@@ -922,7 +1008,7 @@ static void maml_load_default_m33(void) {
     uint8_t div = (g_w33_div >= 1) ? g_w33_div : 1u;
     for (int r = 0; r < 6; r++) {
         for (int c = 0; c < 6; c++) {
-            int32_t w = (int32_t)k_default_m33[r][c] / (int32_t)div;
+            int32_t w = (int32_t)g_active_m33[r][c] / (int32_t)div;
             g_w_m33_q14[r][c] = (int16_t)(w << 7);
         }
     }
@@ -1189,6 +1275,10 @@ void maml_platform_init(void) {
     g_tel.bit_prec_comp_centi   = 0; /* Strictly measured from live hardware */
 
     /* Initialize Primary Payload Matrix M33 with pedestaled full-rank target matrix */
+    memcpy(g_active_m33, k_default_m33, sizeof(g_active_m33));
+    g_w33_is_custom      = 0u;
+    g_color_mode         = COLOR_WHITE;
+    g_color_rho_q8       = 180u;
     maml_load_default_m33();
 
     for (uint8_t k = 0; k < NUM_BASINS; k++) {
@@ -2334,6 +2424,48 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 g_reg_lambda_q16 = req[5] ? 512u : 0u;
             }
             g_tel.reg_lambda_q16 = g_reg_lambda_q16;
+            maml_sync_shadow_bytes();
+            break;
+
+        case MAML_CMD_SET_W33:
+            if (req_len >= 6) {
+                uint8_t subcmd = req[5];
+                if (subcmd == 0) {
+                    /* Reset to factory default k_default_m33 */
+                    memcpy(g_active_m33, k_default_m33, sizeof(g_active_m33));
+                    g_w33_is_custom = 0u;
+                } else if (subcmd == 1 && req_len >= 42) {
+                    /* Load custom 6x6 int8 weights from req[6..41] */
+                    const int8_t *custom_w = (const int8_t *)&req[6];
+                    for (int r = 0; r < 6; r++) {
+                        for (int c = 0; c < 6; c++) {
+                            int8_t val = custom_w[r * 6 + c];
+                            if (val > 120)  val = 120;
+                            if (val < -120) val = -120;
+                            g_active_m33[r][c] = val;
+                        }
+                    }
+                    g_w33_is_custom = 1u;
+                }
+                maml_load_default_m33();
+                maml_recompute_z_target();
+                maml_refresh_all_columns();
+            }
+            t20_sync_heater_and_wdog();
+            maml_sync_shadow_bytes();
+            break;
+
+        case MAML_CMD_SET_DATA_COLOR:
+            if (req_len >= 6) {
+                uint8_t mode = req[5];
+                if (mode > COLOR_LLM_SPARSE_GELU) mode = COLOR_WHITE;
+                g_color_mode = mode;
+                if (req_len >= 7) {
+                    g_color_rho_q8 = req[6];
+                }
+                maml_generate_new_white_noise_ref();
+            }
+            t20_sync_heater_and_wdog();
             maml_sync_shadow_bytes();
             break;
 

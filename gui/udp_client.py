@@ -32,7 +32,16 @@ MAML_CMD_RAND_DATA      = 0x1A
 MAML_CMD_BATCH_STEP     = 0x1B
 MAML_CMD_CONFIG_GAIN_EXP = 0x1C
 MAML_CMD_SET_REG        = 0x1D
+MAML_CMD_SET_W33        = 0x1E
+MAML_CMD_SET_DATA_COLOR = 0x1F
 MAML_CMD_CENTER_WEIGHTS = 0x15
+
+# Data line noise color equalizer modes
+COLOR_WHITE            = 0
+COLOR_PINK             = 1
+COLOR_RED              = 2
+COLOR_LLM_TOEPLITZ     = 3
+COLOR_LLM_SPARSE_GELU  = 4
 
 # Matrix IDs matching maml_platform.h (0=M3, 1=M8, 2=M33)
 MAT_M3  = 0
@@ -120,8 +129,15 @@ class MamlTelemetry:
     target_gain_q8: int = 256
     w_comp_clamp: int = 80
     reg_lambda_q16: int = 0
+    color_mode: int = 0
+    color_rho_q8: int = 180
+    w33_is_custom: int = 0
     connected_hw: bool = False
     status_text: str = "Digital Twin Active (Ready)"
+
+    @property
+    def color_rho(self) -> float:
+        return self.color_rho_q8 / 256.0
 
     @property
     def x_ref(self) -> List[int]:
@@ -282,6 +298,35 @@ class MamlUdpClient:
         res = self._send_binary(MAML_CMD_SET_REG, struct.pack("<H", max(0, min(16384, int(lambda_q16)))))
         return res is not None
 
+    def set_w33_matrix(self, weights_6x6: Optional[List[List[int]]] = None) -> bool:
+        """
+        Set frozen Matrix 33 weights under runtime.
+        If weights_6x6 is None: resets to hardcoded default k_default_m33.
+        If weights_6x6 is provided: loads custom 6x6 signed 8-bit DAC offsets [-120, +120].
+        """
+        if weights_6x6 is None:
+            payload = struct.pack("<B", 0)
+        else:
+            flat = []
+            for r in range(6):
+                for c in range(6):
+                    w = int(weights_6x6[r][c])
+                    flat.append(max(-120, min(120, w)))
+            payload = struct.pack("<B36b", 1, *flat)
+        res = self._send_binary(MAML_CMD_SET_W33, payload)
+        return res is not None
+
+    def set_data_color(self, mode: int, rho: float = 0.70) -> bool:
+        """
+        Configure Data Line Noise Equalizer under runtime.
+        mode: 0=WHITE, 1=PINK (1/f), 2=RED (1/f^2), 3=LLM_TOEPLITZ (AR1), 4=LLM_SPARSE_GELU
+        rho: spatial correlation coefficient [0.0 .. 1.0] (default 0.70)
+        """
+        rho_q8 = max(0, min(255, int(round(rho * 256.0))))
+        payload = struct.pack("<BB", int(mode) & 0xFF, rho_q8)
+        res = self._send_binary(MAML_CMD_SET_DATA_COLOR, payload)
+        return res is not None
+
     def jump_t20_app(self) -> str:
         return self.send_ascii("JUMP_APP")
 
@@ -352,7 +397,20 @@ class MamlUdpClient:
         target_gain_q8 = 256
         w_comp_clamp = 80
         reg_lambda_q16 = 0
-        if len(raw) >= 306:
+        color_mode = 0
+        color_rho_q8 = 180
+        w33_is_custom = 0
+        if len(raw) >= 310:
+            u_ext = struct.unpack("<BBHBHBBB2x", raw[298:310])
+            d_line_div = u_ext[0]
+            w33_div = u_ext[1]
+            target_gain_q8 = u_ext[2]
+            w_comp_clamp = u_ext[3]
+            reg_lambda_q16 = u_ext[4]
+            color_mode = u_ext[5]
+            color_rho_q8 = u_ext[6]
+            w33_is_custom = u_ext[7]
+        elif len(raw) >= 306:
             u_ext = struct.unpack("<BBHBH1x", raw[298:306])
             d_line_div = u_ext[0]
             w33_div = u_ext[1]
@@ -417,6 +475,9 @@ class MamlUdpClient:
             target_gain_q8=target_gain_q8,
             w_comp_clamp=w_comp_clamp,
             reg_lambda_q16=reg_lambda_q16,
+            color_mode=color_mode,
+            color_rho_q8=color_rho_q8,
+            w33_is_custom=w33_is_custom,
             connected_hw=True,
             status_text=(
                 f"LIVE HW ({self.host}:{self.port}) — G_exp: {d_line_div}x/{w33_div}x -> {target_gain_q8/256.0:.2f}x (clamp {w_comp_clamp}) | "

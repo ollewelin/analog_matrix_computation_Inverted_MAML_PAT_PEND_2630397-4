@@ -25,7 +25,7 @@ from gui.udp_client import MamlUdpClient
 
 EXPECTED_HW_DEFAULT = "0x20261030"
 EXPECTED_HW_ID_DEFAULT = "MAM1"
-EXPECTED_SW_DEFAULT = "v2.1-MAML"
+EXPECTED_SW_DEFAULT = "v2.2-MAML"
 
 
 def query_t120_versions(host: str = "192.168.1.50", port: int = 5000, timeout: float = 1.0) -> dict:
