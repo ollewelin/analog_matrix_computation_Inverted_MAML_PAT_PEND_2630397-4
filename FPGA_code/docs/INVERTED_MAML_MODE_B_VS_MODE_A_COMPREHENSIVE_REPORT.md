@@ -109,11 +109,52 @@ In the next phase of this hardware campaign, **colored vector randomization** wi
 
 ---
 
-## 8. Artifact & File References
+## 8. Physical Proof-of-Concept Hardware (PCB v1.3.2) & System Architecture (Fig 1)
 
-- **Comprehensive 4-Page PDF Report:** [INVERTED_MAML_MODE_B_VS_MODE_A_COMPREHENSIVE_REPORT.pdf](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/INVERTED_MAML_MODE_B_VS_MODE_A_COMPREHENSIVE_REPORT.pdf)
+![Page 5: Hardware PCB & Fig 1](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/page_comp_6p-5.png)
+
+### Proof-of-Concept Hardware Implementation (PCB v1.3.2)
+![Physical PCB Hardware v1.3.2](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_pcb_v132_hardware.jpg)
+
+- **Designer & Inventor:** Olle Welin (Patent Pending SE 2630397-4)
+- **Architecture:** Dual-FPGA Trion system:
+  - **Master SoC:** Trion T120F324 (0x20261030, v2.1-MAML, Sapphire RISC-V @ `192.168.1.50:5000`)
+  - **Controller:** Trion T20F256
+- **Analog Circuits:** High-speed 74HC595 differential DAC ladders, discrete Dual-2T1C MOS triode analog multiplier crosspoint arrays ($M_{33}, M_3, M_8$), 60 MHz ColTIA transimpedance summing amplifiers, and XC2361A high-speed differential ADCs.
+- **Source Code & Documentation:** [https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4](https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4)
+
+### Patented Proprioceptive Closed-Loop Architecture (Patent SE 2630397-4, Fig 1)
+![Patent Figure 1 Architecture](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_patent_fig1_architecture.jpg)
+
+The primary compute payload $M_{33}$ (33) operates in parallel with the first Vernier layer Matrix 3 (3), analog hardware sigmoid activation (4), feedback ADC (45), digital controller (9), and second Vernier layer Matrix 8 (8) injecting anti-phase currents into summing nodes (35) before final ADC (49).
+
+---
+
+## 9. Forward Hadamard Propagation (FHP) & Capacitive Perturbation (Patent Fig 8)
+
+![Page 6: Forward Hadamard Propagation](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/page_comp_6p-6.png)
+
+> [!IMPORTANT]
+> **Forward Hadamard Propagation (FHP) – parallel capacitive perturbation for single-shot analog gradient extraction. (Works for physical unknown Analog Neural Networks).**
+
+![Patent Figure 8 FHP Circuit](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_patent_fig8_fhp_circuit.jpg)
+
+### Theoretical & Circuit Breakthrough:
+1. **Parallel Capacitive Perturbation ($C_{PTU}$, Ref 7):** An AC perturbation square wave $V_{PTU}$ (5) is modulated by 3-state Hadamard drivers (6) along perturbation lines $PL_1..PL_n$. Each crosspoint cell couples the carrier through dedicated perturbation capacitor $C_{PTU}$ (7) onto the floating gate storage node $C_W$ (44) of the 2T1C MOS triode transistor without disturbing or leaking the static stored weight voltage.
+2. **Single-Shot Analog Gradient Extraction:** Instead of $2N$ sequential forward perturbations, FHP applies mutually orthogonal Walsh/Hadamard carrier waves simultaneously across all rows. In a single analog measurement snapshot ($t = 5.0\text{ ms}$), the composite response at the summing amplifiers is projected onto the Hadamard basis in the digital domain (T120 SoC), isolating all partial derivatives in $\mathcal{O}(1)$ time.
+3. **Universal In-Situ Training for Arbitrary Analog Networks:** FHP requires zero internal analytical models of the physical transistors, threshold voltages, parasitic capacitances, or thermal drift. It treats the physical Analog Neural Network as a true unknown black box, enabling robust closed-loop learning on physical silicon where classical backpropagation fails.
+4. **Complete Source Code & Hardware Repository:** [https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4](https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4)
+
+---
+
+## 10. Artifact & File References
+
+- **Comprehensive 6-Page PDF Report:** [INVERTED_MAML_MODE_B_VS_MODE_A_COMPREHENSIVE_REPORT.pdf](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/INVERTED_MAML_MODE_B_VS_MODE_A_COMPREHENSIVE_REPORT.pdf)
 - **Composite Benchmark Timeline:** [fig_mode_b_vs_mode_a_combined_timeline.png](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_mode_b_vs_mode_a_combined_timeline.png)
 - **4-Panel 3D Landscapes:** [fig_3d_m3_m8_landscapes.png](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_3d_m3_m8_landscapes.png)
 - **Matrix 3 48-Weight Trajectory:** [fig_2d_m3_weights_trajectory.png](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_2d_m3_weights_trajectory.png)
 - **Matrix 8 42-Weight Trajectory:** [fig_2d_m8_weights_trajectory.png](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_2d_m8_weights_trajectory.png)
+- **Physical PCB Hardware Photo:** [fig_pcb_v132_hardware.jpg](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_pcb_v132_hardware.jpg)
+- **Patent Fig 1 Architecture:** [fig_patent_fig1_architecture.jpg](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_patent_fig1_architecture.jpg)
+- **Patent Fig 8 FHP Schematic:** [fig_patent_fig8_fhp_circuit.jpg](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_patent_fig8_fhp_circuit.jpg)
 - **Python Generator Script:** [`FPGA_code/scripts/generate_comprehensive_report_assets.py`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/scripts/generate_comprehensive_report_assets.py)

@@ -299,17 +299,16 @@ def generate_composite_timeline(b_runs: list, a_runs: list, out_png_artifacts: P
     fig.savefig(out_png_docs, dpi=200)
     plt.close(fig)
     print(f"[+] Saved Composite Timeline figure to {out_png_artifacts} and {out_png_docs}")
-    plt.close(fig)
-    print(f"[+] Saved Composite Timeline figure to {out_png_artifacts} and {out_png_docs}")
 
 
 # ==============================================================================
-# 4. Generate Comprehensive 4-Page PDF Report
+# 4. Generate Comprehensive 6-Page PDF Report (with Hardware, Fig 1, and Fig 8)
 # ==============================================================================
 def generate_comprehensive_pdf(b_runs: list, a_runs: list,
-                               fig_timeline: Path, fig_3d: Path,
-                               fig_m3_2d: Path, fig_m8_2d: Path,
-                               out_pdf_artifacts: Path, out_pdf_docs: Path):
+                              fig_timeline: Path, fig_3d: Path,
+                              fig_m3_2d: Path, fig_m8_2d: Path,
+                              fig_pcb: Path, fig_pat1: Path, fig_pat8: Path,
+                              out_pdf_artifacts: Path, out_pdf_docs: Path):
     from reportlab.lib.pagesizes import letter
     from reportlab.lib import colors
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -549,17 +548,100 @@ def generate_comprehensive_pdf(b_runs: list, a_runs: list,
         "<b>Summary & Verification Conclusion:</b><br/>"
         "1. Standalone Matrix 33 (Mode B, with dedicated DC calibration) is physically constrained to ~3.4 bits (43,000 LSB² loss) due to intrinsic MOS triode non-linearities and thermal drift.<br/>"
         "2. The Inverted MAML architecture (SE 2630397-4) provides an honest, sustained empirical gain of <b>+0.53 bits</b>, elevating sustained precision to <b>~4.0 bits</b> (17,361 LSB² loss) across 10 independent 1,000-epoch runs.<br/>"
-        "3. Toggling weight regularizer lambda between 0 and 512 proves that the Vernier loop operates in a unconditionally stable attractor basin.<br/>"
+        "3. Toggling weight regularizer lambda between 0 and 512 proves that the Vernier loop operates in an unconditionally stable attractor basin.<br/>"
         "4. This validates the patent claims on pure silicon hardware without digital emulation."
     )
     story.append(Paragraph(conclusion_text, body_style))
+
+    # =========================================================================
+    # PAGE 5: Physical Hardware Implementation & Patented Triad Architecture (Fig 1)
+    # =========================================================================
+    story.append(PageBreak())
+    story.append(Paragraph("9. Physical Hardware Silicon: Inverted MAML Proof-of-Concept PCB (v1.3.2)", h1_style))
+    story.append(Spacer(1, 2))
+    if fig_pcb.exists():
+        story.append(Image(str(fig_pcb), width=290, height=261))
+    story.append(Spacer(1, 2))
+
+    pcb_desc = (
+        "<b>Figure 9: Physical Proof-of-Concept Hardware (PCB v1.3.2, Inverted_MAML_IMC).</b><br/>"
+        "Designed and fabricated by inventor Olle Welin (Patent Pending SE 2630397-4). "
+        "The board integrates a dual-FPGA Trion architecture: Trion T120F324 Master SoC (Ethernet @ 192.168.1.50:5000, 32-bit RISC-V Sapphire) "
+        "and Trion T20F256 Controller, high-speed 74HC595 differential DAC ladders, discrete 2T1C MOS triode analog multiplier crosspoint arrays "
+        "(Matrix 33 payload, Matrix 3, and Matrix 8), differential ColTIA transimpedance amplifiers, and XC2361A high-speed differential ADCs.<br/>"
+        "<b>Hardware Repository & Open Source RTL/Firmware:</b> "
+        "<a href='https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4'><font color='#2563eb'><u>https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4</u></font></a>"
+    )
+    story.append(Paragraph(pcb_desc, body_style))
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph("10. Patented Inverted MAML Proprioceptive Architecture (Patent SE 2630397-4 Fig 1)", h1_style))
+    story.append(Spacer(1, 2))
+    if fig_pat1.exists():
+        story.append(Image(str(fig_pat1), width=290, height=241))
+    story.append(Spacer(1, 2))
+
+    pat1_desc = (
+        "<b>Figure 10: Inverted MAML Proprioceptive Feedback Architecture (Patent Application SE 2630397-4, Fig 1).</b><br/>"
+        "Digital input (1) is converted via DAC ladder (2) into analog signals driving both the primary uncompensated matrix Matrix 33 (33) "
+        "and the first Vernier matrix Matrix 3 (3). The output of Matrix 3 passes through analog sigmoid activation (4) and is sampled by ADC (45) "
+        "for the digital controller (9). The second Vernier matrix Matrix 8 (8) injects anti-phase compensation currents into summing junctions (35) "
+        "before final transimpedance amplification and sampling by ADC (49) to produce the high-precision digital output (11)."
+    )
+    story.append(Paragraph(pat1_desc, body_style))
+
+    # =========================================================================
+    # PAGE 6: Forward Hadamard Propagation (FHP) Circuit & Single-Shot Gradients
+    # =========================================================================
+    story.append(PageBreak())
+    story.append(Paragraph("11. Forward Hadamard Propagation (FHP) & Capacitive Perturbation (Patent Fig 8)", h1_style))
+    story.append(Spacer(1, 2))
+
+    fhp_banner = (
+        "Forward Hadamard Propagation (FHP) – parallel capacitive perturbation for single-shot analog gradient extraction. "
+        "(Works for physical unknown Analog Neural Networks)."
+    )
+    fhp_banner_style = ParagraphStyle(
+        "FHPBanner", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=8.5, leading=11.5,
+        textColor=colors.HexColor("#0f172a"),
+        backColor=colors.HexColor("#f8fafc"),
+        borderColor=colors.HexColor("#2563eb"),
+        borderWidth=1,
+        borderPadding=5,
+        spaceBefore=2,
+        spaceAfter=4,
+    )
+    story.append(Paragraph(fhp_banner, fhp_banner_style))
+    story.append(Spacer(1, 2))
+
+    if fig_pat8.exists():
+        story.append(Image(str(fig_pat8), width=390, height=292))
+    story.append(Spacer(1, 3))
+
+    fhp_text = (
+        "<b>Physical Circuit Operation & Theoretical Breakthrough of FHP (SE 2630397-4 Fig 8):</b><br/>"
+        "<b>1. Parallel Capacitive Perturbation (C_PTU, Ref 7):</b> An AC perturbation square wave V_PTU (5) is modulated by 3-state Hadamard "
+        "drivers (6) along perturbation lines PL_1..PL_n. Each crosspoint cell couples the carrier through dedicated perturbation capacitor "
+        "C_PTU (7) onto the floating gate storage node C_W (44) of the 2T1C MOS triode transistor. Crucially, C_PTU perturbs the operating point "
+        "dynamically without altering or leaking the static stored weight voltage.<br/>"
+        "<b>2. Single-Shot Analog Gradient Extraction:</b> In conventional analog tuning, extracting the gradient vector of N weights requires "
+        "2N sequential forward perturbations, creating massive latency and thermal drift. FHP applies mutually orthogonal Walsh/Hadamard carrier waves "
+        "simultaneously across all rows. In a single analog measurement snapshot (t = 5.0 ms), the composite response at the summing amplifiers "
+        "is projected onto the Hadamard basis in the digital domain (T120 SoC), isolating all partial derivatives in O(1) time.<br/>"
+        "<b>3. Universal In-Situ Training for Arbitrary Analog Networks:</b> FHP requires zero internal analytical models of the physical transistors, "
+        "threshold voltages, parasitic capacitances, or thermal drift. It treats the physical Analog Neural Network as a true unknown black box, "
+        "enabling robust closed-loop learning on physical silicon where classical backpropagation fails.<br/>"
+        "<b>4. Complete Source Code & Hardware Repository:</b> "
+        "<a href='https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4'><font color='#2563eb'><u>https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4</u></font></a>"
+    )
+    story.append(Paragraph(fhp_text, body_style))
 
     def add_page_decorations(canvas, doc):
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#64748b"))
         canvas.drawString(36, 18, "Inverted MAML Independent Research | Patent Pending SE 2630397-4 | Open Science Hardware")
-        page_str = f"Page {canvas._pageNumber} of 4"
+        page_str = f"Page {canvas._pageNumber} of 6"
         canvas.drawRightString(612 - 36, 18, page_str)
         canvas.restoreState()
 
@@ -571,7 +653,7 @@ def generate_comprehensive_pdf(b_runs: list, a_runs: list,
 
 def main():
     print("=" * 80)
-    print("GENERATING COMPREHENSIVE INVERTED MAML REPORT ASSETS & 4-PAGE PDF")
+    print("GENERATING COMPREHENSIVE INVERTED MAML REPORT ASSETS & 6-PAGE PDF")
     print("=" * 80)
 
     b_runs, a_runs, run01_a = load_datasets()
@@ -589,6 +671,10 @@ def main():
     fig_m8_2d_art = ARTIFACTS_DIR / "fig_2d_m8_weights_trajectory.png"
     fig_m8_2d_docs = FIGURES_DIR / "fig_2d_m8_weights_trajectory.png"
 
+    fig_pcb_docs = FIGURES_DIR / "fig_pcb_v132_hardware.jpg"
+    fig_pat1_docs = FIGURES_DIR / "fig_patent_fig1_architecture.jpg"
+    fig_pat8_docs = FIGURES_DIR / "fig_patent_fig8_fhp_circuit.jpg"
+
     pdf_art = ARTIFACTS_DIR / "INVERTED_MAML_MODE_B_VS_MODE_A_COMPREHENSIVE_REPORT.pdf"
     pdf_docs = DOCS_DIR / "INVERTED_MAML_MODE_B_VS_MODE_A_COMPREHENSIVE_REPORT.pdf"
 
@@ -601,10 +687,11 @@ def main():
     print("\n[*] 3. Generating 2D Weight Trajectories for M3 and M8...")
     generate_2d_trajectories(run01_a, fig_m3_2d_art, fig_m3_2d_docs, fig_m8_2d_art, fig_m8_2d_docs)
 
-    print("\n[*] 4. Building 4-Page Comprehensive PDF Report...")
+    print("\n[*] 4. Building 6-Page Comprehensive PDF Report...")
     generate_comprehensive_pdf(b_runs, a_runs,
                               fig_timeline_art, fig_3d_art,
                               fig_m3_2d_art, fig_m8_2d_art,
+                              fig_pcb_docs, fig_pat1_docs, fig_pat8_docs,
                               pdf_art, pdf_docs)
 
     print("\n[+] All assets generated successfully!")
