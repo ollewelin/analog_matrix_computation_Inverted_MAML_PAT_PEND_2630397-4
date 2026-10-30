@@ -275,6 +275,34 @@ Working with analog computing is an act of balancing physics and precision. Very
     - Full documentation: [`FPGA_code/docs/M3_M8_3STAGE_500EP_EXPERIMENT_REPORT.pdf`](FPGA_code/docs/M3_M8_3STAGE_500EP_EXPERIMENT_REPORT.pdf) and [`.md`](FPGA_code/docs/M3_M8_3STAGE_500EP_EXPERIMENT_REPORT.md).
     - Previous 400-epoch knee baseline benchmark: [`FPGA_code/docs/M3_M8_OPTIMAL_BASELINE_ARBITRARY_400EP_REPORT.pdf`](FPGA_code/docs/M3_M8_OPTIMAL_BASELINE_ARBITRARY_400EP_REPORT.pdf).
 
+- **2026-10-30 (Mode A Training Under LLM-Correlated In-Data Vectors, ColTIA Saturation Guard, and Sustained 6.23 Bits Resolution):**
+  - **1. Objective & Physical Challenge:**
+    Previous experiments evaluated independent white noise. However, realistic neural activations in Large Language Models (LLMs / Transformers) exhibit strong spatial token correlations across input channels. When high spatial correlation ($\rho = 0.85$, Kac-Murdock-Szegö AR(1) Toeplitz covariance) was initially applied, all 6 input channels took simultaneous negative or positive values. Multiplying these correlated inputs through Matrix 33's positive column pedestals created huge common-mode DC currents, driving single-supply ColTIA transimpedance amplifiers into saturation rails ("bottning"). This clipped the $243\text{ LSB}$ Hadamard carrier perturbation, breaking Sylvester $H_8$ orthogonality and generating phantom gradient bursts.
+  - **2. Dual Hardware Countermeasures in T120 RISC-V Firmware (`v2.2-MAML`):**
+    - **Zero-Mean Centering (LayerNorm):** Automatically enforces $\sum_{i=0}^5 x_i \equiv 0$ on all colored In-Data modes, eliminating DC common-mode current surges through $M_{33}$.
+    - **ColTIA Saturation Guard:** Enforces a physical headroom margin based on the measured physical Hadamard swing ($250\text{ LSB}$). If $|ADC_{45}|$ or $|ADC_{49}| \ge 1797\text{ LSB}$, weight updates are completely suppressed ($\Delta W \equiv 0$) and clipping events are logged via telemetry.
+  - **3. 500-Epoch 3-Phase Silicon Benchmark Results:**
+    A 500-epoch benchmark was executed on physical silicon under continuous rotating LLM Toeplitz vectors ($\rho = 0.85$, $L_2$ regularization $\lambda = 512$, learning rate $0.25\times$):
+    - **Phase 1 (Epochs 0..99):** `BASELINE_ZERO` ($M_3=0, M_8=0$, Training OFF) $\implies \text{Mean Loss } 8\,805\text{ LSB}^2$, Mean ENOB $5.28\text{ b}$.
+    - **Phase 2 (Epochs 100..199):** `BASELINE_KNEE` ($M_8 = \pm 16\text{ LSB}$, Training OFF) $\implies \text{Mean Loss } 21\,853\text{ LSB}^2$, Mean ENOB $4.60\text{ b}$.
+    - **Phase 3 (Epochs 200..500):** `TRAIN_REG_ON` (Active Mode A Training ON) $\implies \text{Mean Loss dropped by } \mathbf{77.5\%}$ to $4\,910\text{ LSB}^2$ (Min Loss: **$637.9\text{ LSB}^2$** at Ep 424, Peak ENOB: **$7.13\text{ bits}$**).
+    - **0 Clipped Epochs:** Zero saturation events occurred across all 500 epochs.
+  - **4. Silicon Studio 3D Visualization & Conclusion:**
+    Across active training, the network maintained a **sustained mean physical resolution of 6.23 bits ENOB** with smooth multi-dimensional Vernier weight compensation.
+
+  ![Inverted MAML: 500-Epoch Mode A Training under LLM Correlated In-Data](FPGA_code/docs/figures/fig_mode_a_500ep_llm_training_trajectory.jpg)
+
+  *Figure: 500-Epoch training trajectory on physical silicon under LLM Toeplitz In-Data ($\rho=0.85, \lambda=512$). Top: Quadratic output loss showing baseline 0 (Ep 0..99), baseline knee step (Ep 100..199), and rapid convergence upon triggering training at Epok 200. Bottom: Sustained ENOB resolution achieving 7.13 bits peak.*
+
+  ![Injected FORWARD Propagation Silicon Studio at Epoch 353](FPGA_code/docs/figures/fig_mode_a_500ep_llm_ep353_studio.jpg)
+
+  *Figure: Real-time Injected FORWARD Propagation Silicon Studio monitoring the active training phase at Epoch 353. Matrix 8 3D topography shows an organic, multi-dimensional compensation surface actively countering analog non-linearities, sustaining a physical resolution of 6.23 bits ENOB with low residual error (RMSE: 27.32 LSB, Loss: 2239.4 LSB²).*
+
+  - **Scientific Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.pdf)
+  - **Markdown Analysis:** [`FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.md`](FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.md)
+  - **Log Dataset:** [`FPGA_code/logs/llm_noise_campaign/mode_a_500ep_llm_toeplitz_rho85_reg512.json`](FPGA_code/logs/llm_noise_campaign/mode_a_500ep_llm_toeplitz_rho85_reg512.json)
+
+
 
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
 ![](Fig8_Hadamard_carrier_injection_circuit.png)
