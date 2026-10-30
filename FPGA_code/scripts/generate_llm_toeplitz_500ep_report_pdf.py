@@ -261,17 +261,18 @@ def build_pdf():
     # Section 4: Live Studio Telemetry Verification
     story.append(Paragraph("4. Live Silicon Studio & Telemetry Verification", h1_style))
     story.append(Paragraph(
-        "The snapshot below shows the <i>Injected FORWARD Propagation Silicon Studio</i> monitoring the experiment at Epoch 92. "
-        "The 3D topography of Matrix 8 confirms an exact, quiet zero-plane across Phase 1, followed by the sharp knee-step at Epoch 100 "
-        "and rapid quadratic error minimization upon triggering Active Training at Epoch 200.",
+        "The snapshot below shows the <i>Injected FORWARD Propagation Silicon Studio</i> monitoring the active training phase at <b>Epoch 353</b>. "
+        "The 3D topography of Matrix 8 demonstrates an organic, multi-dimensional compensation surface actively countering the nonlinear "
+        "distortions of Matrix 33 and the ColTIA amplifiers. The signal flow table confirms low residual errors (RMSE: 27.32 LSB, Loss: 2239.4 LSB²) "
+        "and sustained physical resolution of <b>6.23 bits ENOB</b>.",
         body_style
     ))
 
-    # Include Figure 1: GUI Snapshot
-    fig_gui = ARTIFACT_DIR / "fig_gui_animation_snapshot_ep92.jpg"
+    # Include Figure 1: GUI Snapshot (Epoch 353)
+    fig_gui = ARTIFACT_DIR / "fig_gui_animation_snapshot_ep353.jpg"
     if fig_gui.exists():
         story.append(RLImage(str(fig_gui), width=530, height=255))
-        story.append(Paragraph("Figure 3: Injected FORWARD Propagation Studio during Phase 1 (Ep 92). Telemetry captures ADC_45/ADC_49 channels and step transitions.", caption_style))
+        story.append(Paragraph("Figure 3: Injected FORWARD Propagation Studio at Epoch 353 (Active Training Phase). Matrix 8 3D landscape reveals optimized vernier weights balancing the analog core.", caption_style))
 
     # Build PDF document
     doc.build(story, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
@@ -286,3 +287,4 @@ def build_pdf():
 
 if __name__ == "__main__":
     build_pdf()
+
