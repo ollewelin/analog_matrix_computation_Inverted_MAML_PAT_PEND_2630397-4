@@ -333,7 +333,7 @@ def generate_single_run_pdf(data: dict, fig_png: Path, out_pdf: Path):
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#64748b"))
-        canvas.drawString(36, 18, "Inverted MAML Research Consortium | Patent Pending SE 2630397-4 | Open Science Hardware")
+        canvas.drawString(36, 18, "Inverted MAML Independent Research | Patent Pending SE 2630397-4 | Open Science Hardware")
         page_str = f"Page {canvas._pageNumber}"
         canvas.drawRightString(612 - 36, 18, page_str)
         canvas.restoreState()

@@ -96,3 +96,4 @@ To inspect and replay any of the 10 physical silicon runs in the interactive 3D 
 # Run 10 (Peak ENOB: 6.27 b | Best Loss: 245.5 LSB²)
 /home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/baseline_regularization_campaign/m3_m8_1000ep_run_10.json
 ```
+

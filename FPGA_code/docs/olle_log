@@ -92,6 +92,9 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 
 /home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/virtual_gain_experiments/fixed_vector_scratch_300ep.json
 /home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/virtual_gain_experiments/fixed_vector_scratch_300ep.json
+
+# Run 01 (Topp: 6.72 b | Bästa Loss: 132.1 LSB²)
+/home/olle/anaconda3/bin/python FPGA_code/scripts/maml_post_analysis_gui.py FPGA_code/logs/baseline_regularization_campaign/m3_m8_1000ep_run_01.json
 ==============================
 # 2026-10-25: Inverted MAML Mode A 2-Layer Wakeup & Catastrophic Forgetting Log
 # 1. Blixtsnabb C-kompilering & JTAG-programmering (15 sekunder!):
