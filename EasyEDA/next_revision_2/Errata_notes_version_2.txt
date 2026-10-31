@@ -1,0 +1,50 @@
+================================================================================
+INVERTED MAML ANALOG MATRIX - PCB VERSION 2.0 PRODUCTION & ERRATA NOTES
+Date: 2026-10-31
+Project: ProPrj_Inverted_MAML_6x6_2026-10-31.epro2
+================================================================================
+
+1. Purpose:
+   PCB Version 2.0 incorporates all physical bench errata, component optimizations,
+   and signal integrity fixes identified during Version 1.3.2 testing on physical silicon.
+
+2. Production Files in this Directory:
+   - PCB Project:        ProPrj_Inverted_MAML_6x6_2026-10-31.epro2
+   - Gerber Zip:         Gerber_Inverted_MAML_IMC_2026-10-31.zip (6-layer board, PTH/NPTH drills, flying probe)
+   - Pick and Place:     PickAndPlace_Inverted_MAML_IMC_2026_10_31.csv (UTF-16LE with coordinates & rotation)
+   - Original BOM:       BOM_Analog_Matrix_Inverted_MAML_IMC_2026-10-31.csv (Raw EasyEDA export)
+   - JLCPCB Split BOM:   BOM_Analog_Matrix_Inverted_MAML_IMC_2026-10-31_Designator_max_2047_char.csv
+                         (Formatted for JLCPCB SMT: splits designator lists exceeding 2047 chars)
+   - Utility Scripts:    BOM_section_script.py & verify_section.py (configured for 2026-10-31 stem)
+
+3. Key Errata Fixes & Component Changes from PCB v1.3.2 -> v2.0:
+   - Item 1 (Op-Amp Upgrade for DAC2 In-Data Rows):
+     U1$CBB16 and U2$CBB16 are upgraded to MCP6444-E/SL (SOIC-14, LCSC: C108882).
+     High drive capability eliminates dynamic row voltage sag during simultaneous multi-column load.
+     Weight DAC buffers remain MCP6024T-I/SL-MS (LCSC: C54539958, Qty 30).
+   - Item 2 (Summing Junction Attenuator Optimization):
+     Summing junction resistors R2$CBB15, R3$CBB15, R4$CBB15, R6$CBB15, R7$CBB15, R8$CBB15
+     updated from 3.9 kOhm to 5.1 kOhm (0402WGF5101TCE, LCSC: C25905, Qty 6).
+     Provides optimal Vernier authority with robust Hadamard SNR (+18 dB, 40..60 LSB swing).
+   - Item 3 (JTAG & CSI Mode Pin Pull-Ups):
+     RDX2 / CSI pin pull-up resistor updated to 10 kOhm to ensure clean single-device
+     JTAG boundary-scan mode on T120 Master and T20 Controller.
+   - Item 4 (LED & Control Resistors):
+     R2$CBB22 updated to 160 Ohm (0603WAF1600T5E, LCSC: C22814, Qty 1).
+   - Item 5 (Ethernet PHY Magnetics):
+     Center tap capacitor 10 nF to GND for LAN8720A / HR911105A.
+   - Item 6 (Reset Net):
+     Added dedicated T120_CRESET_N net.
+
+4. JLCPCB BOM Split Validation:
+   - 6 components exceeded the 2047-character limit in raw EasyEDA export:
+     * 100nF (Row 1): 4580 chars, Qty 328
+     * 2.2nF (Row 4): 2579 chars, Qty 180
+     * DOX3134A (Row 33): 7394 chars, Qty 516
+     * 1MOhm (Row 38): 3461 chars, Qty 240
+     * 20kOhm (Row 40): 3809 chars, Qty 270
+     * 10kOhm (Row 48): 3119 chars, Qty 210
+   - All 6 rows cleanly partitioned into continuation rows by BOM_section_script.py.
+   - Total rows: 100 original -> 109 sectioned. Maximum designator length: 2043 characters.
+   - Verified 100% matched component count and reference designators via verify_section.py: CSV: OK.
+================================================================================
