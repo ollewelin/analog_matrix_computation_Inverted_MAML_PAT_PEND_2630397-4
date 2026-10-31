@@ -35,8 +35,13 @@
 
 ---
 
-## Youtube Video Audio:
-https://youtu.be/LbWriQ0J6QY?si=GyIZ1UnNZuVdLi54
+## 🌐 Open Source Hardware (OSHWLab / JLCPCB) & Demos
+* **OSHWLab Interactive CAD, Schematics & PCB:** [🔗 `Inverted_MAML_6x6` on OSHWLab](https://oshwlab.com/olle_welin/project_yvkekxrp)
+* **EasyEDA Pro Cloud Editor:** [🔗 Open Directly in EasyEDA Pro](https://pro.easyeda.com/editor#id=901f528fcedd48afb0c852fa55bc80b4)
+* **YouTube — Project Overview & Architecture Audio:** [Watch on YouTube](https://www.youtube.com/watch?v=LbWriQ0J6QY&t=72s)
+* **YouTube — Physical Silicon Hardware Bringup & Testing:** [Watch on YouTube](https://www.youtube.com/watch?v=x45Lw4IA8cg)
+
+---
 
 ### Project Vision: Redefining Efficient Inference
 
@@ -344,7 +349,19 @@ T12F324 3D step is not showed here but mounted
 ![](EasyEDA/Component_Top.png)
 ![](EasyEDA/Component_bottom.png)
 
-### Bringup test 1
+### 🚀 PCB Version 2.0 Production Release (2026-10-31)
+All physical bench errata from version 1.3.2 have been resolved and permanently integrated into the official **PCB Version 2.0** production release:
+* **Interactive EasyEDA Schematics & 1-Click JLCPCB Ordering:** [🔗 Inspect & Order on OSHWLab](https://oshwlab.com/olle_welin/project_yvkekxrp)
+* **EasyEDA Pro Project Archive:** [`EasyEDA/next_revision_2/ProPrj_Inverted_MAML_6x6_2026-10-31.epro2`](EasyEDA/next_revision_2/ProPrj_Inverted_MAML_6x6_2026-10-31.epro2)
+* **Gerber 6-Layer Fabrication Files:** [`EasyEDA/next_revision_2/Gerber_Inverted_MAML_IMC_2026-10-31.zip`](EasyEDA/next_revision_2/Gerber_Inverted_MAML_IMC_2026-10-31.zip)
+* **Pick & Place (CPL) Placement Data:** [`EasyEDA/next_revision_2/PickAndPlace_Inverted_MAML_IMC_2026_10_31.csv`](EasyEDA/next_revision_2/PickAndPlace_Inverted_MAML_IMC_2026_10_31.csv)
+* **JLCPCB SMT Production BOM (2047-char partitioned):** [`EasyEDA/next_revision_2/BOM_Analog_Matrix_Inverted_MAML_IMC_2026-10-31_Designator_max_2047_char.csv`](EasyEDA/next_revision_2/BOM_Analog_Matrix_Inverted_MAML_IMC_2026-10-31_Designator_max_2047_char.csv)
+* **Full Engineering Changelog & Errata:** [`EasyEDA/next_revision_2/Errata_notes_version_2.txt`](EasyEDA/next_revision_2/Errata_notes_version_2.txt)
+  * Op-amp upgrade: `U1$CBB16` and `U2$CBB16` upgraded to high-current `MCP6444-E/SL` for zero row sag during simultaneous multi-column load.
+  * Summing junction resistors: `R2$CBB15` through `R8$CBB15` optimized to `5.1 kΩ` for +18 dB Vernier Hadamard SNR authority.
+  * Clean copper layout fixes: JTAG boundary scan pull-ups, 160 Ω LED drive (`R2$CBB22`), dedicated `T120_CRESET_N` net, and 10 nF Ethernet PHY center-tap filter.
+
+### Bringup test 1 (Historical Version 1.3.2)
 IMPORTANT fix to get JTAG working.
 1. CSI pull down need to remove both T20 (Remove R12$CBB23) and T120 (remove R169$CBB22/CBB2)
 2. T120_CRESET_N patch wire between Reset circuit and T120 <--> FT2232 programmer to get auto start T120 from SIP flash
