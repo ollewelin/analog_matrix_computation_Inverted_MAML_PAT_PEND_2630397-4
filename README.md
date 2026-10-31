@@ -1,6 +1,8 @@
 # Analog 2T1C Matrix Computation with Inverted Meta-Learning (MAML)
 ## Patent Application: SE 2630397-4 (Patent Pending)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23843586.svg)](https://doi.org/10.5281/zenodo.23843586)
+
 ### 📄 Patent Document:
 * **Patent Specification (English Translation):** [📄 `inverterad MAML_12_Eng.pdf`](inverterad%20MAML_12_Eng.pdf)
 * **Patent Application No:** SE 2630397-4
@@ -36,6 +38,7 @@
 ---
 
 ## 🌐 Open Source Hardware (OSHWLab / JLCPCB) & Demos
+* **Zenodo Open Research Publication (DOI):** [🔗 `10.5281/zenodo.23843586`](https://doi.org/10.5281/zenodo.23843586)
 * **OSHWLab Interactive CAD, Schematics & PCB:** [🔗 `Inverted_MAML_6x6` on OSHWLab](https://oshwlab.com/olle_welin/project_yvkekxrp)
 * **EasyEDA Pro Cloud Editor:** [🔗 Open Directly in EasyEDA Pro](https://pro.easyeda.com/editor#id=901f528fcedd48afb0c852fa55bc80b4)
 * **YouTube — Project Overview & Architecture Audio:** [Watch on YouTube](https://www.youtube.com/watch?v=LbWriQ0J6QY&t=72s)
@@ -627,6 +630,25 @@ This daisy-chained architecture covers all sequential, pipelined, staggered, and
 
 * **Radical Power & Silicon Area Reduction:**  
   For an $N$-layer deep analog processor, $(N - 1)$ full-bandwidth input DAC arrays (DAC(2)) are completely removed, and $(N - 1)$ full-bandwidth output ADC arrays (ADC(49)) are replaced by ultra-low-duty-cycle sparse calibration ADCs (or a single time-multiplexed sparse calibration ADC shared across multiple triads via an analog mux).
+
+---
+
+## 📚 Citation
+
+If you use this work, hardware designs, FPGA firmware, or silicon telemetry datasets in your research, please cite the Zenodo release:
+
+```bibtex
+@misc{welin2026invertedmaml,
+  author       = {Welin, Olle},
+  title        = {{Inverted MAML & Forward Hadamard Propagation (FHP): Physical Silicon Verification, Spatially Correlated LLM Benchmarks, and Multi-Layer Atomic Triads (SE 2630397-4)}},
+  month        = oct,
+  year         = 2026,
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.23843586},
+  url          = {https://doi.org/10.5281/zenodo.23843586}
+}
+```
+
 
 
 
