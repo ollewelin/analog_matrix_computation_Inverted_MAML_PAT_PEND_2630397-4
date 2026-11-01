@@ -324,6 +324,10 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Full Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.pdf`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.pdf)
     - **Markdown Analysis:** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.md`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.md)
     - **Zenodo DOI:** [🔗 `10.5281/zenodo.23859108`](https://zenodo.org/records/23859108)
+  - **5. Parameter Sensitivity & Regularization Scaling ($\text{LR}=0.08\times, \lambda=341$):**
+    To verify dynamics when scaling both driving and restoring forces down by $3\times$, a second 500-epoch silicon run was executed with $\text{LR}=0.08$ and $\lambda=341$. Because the ratio $\eta/\lambda \approx 0.00024$ was preserved, full-window error reduction was virtually identical (**$-20.1\%$** sustained window loss drop, $3.84\text{ bits}$ mean, $7.65\text{ bits}$ peak at $5.0\text{ ms}$). However, the $3\times$ weaker restoring force allowed Column 3 to saturate at $+120\text{ LSB}$, proving that $\lambda \ge 1024$ is essential on physical silicon to prevent rail-clamping under persistent directional gradient bias.
+    - **Comparative Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG341_LR0P08_REPORT_EN.pdf`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG341_LR0P08_REPORT_EN.pdf)
+    - **Comparative Markdown:** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG341_LR0P08_REPORT_EN.md`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG341_LR0P08_REPORT_EN.md)
 
   ![Inverted MAML Milestone 3: Full Temporal Window [4.5..5.5 ms] Aggregated Trajectory](FPGA_code/docs/figures/fig_mode_a_500ep_window_4p5to5p5ms_only_reg1024.png)
 
