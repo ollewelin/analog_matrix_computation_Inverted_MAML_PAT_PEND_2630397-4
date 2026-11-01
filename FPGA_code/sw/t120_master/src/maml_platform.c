@@ -63,38 +63,38 @@ static inline uint8_t off_to_dac_u8(int32_t off) {
 }
 
 /* Smart Calibrated 8-Row M3 & 7-Row M8 Baseline Tables (Step 1: Fixed Clock & Bias in S-Bend):
- *   - M3 Rows 0..5 (Compute) : S-curve knee baseline {-16, -16, +16, +16, -16, +16} with ±24 LSB diagonal
+ *   - M3 Rows 0..5 (Compute) : Zero-sum alternating off-diagonals (±12 LSB) with ±24 LSB diagonal
  *   - M3 Row 6 (Clock TRIM_B1): Fixed in linear S-bend {-16, -16, +16, +16, -16, +16} (~85 LSB ramp over 4.5-5.5ms, zero Col 4 fold-over)
  *   - M3 Row 7 (Clock TRIM_REF): Fixed DC anchor {+16, +16, -16, -16, +16, -16}
- *   - M8 Rows 0..5 (Vernier) : S-curve knee baseline {-16, -16, +16, +16, -16, +16} with ±20 LSB diagonal
- *   - M8 Row 6 (Bias Row)    : Fixed S-curve center bias {0, +16, +16, -16, +16, -16} */
-static const int16_t k_smart_m3_lsb[8][6] = {
-    { -24, -16, +16, +16, -16, +16 }, /* Row 0 (Data 0) */
-    { -16, -24, +16, +16, -16, +16 }, /* Row 1 (Data 1) */
-    { -16, -16, +24, +16, -16, +16 }, /* Row 2 (Data 2) */
-    { -16, -16, +16, +24, -16, +16 }, /* Row 3 (Data 3) */
-    { -16, -16, +16, +16, -24, +16 }, /* Row 4 (Data 4) */
-    { -16, -16, +16, +16, -16, +24 }, /* Row 5 (Data 5) */
+ *   - M8 Rows 0..5 (Vernier) : Zero-sum alternating off-diagonals (±8 LSB) with ±16 LSB diagonal
+ *   - M8 Row 6 (Bias Row)    : Warm-calibrated S-curve DC zero-offset anchor per column */
+static int16_t g_smart_m3_lsb[8][6] = {
+    { -24,   0,  +8,  -8,  +8,  -8 }, /* Row 0 (Data 0) */
+    {   0, -24,  -8,  +8,  -8,  +8 }, /* Row 1 (Data 1) */
+    {  +8,  +8, +24,   0,  +8,  -8 }, /* Row 2 (Data 2) */
+    {  -8,  -8,   0, +24,  -8,  +8 }, /* Row 3 (Data 3) */
+    {  +8,  +8,  -8,  +8, -24,   0 }, /* Row 4 (Data 4) */
+    {  -8,  -8,  +8,  -8,   0, +24 }, /* Row 5 (Data 5) */
     { -16, -16, +16, +16, -16, +16 }, /* Row 6 (Clock B1 330k - Fixed in S-bend) */
     { +16, +16, -16, -16, +16, -16 }  /* Row 7 (Clock REF - Fixed DC balance) */
 };
 
-static const int16_t k_smart_m8_lsb[7][6] = {
-    { -20, -16, +16, +16, -16, +16 }, /* Row 0 */
-    { -16, -20, +16, +16, -16, +16 }, /* Row 1 */
-    { -16, -16, +20, +16, -16, +16 }, /* Row 2 */
-    { -16, -16, +16, +20, -16, +16 }, /* Row 3 */
-    { -16, -16, +16, +16, -20, +16 }, /* Row 4 */
-    { -16, -16, +16, +16, -16, +20 }, /* Row 5 */
-    {   0, +16, +16, -16, +16, -16 }  /* Row 6 (Bias Row - Fixed S-curve center) */
+static int16_t g_smart_m8_lsb[7][6] = {
+    { -20,   0,  +6,  -6,  +6,  -6 }, /* Row 0 */
+    {   0, -20,  -6,  +6,  -6,  +6 }, /* Row 1 */
+    {  +6,  +6, +20,   0,  +6,  -6 }, /* Row 2 */
+    {  -6,  -6,   0, +20,  -6,  +6 }, /* Row 3 */
+    {  +6,  +6,  -6,  +6, -20,   0 }, /* Row 4 */
+    {  -6,  -6,  +6,  -6,   0, +20 }, /* Row 5 */
+    {   0, +16, -16, -16, +16, -16 }  /* Row 6 (Bias Row - Warm-calibrated DC anchor) */
 };
 
 static inline int32_t maml_wnull_m3_q14(int r, int c) {
-    if (r >= 0 && r < 8 && c >= 0 && c < 6) return (int32_t)(k_smart_m3_lsb[r][c] << 7);
+    if (r >= 0 && r < 8 && c >= 0 && c < 6) return (int32_t)(g_smart_m3_lsb[r][c] << 7);
     return 0;
 }
 static inline int32_t maml_wnull_m8_q14(int r, int c) {
-    if (r >= 0 && r < 7 && c >= 0 && c < 6) return (int32_t)(k_smart_m8_lsb[r][c] << 7);
+    if (r >= 0 && r < 7 && c >= 0 && c < 6) return (int32_t)(g_smart_m8_lsb[r][c] << 7);
     return 0;
 }
 
@@ -1089,13 +1089,13 @@ static uint8_t g_baseline_mode = 0u; /* 0 = zero baseline (W=0), 1 = smart calib
 static void maml_apply_baseline_weights(void) {
     for (int c = 0; c < 6; c++) {
         for (int r = 0; r < 8; r++) {
-            int16_t val_lsb = (g_baseline_mode == 1u) ? k_smart_m3_lsb[r][c] : 0;
+            int16_t val_lsb = (g_baseline_mode == 1u) ? g_smart_m3_lsb[r][c] : 0;
             int16_t val_q14 = (int16_t)(val_lsb << 7);
             g_w0_m3_q14[r][c] = val_q14;
             g_w_m3_q14[r][c]  = val_q14;
         }
         for (int r = 0; r < 7; r++) {
-            int16_t val_lsb = (g_baseline_mode == 1u) ? k_smart_m8_lsb[r][c] : 0;
+            int16_t val_lsb = (g_baseline_mode == 1u) ? g_smart_m8_lsb[r][c] : 0;
             int16_t val_q14 = (int16_t)(val_lsb << 7);
             g_w0_m8_q14[r][c] = val_q14;
             g_w_m8_q14[r][c]  = val_q14;
@@ -1115,22 +1115,24 @@ static void maml_center_compensation_weights(void) {
         memset(g_basin_w_m3_q14[k], 0, sizeof(g_basin_w_m3_q14[k]));
         memset(g_basin_w_m8_q14[k], 0, sizeof(g_basin_w_m8_q14[k]));
     }
-    /* Apply baseline weights according to active g_baseline_mode */
-    maml_apply_baseline_weights();
     /* Preserve Primary Payload Matrix M33 (k_default_m33) so COLTIA stays centered! */
     maml_load_default_m33();
 
-    /* Calibrate quiescent zero-input baseline at DAC_2 = 128 and 100 Hz (10.0 ms) cadence */
-    maml_calibrate_zero_baseline();
+    /* Calibrate quiescent zero-input baseline at W_M3=0, W_M8=0, DAC_2=128 at 100 Hz (10.0 ms) cadence.
+     * IMPORTANT: Only calibrate zero baseline when g_baseline_mode == 0 (or on initial boot when !g_comp_is_centered),
+     * so switching to g_baseline_mode == 1 at Epoch 100 NEVER shifts g_adc49_zero_cal! */
+    if (g_baseline_mode == 0u || !g_comp_is_centered) {
+        maml_calibrate_zero_baseline();
+    }
 
-    /* Restore M3 and M8 baseline weights after calibration */
+    /* Apply M3 and M8 baseline weights according to active g_baseline_mode */
     maml_apply_baseline_weights();
 
     /* Apply active reference input vector x_ref and compute zero-referenced z_target */
     maml_generate_new_white_noise_ref();
 
     g_comp_is_centered = 1;
-    /* Always calibrate quiescent zero baseline at the nominal 5.0 ms (5000 us) window center */
+    /* Always settle at the nominal 5.0 ms (5000 us) window center */
     uint32_t settle_dly_us = 5000u;
     /* Let the 100 nF gate capacitors settle at the exact 10.0 ms (100 Hz) cadence */
     for (int rep = 0; rep < 3; rep++) {
@@ -1276,7 +1278,7 @@ static void maml_apply_fixed_even_dac2(void);
 static void maml_seed_fixed_test_weights_once(uint32_t seed_val);
 
 /* Calibrate quiescent DC zero baseline at x_ref = 0 (DAC_2 = 128) with M33 payload charged
- * and M3/M8 in their linear center (M3 diag = +64, row6 = +48, M8 = +24) at 100 Hz (10.0 ms) cadence */
+ * and M3/M8 strictly at TRUE ZERO (W_M3 = 0, W_M8 = 0) at 100 Hz (10.0 ms) cadence */
 static void maml_calibrate_zero_baseline(void) {
     t20_hadamard_tristate_center();
     uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
@@ -1285,25 +1287,18 @@ static void maml_calibrate_zero_baseline(void) {
     aio_load_dac2(d2_mid);
     memset(g_w_m3_q14, 0, sizeof(g_w_m3_q14));
     memset(g_w_m8_q14, 0, sizeof(g_w_m8_q14));
-    for (int c = 0; c < 6; c++) {
-        g_w_m3_q14[c][c] = (int16_t)(64 << 7);
-        g_w_m3_q14[6][c] = (int16_t)(48 << 7);
-        for (int r = 0; r < 6; r++) {
-            g_w_m8_q14[r][c] = (int16_t)(24 << 7);
-        }
-    }
 
     /* Always calibrate quiescent zero baseline at the nominal 5.0 ms (5000 us) window center */
     uint32_t settle_dly_us = 5000u;
 
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
-    for (int rep = 0; rep < 3; rep++) {
+    for (int rep = 0; rep < 4; rep++) {
         maml_wait_10ms_refresh_tick();
     }
 
     int32_t acc45[6] = {0, 0, 0, 0, 0, 0};
     int32_t acc49[6] = {0, 0, 0, 0, 0, 0};
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 8; i++) {
         maml_wait_10ms_refresh_tick();
         bsp_uDelay(settle_dly_us);
         t20_hadamard_tristate_center();
@@ -1316,8 +1311,8 @@ static void maml_calibrate_zero_baseline(void) {
         }
     }
     for (int c = 0; c < 6; c++) {
-        g_adc45_zero_cal[c] = (int16_t)rshift_rne(acc45[c], 2);
-        g_adc49_zero_cal[c] = (int16_t)rshift_rne(acc49[c], 2);
+        g_adc45_zero_cal[c] = (int16_t)rshift_rne(acc45[c], 3);
+        g_adc49_zero_cal[c] = (int16_t)rshift_rne(acc49[c], 3);
     }
 }
 
@@ -1667,29 +1662,31 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
         }
     }
 
-    /* Perform EXACTLY ONE weight update using the batch-averaged gradient.
-     * Step 1 Protocol: Update only the 6 regular compute rows (r = 0..5) of M3 and M8,
-     * keeping M3 Clock/Ref rows (r = 6, 7) and M8 Bias row (r = 6) strictly FIXED at their
-     * calibrated S-bend / S-center baseline weights! */
-    for (int r = 0; r < 6; r++) {
-        for (int c = 0; c < 6; c++) {
-            int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)total_samples);
-            int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
-            /* L2 weight-decay toward centered W_null: dW -= lambda * (W - W_null) */
-            int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
-                                       (int32_t)g_reg_lambda_q16, 16);
-            g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - step_w - decay);
-            g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
+    /* Perform EXACTLY ONE weight update using the batch-averaged gradient when lr > 0 or reg > 0.
+     * When g_lr_inner_q16 == 0 and g_reg_lambda_q16 == 0 (Baseline Phases 0..99 and 100..199),
+     * the exact same K * num_strata Hadamard-active measurements and gradient extractions run
+     * for 100% identical EMC, timing, and statistical evaluation, while weights stay locked! */
+    if (g_lr_inner_q16 > 0u || g_reg_lambda_q16 > 0u) {
+        for (int r = 0; r < 6; r++) {
+            for (int c = 0; c < 6; c++) {
+                int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)total_samples);
+                int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
+                /* L2 weight-decay toward centered W_null: dW -= lambda * (W - W_null) */
+                int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
+                                           (int32_t)g_reg_lambda_q16, 16);
+                g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - step_w - decay);
+                g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
+            }
         }
-    }
-    for (int r = 0; r < 6; r++) {
-        for (int c = 0; c < 6; c++) {
-            int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)total_samples);
-            int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
-            int32_t decay = rshift_rne(((int32_t)g_w_m8_q14[r][c] - maml_wnull_m8_q14(r, c)) *
-                                       (int32_t)g_reg_lambda_q16, 16);
-            g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - step_w - decay);
-            g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
+        for (int r = 0; r < 6; r++) {
+            for (int c = 0; c < 6; c++) {
+                int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)total_samples);
+                int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
+                int32_t decay = rshift_rne(((int32_t)g_w_m8_q14[r][c] - maml_wnull_m8_q14(r, c)) *
+                                           (int32_t)g_reg_lambda_q16, 16);
+                g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - step_w - decay);
+                g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
+            }
         }
     }
 
@@ -1697,9 +1694,11 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
     g_tel.loss_total_milli = (uint32_t)(loss_accum / (uint64_t)total_samples);
 
     /* Apply the updated weights to physical 2T1C cells and read settled telemetry */
+    g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
     maml_refresh_all_columns();
     bsp_uDelay((t_min_us + t_max_us) >> 1);
     aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
+    g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
     g_tel.outer_loop_epoch++;
     maml_sync_shadow_bytes();
 }
@@ -2363,6 +2362,29 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
             if (req_len >= 6) {
                 g_baseline_mode = req[5] ? 1u : 0u;
             }
+            /* Optional 90-byte custom smart baseline table payload:
+             *   req[6..53]  : 48 int8_t weights for g_smart_m3_lsb[8][6]
+             *   req[54..95] : 42 int8_t weights for g_smart_m8_lsb[7][6] */
+            if (req_len >= 96) {
+                const int8_t *p_m3 = (const int8_t *)&req[6];
+                const int8_t *p_m8 = (const int8_t *)&req[54];
+                for (int r = 0; r < 8; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        int16_t v = (int16_t)p_m3[r * 6 + c];
+                        if (v > 120)  v = 120;
+                        if (v < -120) v = -120;
+                        g_smart_m3_lsb[r][c] = v;
+                    }
+                }
+                for (int r = 0; r < 7; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        int16_t v = (int16_t)p_m8[r * 6 + c];
+                        if (v > 120)  v = 120;
+                        if (v < -120) v = -120;
+                        g_smart_m8_lsb[r][c] = v;
+                    }
+                }
+            }
             maml_center_compensation_weights();
             aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
             break;
@@ -2472,7 +2494,7 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 uint16_t t_max_us   = (req_len >= 11) ? ((uint16_t)req[9] | ((uint16_t)req[10] << 8)) : 5100u;
                 if (req_len >= 13) {
                     uint16_t lr_val = (uint16_t)req[11] | ((uint16_t)req[12] << 8);
-                    if (lr_val >= 32u && lr_val <= 4096u) {
+                    if (lr_val <= 4096u) {
                         g_lr_inner_q16 = lr_val;
                     }
                 }

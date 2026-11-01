@@ -33,6 +33,11 @@ Whenever experiments are conducted on physical silicon (Trion T120 Master + T20 
   - Weight clamping: $\pm 80\text{ LSB}$ (`sat_w80_q14`).
   - Input swing: $[-45, +45]\text{ LSB}$ ($X_{dac} \in [83, 173]$).
 
+- **v2.2-MAML Identical-Cadence & True-Zero Calibration Update (Nov 1, 2026):**
+  - **Files Updated:** [`maml_platform.c`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/sw/t120_master/src/maml_platform.c) and [`run_500ep_broadened_window_k20.py`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/scripts/run_500ep_broadened_window_k20.py).
+  - **Bug Fix 1 — True $W=0$ Quiescent Zero Calibration (`maml_calibrate_zero_baseline`):** Removed legacy hardcoded weights (`M3[c][c]=+64, M3[6][c]=+48, M8[r][c]=+24`) during quiescent zero-reference calibration so `g_adc45_zero_cal` and `g_adc49_zero_cal` are calibrated strictly at true zero ($W_{M3}=0, W_{M8}=0, X=0$) at $t = 5.0\text{ ms}$. Locked `g_adc49_zero_cal` at Epoch 0 so switching from Phase 1 (`g_baseline_mode=0`) to Phase 2 (`g_baseline_mode=1`) at Epoch 100 never overwrites or shifts the target origin `z_target`.
+  - **Bug Fix 2 — 100% Identical Batch, Hadamard & Window Evaluation Across All 500 Epochs (`MAML_CMD_BATCH_STEP`):** Enabled `lr_val == 0` (`g_lr_inner_q16 = 0`) in `MAML_CMD_BATCH_STEP` and `maml_execute_strata_batch()`. Every single epoch across all three phases (`Ep 0..99` Baseline Zero, `Ep 100..199` Fixed Smart Baseline, and `Ep 200..500` Active Training) now executes the exact same $K=20 \times 10\text{ strata} = 200\text{ samples/epoch}$ (`[4500..5500 µs]`) batch loop with full Hadamard perturbation bursts active on every stratum. Only `lr`, `reg_lambda`, and the baseline weight table change between phases, guaranteeing 100% identical EMC, capacitor refresh cadence, thermal load, and 200-sample statistical Loss/RMSE/ENOB measurement across all 500 epochs.
+
 ---
 
 ## 4. Virtual Gain & Virtual Attenuation Emulation Protocol (`[VIRTUAL_HARDWARE_EMULATION]`)
