@@ -514,7 +514,7 @@ static void maml_recompute_z_target(void) {
 
 static void maml_generate_new_white_noise_ref(void) {
     uint8_t d2_codes[6];
-    int32_t max_span = 45 / (int32_t)((g_d_line_div >= 1) ? g_d_line_div : 1u);
+    int32_t max_span = 80 / (int32_t)((g_d_line_div >= 1) ? g_d_line_div : 1u);
     if (max_span < 5) max_span = 5;
     uint32_t range = (uint32_t)(2 * max_span + 1);
 
@@ -596,9 +596,30 @@ static void maml_generate_new_white_noise_ref(void) {
         for (int i = 0; i < 6; i++) {
             mean_sum += val[i];
         }
-        int32_t mean_val = mean_sum / 6;
+        int32_t mean_val = (mean_sum >= 0) ? ((mean_sum + 3) / 6) : ((mean_sum - 3) / 6);
+        int32_t max_abs = 0;
         for (int i = 0; i < 6; i++) {
-            val[i] -= mean_val;
+            /* Subtract spatial DC mean (LayerNorm) and boost AC differential swing 6x
+             * to restore full [-80, +80] LSB dynamic range after high-rho Toeplitz filtering */
+            val[i] = (val[i] - mean_val) * 6;
+            int32_t a = (val[i] < 0) ? -val[i] : val[i];
+            if (a > max_abs) max_abs = a;
+        }
+        /* Proportional vector scaling so peak never exceeds max_span (+/-80 LSB)
+         * while strictly preserving zero-mean balance sum(x_i) == 0 */
+        if (max_abs > max_span && max_abs > 0) {
+            for (int i = 0; i < 6; i++) {
+                val[i] = (val[i] * max_span) / max_abs;
+            }
+        }
+        /* Final rounding-residual trim to guarantee net common-mode current ~ 0 */
+        int32_t rem_sum = 0;
+        for (int i = 0; i < 6; i++) {
+            rem_sum += val[i];
+        }
+        int32_t rem_mean = (rem_sum >= 0) ? ((rem_sum + 3) / 6) : ((rem_sum - 3) / 6);
+        for (int i = 0; i < 6; i++) {
+            val[i] -= rem_mean;
         }
     }
 

@@ -675,7 +675,7 @@ class MamlPostAnalysisGUI(QMainWindow):
 def main():
     parser = argparse.ArgumentParser(description="Injected FORWARD Propagation: Inverted MAML Post-Analysis GUI")
     parser.add_argument("json_path", nargs="?", default=None, help="Path to telemetry JSON file")
-    parser.add_argument("--data", "-d", dest="data_path", default=None, help="Alias for path to telemetry JSON file")
+    parser.add_argument("--data", "--file", "-d", "-f", dest="data_path", default=None, help="Alias for path to telemetry JSON file")
     parser.add_argument("--play", "-p", action="store_true", help="Auto-start animation on load")
     parser.add_argument("--speed", "-s", type=int, default=120, help="Animation speed in ms per frame (default 120)")
     args = parser.parse_args()
