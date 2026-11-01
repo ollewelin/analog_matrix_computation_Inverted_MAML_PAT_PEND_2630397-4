@@ -337,9 +337,13 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Fine-Grained Stiff-Spring Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG1024_LR0P08_REPORT_EN.pdf`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG1024_LR0P08_REPORT_EN.pdf)
     - **Fine-Grained Stiff-Spring Markdown:** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG1024_LR0P08_REPORT_EN.md`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG1024_LR0P08_REPORT_EN.md)
 
-  ![Inverted MAML Milestone 3: Full Temporal Window [4.5..5.5 ms] Aggregated Trajectory](FPGA_code/docs/figures/fig_mode_a_500ep_window_4p5to5p5ms_only_reg1024.png)
+  ![Inverted MAML Milestone 3: Full Temporal Window [4.5..5.5 ms] Aggregated Trajectory (LR=0.25, λ=1024)](FPGA_code/docs/figures/fig_mode_a_500ep_window_4p5to5p5ms_only_reg1024.png)
 
-  *Figure: Full temporal window [4.5 ms to 5.5 ms] aggregated trajectory on physical silicon across all 500 epochs (10 strata × K=20 = 200 Hadamard measurements/epoch). Activating closed-loop Mode A compensation at Epoch 200 immediately drops window quadratic loss by -20.9% to -25.2% and lifts full-window ENOB by +0.17 bits (>10σ significance).*
+  *Figure A: Full temporal window [4.5 ms to 5.5 ms] aggregated trajectory on physical silicon with higher learning rate (LR=0.25x, λ=1024, 10 strata × K=20 = 200 Hadamard measurements/epoch). Activating closed-loop Mode A compensation at Epoch 200 immediately drops window quadratic loss by -20.9% to -25.2% and lifts full-window ENOB by +0.17 bits (>10σ significance).*
+
+  ![Inverted MAML Milestone 3: Full Temporal Window [4.5..5.5 ms] Aggregated Trajectory (LR=0.08, λ=1024)](FPGA_code/docs/figures/fig_mode_a_500ep_window_4p5to5p5ms_only_reg1024_lr0p08.png)
+
+  *Figure B: Full temporal window [4.5 ms to 5.5 ms] trajectory with fine-grained learning rate and stiff spring (LR=0.08x, λ=1024). Demonstrates exceptionally smooth gradient steps, -19.5% to -24.6% window loss reduction, an ultra-sharp 8.33 bits ENOB peak at 5.0 ms, and complete prevention of weight rail saturation.*
 
 
 
