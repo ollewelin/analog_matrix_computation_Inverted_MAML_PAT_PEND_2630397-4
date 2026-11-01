@@ -39,6 +39,7 @@ from gui.udp_client import (
     MAML_CMD_BATCH_STEP,
     COLOR_LLM_TOEPLITZ,
 )
+from FPGA_code.scripts.verify_and_guard_version import ensure_version_guard
 
 LOG_DIR = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -95,14 +96,14 @@ def get_averaged_telemetry(client: MamlUdpClient, n_avg: int = 2) -> dict:
     }
 
 
-def evaluate_window_strata(client: MamlUdpClient, lr_inner_q16: int) -> dict:
-    """Evaluate generalization across all 10 strata across [4.5, 5.5] ms."""
+def evaluate_window_strata(client: MamlUdpClient, lr_inner_q16: int, strata_us_list: list[int]) -> dict:
+    """Evaluate generalization across all strata in the defined window."""
     strata_rmses = []
     strata_losses = []
     strata_enobs = []
     per_stratum_records = {}
 
-    for t_us in STRATA_10_US:
+    for t_us in strata_us_list:
         client.set_config(
             mode=0, jumper_mode=3, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
             inner_loop_n=100, seed_pct=28, seed_mode=1, w_hid_mag=0, trim_hid_mag=0,
@@ -125,6 +126,15 @@ def evaluate_window_strata(client: MamlUdpClient, lr_inner_q16: int) -> dict:
                 "loss_lsb2": round(l, 1),
                 "enob_bits": round(e, 2),
             }
+
+    # Always restore nominal 5.0 ms delay after sweeping strata
+    client.set_config(
+        mode=0, jumper_mode=3, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
+        inner_loop_n=100, seed_pct=28, seed_mode=1, w_hid_mag=0, trim_hid_mag=0,
+        hadamard_delay_us=5000,
+        lr_inner_q16=lr_inner_q16,
+    )
+    time.sleep(0.005)
 
     mean_rmse = float(np.mean(strata_rmses)) if strata_rmses else 0.0
     mean_loss = float(np.mean(strata_losses)) if strata_losses else 0.0
@@ -157,6 +167,8 @@ def main():
     print(f"Target: {args.host}:{args.port} | Epochs: {args.epochs} | Batch K: {args.k_batch} | LR: {args.lr:.2f}x")
     print(f"Window: [{args.t_min} .. {args.t_max}] µs ({args.num_strata} Strata) | L2 Reg: λ = {args.reg_lambda} | Spatial ρ: {args.rho:.2f}")
     print("=" * 84)
+
+    ensure_version_guard(host=args.host, port=args.port)
 
     client = MamlUdpClient(host=args.host, port=args.port, timeout=5.0)
 
@@ -191,8 +203,15 @@ def main():
     client.draw_fresh_vector()
     time.sleep(0.03)
 
+    # Compute dynamic strata sampling points
+    if args.num_strata > 1:
+        strata_us_list = [int(round(args.t_min + i * (args.t_max - args.t_min) / (args.num_strata - 1))) for i in range(args.num_strata)]
+    else:
+        strata_us_list = [args.t_min]
+    print(f"[*] Window Strata ({len(strata_us_list)} points): {strata_us_list}")
+
     t0 = get_averaged_telemetry(client, n_avg=2)
-    eval0 = evaluate_window_strata(client, lr_inner_q16)
+    eval0 = evaluate_window_strata(client, lr_inner_q16, strata_us_list)
 
     print(f"  Ep   0 [BASE 0   ]: Nominal 5ms: Loss={t0['loss_lsb2']:.1f} LSB² | RMSE={t0['rmse_lsb']:.2f} LSB | ENOB={t0['enob_bits']:.2f} b")
     print(f"                    Window Mean : Loss={eval0['mean_loss_lsb2']:.1f} LSB² | RMSE={eval0['mean_rmse_lsb']:.2f} LSB | ENOB={eval0['mean_enob_bits']:.2f} b | W8={t0['w8_diag']}")
@@ -228,7 +247,7 @@ def main():
             cur_reg = 0
             is_training = False
         elif ep < 200:
-            phase = "BASELINE_KNEE"
+            phase = "BASELINE_FIXED"
             cur_reg = 0
             is_training = False
         else:
@@ -239,7 +258,7 @@ def main():
         # Phase switchover triggers
         if ep == 100:
             print("=" * 105)
-            print(f">>> [EPOCH 100]: SMACKING ON KNEE BASELINE (±16 LSB) ON M3 & M8! (Training OFF)")
+            print(f">>> [EPOCH 100]: ACTIVATING CALIBRATED SMART BASELINE ON M3 & M8! (Training OFF)")
             print("=" * 105)
             client._send_binary(MAML_CMD_CENTER_WEIGHTS, struct.pack("<B", 1))
             client.set_regularization(0)
@@ -287,7 +306,7 @@ def main():
         # Evaluate window strata periodically or at key epochs
         do_full_eval = (ep % 20 == 0 or ep == 1 or ep == 99 or ep == 100 or ep == 199 or ep == 200 or ep == args.epochs)
         if do_full_eval:
-            eval_cur = evaluate_window_strata(client, lr_inner_q16)
+            eval_cur = evaluate_window_strata(client, lr_inner_q16, strata_us_list)
         else:
             # Interpolate / carry forward previous window evaluation
             eval_cur = {
@@ -347,11 +366,18 @@ def main():
     print(f"Final Nominal 5ms Loss: {records[-1]['loss_lsb2']:.1f} LSB² | Final Nominal ENOB: {records[-1]['enob_bits']:.2f} b | Final Window ENOB: {records[-1]['window_eval']['mean_enob_bits']:.2f} b")
     print("=" * 105)
 
-    # Save JSON log
-    out_json = LOG_DIR / "mode_a_500ep_broadened_4p5to5p5ms_k20_llm.json"
+    # Dynamic tag for window
+    if args.t_min == 4900 and args.t_max == 5100:
+        win_tag = "plateau_4p9to5p1ms"
+    elif args.t_min == 4500 and args.t_max == 5500:
+        win_tag = "broadened_4p5to5p5ms"
+    else:
+        win_tag = f"win_{args.t_min}to{args.t_max}us"
+
+    out_json = LOG_DIR / f"mode_a_500ep_{win_tag}_k{args.k_batch}_llm.json"
     full_output = {
         "metadata": {
-            "title": "500-Epoch Mode A Silicon Training: Broadened Temporal Window [4.5..5.5 ms] & K=20 Batch",
+            "title": f"500-Epoch Mode A Silicon Training: Window [{args.t_min}..{args.t_max} µs] & K={args.k_batch} Batch",
             "patent": "SE 2630397-4 (Open Science Hardware)",
             "date": time.strftime("%Y-%m-%d %H:%M:%S"),
             "epochs": args.epochs,
@@ -371,7 +397,7 @@ def main():
             "final_enob_bits": records[-1]["enob_bits"],
             "final_window_enob_bits": records[-1]["window_eval"]["mean_enob_bits"],
             "duration_sec": round(total_time, 1),
-            "sw_version": "v2.0-MAML",
+            "sw_version": "v2.2-MAML",
             "hw_version": "0x20261030",
         },
         "epochs": records,
@@ -382,11 +408,11 @@ def main():
     print(f"[+] Saved hardware telemetry dataset: {out_json}")
 
     # Generate 3-panel figure
-    fig_path = DOCS_DIR / "fig_mode_a_500ep_broadened_window_k20.png"
+    fig_path = DOCS_DIR / f"fig_mode_a_500ep_{win_tag}_k{args.k_batch}.png"
     generate_figure(records, full_output["metadata"], fig_path)
 
     # Copy to artifacts directory
-    artifact_fig = ARTIFACT_DIR / "fig_mode_a_500ep_broadened_window_k20.png"
+    artifact_fig = ARTIFACT_DIR / f"fig_mode_a_500ep_{win_tag}_k{args.k_batch}.png"
     try:
         import shutil
         shutil.copyfile(fig_path, artifact_fig)
@@ -417,8 +443,8 @@ def generate_figure(records: list[dict], meta: dict, out_path: Path):
     # Panel 1: Quadratic Loss
     ax1 = axes[0]
     ax1.plot(epochs, losses, color="#2563eb", linewidth=1.3, label="Nominal 5.0 ms Loss (LSB²)")
-    ax1.axvspan(0, 100, color="#f1f5f9", alpha=0.6, label="Phase 1: Baseline Zero (W=0 LSB)")
-    ax1.axvspan(100, 200, color="#fee2e2", alpha=0.5, label="Phase 2: Baseline Knee (W=±16 LSB)")
+    ax1.axvspan(0, 100, color="#f1f5f9", alpha=0.6, label="Phase 1: Baseline Zero (W=0 LSB, M33 Alone, Training OFF)")
+    ax1.axvspan(100, 200, color="#fee2e2", alpha=0.5, label="Phase 2: Calibrated Smart Baseline (Fixed DC, Training OFF)")
     ax1.axvspan(200, 500, color="#dcfce7", alpha=0.5, label="Phase 3: Active Training ON (K=20, 10 Strata, λ=512)")
     ax1.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
     ax1.set_title("Inverted MAML Silicon Training: Broadened Window [4.5..5.5 ms], K=20 Batch, LLM Toeplitz (ρ=0.85)", fontsize=12, fontweight="bold")

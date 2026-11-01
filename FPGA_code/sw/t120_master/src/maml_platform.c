@@ -62,19 +62,39 @@ static inline uint8_t off_to_dac_u8(int32_t off) {
     return (uint8_t)code;
 }
 
-/* Centered W_null reference for L2 regularization attractor:
- *   M3: optimal S-curve knee baseline [-16, -16, +16, +16, -16, +16]
- *   M8: optimal S-curve knee baseline [-16, -16, +16, +16, -16, +16] */
+/* Smart Calibrated 8-Row M3 & 7-Row M8 Baseline Tables (Step 1: Fixed Clock & Bias in S-Bend):
+ *   - M3 Rows 0..5 (Compute) : S-curve knee baseline {-16, -16, +16, +16, -16, +16} with ±24 LSB diagonal
+ *   - M3 Row 6 (Clock TRIM_B1): Fixed in linear S-bend {-16, -16, +16, +16, -16, +16} (~85 LSB ramp over 4.5-5.5ms, zero Col 4 fold-over)
+ *   - M3 Row 7 (Clock TRIM_REF): Fixed DC anchor {+16, +16, -16, -16, +16, -16}
+ *   - M8 Rows 0..5 (Vernier) : S-curve knee baseline {-16, -16, +16, +16, -16, +16} with ±20 LSB diagonal
+ *   - M8 Row 6 (Bias Row)    : Fixed S-curve center bias {0, +16, +16, -16, +16, -16} */
+static const int16_t k_smart_m3_lsb[8][6] = {
+    { -24, -16, +16, +16, -16, +16 }, /* Row 0 (Data 0) */
+    { -16, -24, +16, +16, -16, +16 }, /* Row 1 (Data 1) */
+    { -16, -16, +24, +16, -16, +16 }, /* Row 2 (Data 2) */
+    { -16, -16, +16, +24, -16, +16 }, /* Row 3 (Data 3) */
+    { -16, -16, +16, +16, -24, +16 }, /* Row 4 (Data 4) */
+    { -16, -16, +16, +16, -16, +24 }, /* Row 5 (Data 5) */
+    { -16, -16, +16, +16, -16, +16 }, /* Row 6 (Clock B1 330k - Fixed in S-bend) */
+    { +16, +16, -16, -16, +16, -16 }  /* Row 7 (Clock REF - Fixed DC balance) */
+};
+
+static const int16_t k_smart_m8_lsb[7][6] = {
+    { -20, -16, +16, +16, -16, +16 }, /* Row 0 */
+    { -16, -20, +16, +16, -16, +16 }, /* Row 1 */
+    { -16, -16, +20, +16, -16, +16 }, /* Row 2 */
+    { -16, -16, +16, +20, -16, +16 }, /* Row 3 */
+    { -16, -16, +16, +16, -20, +16 }, /* Row 4 */
+    { -16, -16, +16, +16, -16, +20 }, /* Row 5 */
+    {   0, +16, +16, -16, +16, -16 }  /* Row 6 (Bias Row - Fixed S-curve center) */
+};
+
 static inline int32_t maml_wnull_m3_q14(int r, int c) {
-    (void)r;
-    static const int16_t k_knee[6] = {-16, -16, 16, 16, -16, 16};
-    if (c >= 0 && c < 6) return (int32_t)(k_knee[c] << 7);
+    if (r >= 0 && r < 8 && c >= 0 && c < 6) return (int32_t)(k_smart_m3_lsb[r][c] << 7);
     return 0;
 }
 static inline int32_t maml_wnull_m8_q14(int r, int c) {
-    (void)r;
-    static const int16_t k_knee[6] = {-16, -16, 16, 16, -16, 16};
-    if (c >= 0 && c < 6) return (int32_t)(k_knee[c] << 7);
+    if (r >= 0 && r < 7 && c >= 0 && c < 6) return (int32_t)(k_smart_m8_lsb[r][c] << 7);
     return 0;
 }
 
@@ -1064,18 +1084,19 @@ static void maml_load_default_m33(void) {
 static void maml_calibrate_zero_baseline(void);
 static void maml_wait_10ms_refresh_tick(void);
 
-static uint8_t g_baseline_mode = 0u; /* 0 = zero baseline (W=0), 1 = optimal knee baseline (±16 LSB) */
+static uint8_t g_baseline_mode = 0u; /* 0 = zero baseline (W=0), 1 = smart calibrated 8-row baseline */
 
 static void maml_apply_baseline_weights(void) {
-    static const int16_t k_baseline_knee_lsb[6] = {-16, -16, 16, 16, -16, 16};
     for (int c = 0; c < 6; c++) {
-        int16_t val_lsb = (g_baseline_mode == 1u) ? k_baseline_knee_lsb[c] : 0;
-        int16_t val_q14 = (int16_t)(val_lsb << 7);
         for (int r = 0; r < 8; r++) {
+            int16_t val_lsb = (g_baseline_mode == 1u) ? k_smart_m3_lsb[r][c] : 0;
+            int16_t val_q14 = (int16_t)(val_lsb << 7);
             g_w0_m3_q14[r][c] = val_q14;
             g_w_m3_q14[r][c]  = val_q14;
         }
-        for (int r = 0; r < 6; r++) {
+        for (int r = 0; r < 7; r++) {
+            int16_t val_lsb = (g_baseline_mode == 1u) ? k_smart_m8_lsb[r][c] : 0;
+            int16_t val_q14 = (int16_t)(val_lsb << 7);
             g_w0_m8_q14[r][c] = val_q14;
             g_w_m8_q14[r][c]  = val_q14;
         }
@@ -1109,8 +1130,8 @@ static void maml_center_compensation_weights(void) {
     maml_generate_new_white_noise_ref();
 
     g_comp_is_centered = 1;
-    uint32_t settle_dly_us = (g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ?
-                             g_hadamard_delay_us : 5000u;
+    /* Always calibrate quiescent zero baseline at the nominal 5.0 ms (5000 us) window center */
+    uint32_t settle_dly_us = 5000u;
     /* Let the 100 nF gate capacitors settle at the exact 10.0 ms (100 Hz) cadence */
     for (int rep = 0; rep < 3; rep++) {
         maml_wait_10ms_refresh_tick();
@@ -1272,8 +1293,8 @@ static void maml_calibrate_zero_baseline(void) {
         }
     }
 
-    uint32_t settle_dly_us = (g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ?
-                             g_hadamard_delay_us : 5000u;
+    /* Always calibrate quiescent zero baseline at the nominal 5.0 ms (5000 us) window center */
+    uint32_t settle_dly_us = 5000u;
 
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
     for (int rep = 0; rep < 3; rep++) {
@@ -1647,10 +1668,10 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
     }
 
     /* Perform EXACTLY ONE weight update using the batch-averaged gradient.
-     * Note: In batch mode, gradients are pre-averaged over total_samples.
-     * rshift_rne with shift 8 provides proper single-step authority (Q7 weight units)
-     * so weights actively adapt across 200 epochs without double-attenuation underflow. */
-    for (int r = 0; r < 8; r++) {
+     * Step 1 Protocol: Update only the 6 regular compute rows (r = 0..5) of M3 and M8,
+     * keeping M3 Clock/Ref rows (r = 6, 7) and M8 Bias row (r = 6) strictly FIXED at their
+     * calibrated S-bend / S-center baseline weights! */
+    for (int r = 0; r < 6; r++) {
         for (int c = 0; c < 6; c++) {
             int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)total_samples);
             int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
@@ -1661,7 +1682,7 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
             g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
         }
     }
-    for (int r = 0; r < 7; r++) {
+    for (int r = 0; r < 6; r++) {
         for (int c = 0; c < 6; c++) {
             int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)total_samples);
             int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);

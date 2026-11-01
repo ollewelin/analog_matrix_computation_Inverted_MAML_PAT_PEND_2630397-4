@@ -324,4 +324,9 @@ def build_pdf(log_file: Path = LOG_FILE, pdf_path: Path = PDF_OUT):
 
 
 if __name__ == "__main__":
-    build_pdf()
+    import argparse
+    parser = argparse.ArgumentParser(description="Compile PDF report from Mode A experiment dataset")
+    parser.add_argument("--log-file", type=Path, default=LOG_FILE)
+    parser.add_argument("--pdf-out", type=Path, default=PDF_OUT)
+    args = parser.parse_args()
+    build_pdf(log_file=args.log_file, pdf_path=args.pdf_out)
