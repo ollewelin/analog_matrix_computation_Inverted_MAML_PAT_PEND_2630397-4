@@ -310,6 +310,25 @@ Working with analog computing is an act of balancing physics and precision. Very
   - **Markdown Analysis:** [`FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.md`](FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.md)
   - **Log Dataset:** [`FPGA_code/logs/llm_noise_campaign/mode_a_500ep_llm_toeplitz_rho85_reg512.json`](FPGA_code/logs/llm_noise_campaign/mode_a_500ep_llm_toeplitz_rho85_reg512.json)
 
+- **2026-11-01 (Major Breakthrough: Milestone 3 Achieved — 500-Epoch Broadened Temporal Window [4.5 – 5.5 ms] & Temporal Leakage Compensation):**
+  - **1. Objective & Physical Motivation:**
+    Standard analog compute matrices operate at a single fixed snapshot time. However, in continuous physical operation, 2T1C memory capacitors undergo natural voltage leakage over time (Patent Claim 8, Fig 6). **Milestone 3** evaluates whether the Proprioceptive Inverted MAML triad ($M_3 \to \text{Sigmoid 4} \to M_8$) and its dynamic clock reference rows (Rows 6 & 7 in $M_3$) can actively track and compensate this temporal capacitor leakage across an extended **1000 µs temporal discharge window ($4500\text{ µs}$ to $5500\text{ µs}$)** under continuous LLM Toeplitz In-Data ($\rho = 0.85$).
+  - **2. 100% Identical 200-Sample Hadamard Measurement Cadence:**
+    To ensure rigorous scientific comparability, every single epoch (0..500) executed the exact same 200-sample Hadamard-active batch across all 10 temporal strata ($10\text{ strata} \times K=20\text{ vectors} = 200\text{ samples/epoch}$):
+    - **Phase 1 (Epochs 0..99):** Baseline Zero ($W=0\text{ LSB}$, $\text{LR}=0, \lambda=0$, Full Hadamard ON) $\implies \text{Mean Window Loss } 69\,800.4\text{ LSB}^2$, Window ENOB $3.75\text{ bits}$.
+    - **Phase 2 (Epochs 100..199):** Calibrated Smart S-Bend Baseline ($\text{LR}=0, \lambda=0$, Full Hadamard ON) $\implies \text{Mean Window Loss } 74\,896.7\text{ LSB}^2$, Window ENOB $3.70\text{ bits}$.
+    - **Phase 3 (Epochs 200..500):** Active Mode A Training ON ($\text{LR}=0.25\times, \lambda=1024$, Full Hadamard ON) $\implies$ Window quadratic error dropped immediately by **$-20.9\%$ (sustained mean: $59\,233.1\text{ LSB}^2$)** and **$-25.2\%$ (minimum: $56\,013.5\text{ LSB}^2$ at Epoch 212)**, lifting full-window resolution to **$3.87\text{ bits}$ mean ($3.91\text{ bits}$ peak)** with $>10\sigma$ statistical significance!
+  - **3. Resolving the Single-Point (5.0 ms) vs. Full Window Trade-Off (Patent Fig 5 & 6):**
+    While the uncompensated $W=0$ baseline excels at the single $5.0\text{ ms}$ midpoint where it was calibrated ($6.02\text{ b}$ mean), it suffers severe error at earlier ($4.5\text{ ms}$) and later ($5.5\text{ ms}$) times due to RC discharge. Active closed-loop training learns a dynamic counter-slope across all 10 temporal strata simultaneously, suppressing temporal leakage across the entire millisecond while preserving a peak resolution of **$7.78\text{ bits}$ ENOB ($259.0\text{ LSB}^2$)** at $5.0\text{ ms}$ (Epoch 245).
+  - **4. Comprehensive 11-Page Publication Report:**
+    - **Full Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.pdf`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.pdf)
+    - **Markdown Analysis:** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.md`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.md)
+    - **Zenodo DOI:** [🔗 `10.5281/zenodo.23859108`](https://zenodo.org/records/23859108)
+
+  ![Inverted MAML Milestone 3: Full Temporal Window [4.5..5.5 ms] Aggregated Trajectory](FPGA_code/docs/figures/fig_mode_a_500ep_window_4p5to5p5ms_only_reg1024.png)
+
+  *Figure: Full temporal window [4.5 ms to 5.5 ms] aggregated trajectory on physical silicon across all 500 epochs (10 strata × K=20 = 200 Hadamard measurements/epoch). Activating closed-loop Mode A compensation at Epoch 200 immediately drops window quadratic loss by -20.9% to -25.2% and lifts full-window ENOB by +0.17 bits (>10σ significance).*
+
 
 
 #### Novel Hadamard Carrier Injection Circuit (Patent Pending Fig 8)
