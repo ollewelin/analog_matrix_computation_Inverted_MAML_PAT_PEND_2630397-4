@@ -237,3 +237,43 @@ Get ping working on **Architecture 1 (`FPGA_code/T120F324`)** while retaining it
    - `G+` and `G-` gate pins sit cleanly at `0 V` and pulse `3.3 V` for `50 µs` at `100 Hz` (one column and one polarity at a time).
    - Normal `1 MΩ` 2T1C cells exhibit a clean `100 Hz` RC sawtooth from `2.5 V` down to `2.1 V` across the `10 ms` hold window, and the `330 kΩ` Reference Cells exhibit the expected steeper RC sawtooth decay.
 
+
+---
+
+## 9. Dual-FPGA JTAG Programming Interlock & T20 Custom Single-Image Flash Verification (2026-11-02)
+
+### A. Symptom Observed During T20 SPI Flash Programming
+When programming T20 SPI Flash with `FPGA_code/T20_Custom/outflow/T20F256.hex` using Efinity Programmer in `SPI Active using JTAG Bridge` mode, the operation aborted with:
+```text
+Mon Nov 02 16:00:24 - FtdiProgram error: Device is in CONFIGURATION_FAIL state instead of user mode after programming JTAG Bridge Image!
+```
+Direct JTAG `.bit` configuration similarly reported `Failure to configure was detected`.
+
+### B. Root Cause
+On the PCB, T120 Master SoC and T20 Controller share dedicated inter-chip lines:
+- `T20_CLK9` (high-speed clock pumped from T120)
+- `T20_CRESET_CTRL` (Reset line driven by T120 pin G13 / LED1)
+- `S_TX` / `S_RX` (Inter-FPGA S-bus)
+- Hadamard sync lines.
+
+While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh loop continuously drives `CLK9` and S-bus frames into T20 every 10 ms. When Efinity Programmer downloads the helper bridge image `u00210A79_t20.bit` into T20's volatile SRAM, the external clock and reset transitions from T120 cause electrical/timing contention on T20's configuration controller, preventing `CDONE` assertion and triggering `CONFIGURATION_FAIL`.
+
+### C. Solution & Operational Sequence Verified
+1. Switched JTAG header to T120.
+2. Erased T120 SPI flash in Efinity Programmer.
+3. Power-cycled the board. T120 remained unconfigured on power-up (all I/Os tri-stated / floating with pull-ups, bus 100% silent).
+4. Swapped JTAG header to T20. Programmed `FPGA_code/T20_Custom/outflow/T20F256.hex` via `SPI Active using JTAG Bridge`. The JTAG bridge loaded cleanly and SPI flash programming succeeded at 6.0 MHz (678,650 bytes programmed).
+5. Swapped JTAG header to T120. Programmed `FPGA_code/T120F324/outflow/T120_MALM.hex` via `SPI Active using JTAG Bridge`.
+6. Power-cycled the board.
+
+### D. Verification on Physical Silicon
+- UDP query confirmed:
+  ```text
+  T120_SOC_ETH_FW v2.2-MAML (SW Build Nov  1 2026 18:57:15)
+  HW_LOGIC: 0x20261030 (ID=MAM1)
+  Status: T20 ONLINE [TAG=T20A, S-bus ACK 0x06]
+  ```
+- Telemetry confirmed zero missing Hadamard frames (`t20_h_ack_miss=0`, `t20_h_lat_last=19`).
+- Single-cell multiplier sweeps on physical silicon confirmed non-zero dynamic swing across M3, M8, and M33 (`delta_up_down != 0`).
+- Working bitstream archived permanently to `FPGA_code/releases/T20_Custom_Verified/` (`.hex`, `.bit`, `.bin`).
+- Obsolete Oct 10 prototype directory `FPGA_code/T20F256/` removed from repository.

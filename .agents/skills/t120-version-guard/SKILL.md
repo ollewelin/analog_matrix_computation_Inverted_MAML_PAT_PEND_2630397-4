@@ -62,3 +62,13 @@ print(f"Verified: HW {version_info['hw_version']}, SW {version_info['sw_version'
 - Queryable via ASCII UDP command `"VERSION"` on Port 5000.
 - Telemetry shadow registers reflect active `reg_lambda_q16` and compensation authority in real time.
 
+---
+
+## 5. Dual-FPGA Flashing Interlock (T120 & T20)
+
+When programming the secondary T20 controller via JTAG SPI Bridge:
+- T120's 100 Hz refresh loop continuously drives `CLK9`, `CRESET_N`, and S-bus traffic into T20, causing T20's JTAG bridge (`u00210A79_t20.bit`) to fail with `CONFIGURATION_FAIL`.
+- **MANDATORY RULE:** Always erase T120 SPI flash and power cycle before programming T20 SPI flash via JTAG.
+- For complete operational runbook and step-by-step instructions, see [`efinix-dual-fpga-programming`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/.agents/skills/efinix-dual-fpga-programming/SKILL.md).
+
+

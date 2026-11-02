@@ -4,6 +4,7 @@ For hardware board version 1.3.2, the following hardware fixes must be applied f
 
 Hardware Bug Fixes
 2026-09-30 (Critical): RDX2 goes to the CSI pin on the T120. If set to a pull-down, it forces JTAG into daisy-chain mode. Change this to a pull-up instead for single-mode JTAG.
+  - Note (v1.3.2 Errata): If the pull-down is simply desoldered without mounting a real pull-up, the pin is left floating. If T120 is running active Ethernet firmware while attempting to program T20 via JTAG, the floating CSI state combined with active bus activity can cause T20 JTAG bridge configuration to fail (`CONFIGURATION_FAIL`). Fixed in PCB v2.0 with dedicated pull-up resistors.
 2026-09-30 (Critical): LED1 resistor connects to the CSI pin on the T20. If set to a pull-down, it forces JTAG into daisy-chain mode. Change this to a pull-up instead for single-mode JTAG.
 2026-09-30: Missing input net: T120_CRESET_N.
 2026-10-07: Ethernet PHY magnetics center-tap: The 0-ohm resistor to GND should be replaced with a 10 nF capacitor to GND.
