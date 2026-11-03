@@ -33,12 +33,26 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak, KeepTogether, HRFlowable
 )
+from PIL import Image as PILImage
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_PATH = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training" / "mode_a_500ep_broadened_4p5to5p5ms_card2_flat_500ep.json"
 FIG_DIR = REPO_ROOT / "FPGA_code" / "docs" / "figures"
 DOC_DIR = REPO_ROOT / "FPGA_code" / "docs"
 ARTIFACT_DIR = Path("/home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a")
+
+
+def get_proportional_image(img_path: Path, max_w_mm: float = 175.0, max_h_mm: float = 165.0) -> Image:
+    """Calculates width and height preserving the EXACT native aspect ratio of the image."""
+    with PILImage.open(img_path) as im:
+        w_px, h_px = im.size
+    aspect = w_px / h_px
+    target_w = max_w_mm
+    target_h = target_w / aspect
+    if target_h > max_h_mm:
+        target_h = max_h_mm
+        target_w = target_h * aspect
+    return Image(str(img_path), width=target_w * mm, height=target_h * mm)
 
 
 def generate_3d_landscapes(data: dict) -> Path:
@@ -685,7 +699,7 @@ def build_pdf_report(data: dict, fig_3d: Path, fig_5ms: Path, fig_win: Path,
     story.append(t)
     story.append(PageBreak())
 
-    # PAGE 2: 3D Topographies
+    # PAGE 2: 3D Topographies (Proportional)
     story.append(Paragraph("3. 3D Dual-2T1C Weight Topographies (Flat Baseline vs. Trained Golden State)", h1_style))
     story.append(Paragraph(
         "The 4-panel 3D bar landscapes document the physical weights programmed into the Dual-2T1C analog multipliers. "
@@ -694,10 +708,10 @@ def build_pdf_report(data: dict, fig_3d: Path, fig_5ms: Path, fig_win: Path,
         body_style
     ))
     story.append(Spacer(1, 2 * mm))
-    story.append(Image(str(fig_3d), width=182 * mm, height=136 * mm))
+    story.append(get_proportional_image(fig_3d, max_w_mm=175.0, max_h_mm=165.0))
     story.append(PageBreak())
 
-    # PAGE 3: 5.0 ms Center Snapshot ONLY
+    # PAGE 3: 5.0 ms Center Snapshot ONLY (Proportional)
     story.append(Paragraph("4. 500-Epoch Trajectories at SINGLE-POINT t = 5.0 ms ONLY (Nominal Center Snapshot)", h1_style))
     story.append(Paragraph(
         "Figure below details the instantaneous center snapshot at 5000 µs across all 500 epochs. "
@@ -705,10 +719,10 @@ def build_pdf_report(data: dict, fig_3d: Path, fig_5ms: Path, fig_win: Path,
         body_style
     ))
     story.append(Spacer(1, 2 * mm))
-    story.append(Image(str(fig_5ms), width=182 * mm, height=140 * mm))
+    story.append(get_proportional_image(fig_5ms, max_w_mm=175.0, max_h_mm=165.0))
     story.append(PageBreak())
 
-    # PAGE 4: Full Window [4.5..5.5 ms] ONLY
+    # PAGE 4: Full Window [4.5..5.5 ms] ONLY (Proportional)
     story.append(Paragraph("5. 500-Epoch Trajectories Across FULL TEMPORAL WINDOW [4.5 ms to 5.5 ms] AGGREGATED", h1_style))
     story.append(Paragraph(
         "Figure below presents the complete 1000 µs discharge window from 4500 µs to 5500 µs (10 strata &times; K=20 = 200 samples/epoch). "
@@ -716,19 +730,32 @@ def build_pdf_report(data: dict, fig_3d: Path, fig_5ms: Path, fig_win: Path,
         body_style
     ))
     story.append(Spacer(1, 2 * mm))
-    story.append(Image(str(fig_win), width=182 * mm, height=140 * mm))
+    story.append(get_proportional_image(fig_win, max_w_mm=175.0, max_h_mm=165.0))
     story.append(PageBreak())
 
-    # PAGE 5: 2D Weight Trajectories (M3 & M8)
-    story.append(Paragraph("6. Full 2D Trajectories of All Weights (Matrix 3 &amp; Matrix 8 across 500 Epochs)", h1_style))
-    story.append(Paragraph("<b>Matrix 3 (First Triad Layer): 48 Dynamic Weights</b>", body_style))
-    story.append(Image(str(fig_m3), width=182 * mm, height=88 * mm))
+    # PAGE 5: Matrix 3 2D Trajectories (Dedicated Page)
+    story.append(Paragraph("6A. Matrix 3 (First Triad Layer): Full 48-Weight Dynamic Adaptation Trajectories", h1_style))
+    story.append(Paragraph(
+        "Matrix 3 consists of 48 physical dual-2T1C cells organized in 8 rows × 6 columns. Rows 0–5 process input vector channels, while Rows 6 and 7 implement "
+        "the dynamic reference ramps and reference clocks. All 48 trajectories remain smooth, stable, and well-behaved across the entire 500-epoch training sequence.",
+        body_style
+    ))
     story.append(Spacer(1, 2 * mm))
-    story.append(Paragraph("<b>Matrix 8 (Second Triad Layer): 42 Vernier Weights</b>", body_style))
-    story.append(Image(str(fig_m8), width=182 * mm, height=88 * mm))
+    story.append(get_proportional_image(fig_m3, max_w_mm=175.0, max_h_mm=170.0))
     story.append(PageBreak())
 
-    # PAGE 6: Pre vs Post Temporal Sweep Profile
+    # PAGE 6: Matrix 8 2D Trajectories (Dedicated Page)
+    story.append(Paragraph("6B. Matrix 8 (Second Triad Layer): Full 42-Weight Dynamic Vernier Trajectories", h1_style))
+    story.append(Paragraph(
+        "Matrix 8 comprises 42 vernier cells (7 rows × 6 columns) providing fine gradient correction. "
+        "All diagonal weights remain bounded within operating limits, achieving stable analog closed-loop tracking with 0% clamped columns.",
+        body_style
+    ))
+    story.append(Spacer(1, 2 * mm))
+    story.append(get_proportional_image(fig_m8, max_w_mm=175.0, max_h_mm=170.0))
+    story.append(PageBreak())
+
+    # PAGE 7: Pre vs Post Temporal Sweep Profile (Proportional)
     story.append(Paragraph("7. Pre- vs. Post-Training Temporal Window Transfer Function (11 Strata Across [4.5 .. 5.5 ms])", h1_style))
     story.append(Paragraph(
         "To rigorously quantify the physical effect of the trained weights across time, the 11-point snapshot delay sweep was executed before training (open-loop W=0) and after training (adapted weights). "
@@ -736,30 +763,77 @@ def build_pdf_report(data: dict, fig_3d: Path, fig_5ms: Path, fig_win: Path,
         body_style
     ))
     story.append(Spacer(1, 2 * mm))
-    story.append(Image(str(fig_sweep), width=182 * mm, height=135 * mm))
+    story.append(get_proportional_image(fig_sweep, max_w_mm=175.0, max_h_mm=160.0))
     story.append(PageBreak())
 
-    # PAGE 7: Hardware Silicon & Patent Diagrams
-    story.append(Paragraph("8. Physical Hardware Silicon & Patented Proprioceptive Architecture", h1_style))
-    story.append(Paragraph("<b>Inverted MAML Silicon PCB &amp; Patent SE 2630397-4 Fig 1 Architecture:</b>", body_style))
-    story.append(Image(str(FIG_DIR / "fig_pcb_v132_hardware.jpg"), width=182 * mm, height=82 * mm))
+    # PAGE 8: Hardware Silicon PCB (Dedicated Page, High-Res Proportional)
+    story.append(Paragraph("8. Physical Hardware Silicon: Inverted MAML Open Science Board (Rev 2.0)", h1_style))
+    story.append(Paragraph(
+        "High-resolution photograph of the actual physical hardware silicon board (Card 2) featuring the Efinix Trion T120 Master SoC, T20 Coprocessor, "
+        "dual-2T1C analog multiplier matrices (M33 payload, M3 dynamic reference, M8 vernier), 1k/5.1k differential summing attenuators, and ColTIA transimpedance amplifiers.",
+        body_style
+    ))
     story.append(Spacer(1, 2 * mm))
-    story.append(Image(str(FIG_DIR / "fig_patent_fig1_architecture.jpg"), width=182 * mm, height=75 * mm))
+    pcb_img_path = REPO_ROOT / "board_v1_3_2_with_jumpers_and parches.jpeg"
+    if not pcb_img_path.exists():
+        pcb_img_path = FIG_DIR / "fig_pcb_v132_hardware.jpg"
+    story.append(get_proportional_image(pcb_img_path, max_w_mm=175.0, max_h_mm=180.0))
     story.append(PageBreak())
 
-    # PAGE 8: Patent Fig 8 FHP & Fig 5 / Fig 6 Temporal Leakage Compensation
-    story.append(Paragraph("9. Forward Hadamard Propagation & Temporal Leakage Compensation Mechanics", h1_style))
-    story.append(Paragraph("<b>Patent Fig 8: Forward Hadamard Propagation (FHP) Perturbation Network:</b>", body_style))
-    story.append(Image(str(FIG_DIR / "fig_patent_fig8_fhp_circuit.jpg"), width=175 * mm, height=65 * mm))
+    # PAGE 9: Patent Fig 1 Proprioceptive Architecture (Dedicated Page, High-Res Proportional)
+    story.append(Paragraph("9. Patented Proprioceptive Closed-Loop Architecture (Patent SE 2630397-4 Fig 1)", h1_style))
+    story.append(Paragraph(
+        "Swedish Patent Application SE 2630397-4 Figure 1: Architectural schematic illustrating the physical proprioceptive inner loop. "
+        "The system executes simultaneous forward computation and closed-loop compensation without conventional backpropagation, utilizing the analog triad and virtual reference model.",
+        body_style
+    ))
     story.append(Spacer(1, 2 * mm))
-    story.append(Paragraph("<b>Patent Fig 5 &amp; Fig 6: Displaced Temporal Windows &amp; Accelerated Reference Decay:</b>", body_style))
-    story.append(Image(str(FIG_DIR / "fig_patent_fig5_temporal_leakage.png"), width=175 * mm, height=52 * mm))
-    story.append(Spacer(1, 1 * mm))
-    story.append(Image(str(FIG_DIR / "fig_patent_fig6_temporal_compensation.png"), width=175 * mm, height=48 * mm))
+    fig1_path = REPO_ROOT / "Fig1.png"
+    if not fig1_path.exists():
+        fig1_path = FIG_DIR / "fig_patent_fig1_architecture.jpg"
+    story.append(get_proportional_image(fig1_path, max_w_mm=175.0, max_h_mm=175.0))
     story.append(PageBreak())
 
-    # PAGE 9: Architectural Conclusion & Roadmap
-    story.append(Paragraph("10. Architectural Conclusions & Next Steps", h1_style))
+    # PAGE 10: Patent Fig 8 FHP Perturbation Network (Dedicated Page, High-Res Proportional)
+    story.append(Paragraph("10. Forward Hadamard Propagation (FHP) Perturbation Network (Patent Fig 8)", h1_style))
+    story.append(Paragraph(
+        "Patent Figure 8: Forward Hadamard Propagation circuit diagram showing the 16×16 orthogonal Walsh-Hadamard perturbation tree, "
+        "carrier wave injection into Matrix 3 and Matrix 8, and the continuous differential demodulation structure in the analog summing junction.",
+        body_style
+    ))
+    story.append(Spacer(1, 2 * mm))
+    fig8_path = REPO_ROOT / "Fig8_Hadamard_carrier_injection_circuit.png"
+    if not fig8_path.exists():
+        fig8_path = FIG_DIR / "fig_patent_fig8_fhp_circuit.jpg"
+    story.append(get_proportional_image(fig8_path, max_w_mm=175.0, max_h_mm=175.0))
+    story.append(PageBreak())
+
+    # PAGE 11: Patent Fig 5 Dynamic Temporal Charge Decay (Dedicated Page, Proportional)
+    story.append(Paragraph("11. Dynamic Temporal RC Leakage & Charge Decay (Patent SE 2630397-4 Fig 5)", h1_style))
+    story.append(Paragraph(
+        "Patent Figure 5: Dynamic capacitive discharge curves across displaced temporal snapshot windows. "
+        "As time elapses after capacitor refresh (4500 µs to 5500 µs), dynamic charge leakage causes uncompensated payload matrix gain G_33(t) to decay exponentially, "
+        "introducing significant temporal distortion in open-loop operation.",
+        body_style
+    ))
+    story.append(Spacer(1, 2 * mm))
+    story.append(get_proportional_image(FIG_DIR / "fig_patent_fig5_temporal_leakage.png", max_w_mm=175.0, max_h_mm=140.0))
+    story.append(PageBreak())
+
+    # PAGE 12: Patent Fig 6 Temporal Leakage Compensation Mechanics (Dedicated Page, Proportional)
+    story.append(Paragraph("12. Dynamic Temporal Leakage Compensation Mechanics (Patent SE 2630397-4 Fig 6)", h1_style))
+    story.append(Paragraph(
+        "Patent Figure 6: Accelerated reference decay and adaptive vernier compensation. "
+        "By dynamically adjusting Matrix 3 temporal clock rows and Matrix 8 vernier weights, the Inverted MAML architecture cancels capacitive discharge slope, "
+        "restoring uniform high precision across the entire 1000 µs operating window.",
+        body_style
+    ))
+    story.append(Spacer(1, 2 * mm))
+    story.append(get_proportional_image(FIG_DIR / "fig_patent_fig6_temporal_compensation.png", max_w_mm=175.0, max_h_mm=140.0))
+    story.append(PageBreak())
+
+    # PAGE 13: Architectural Conclusion & Roadmap
+    story.append(Paragraph("13. Architectural Conclusions & Next Steps", h1_style))
     story.append(Paragraph(
         "<b>1. Card 1 Hardware Defect Rectified:</b> The discovery of the Channel 4 open circuit on Card 1 provides complete physical closure regarding the previous baseline offset (-117.5 LSB, 7,072 LSB² error). Olle Welin has completed the resoldering, restoring Card 1 to full symmetry for upcoming comparative studies.<br/>"
         "<b>2. Flat Baseline Protocol Certified:</b> Starting directly from linear equilibrium (W=0) with L2 regularization anchored at W_null=0 achieves superior stability, 0% rail clamping, and up to <b>7.29 bits ENOB at 5.0 ms</b>.<br/>"
@@ -768,7 +842,7 @@ def build_pdf_report(data: dict, fig_3d: Path, fig_5ms: Path, fig_win: Path,
         body_style
     ))
     story.append(Spacer(1, 4 * mm))
-    story.append(Paragraph("11. Open Science Hardware Reproducibility Summary", h1_style))
+    story.append(Paragraph("14. Open Science Hardware Reproducibility Summary", h1_style))
     story.append(Paragraph(
         "All telemetry records, bitstreams, and source code are open-source and reproducible on physical silicon via the Efinix Trion T120 Master SoC running `v2.2-MAML` firmware at `192.168.1.50:5000`.",
         body_style

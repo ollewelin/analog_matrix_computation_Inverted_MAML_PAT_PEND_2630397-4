@@ -102,15 +102,15 @@ Following Lead Engineer Olle Welin's directive, this experiment tested the hypot
 ## 8. Physical Hardware Silicon & Architecture
 
 ### Inverted MAML Silicon PCB & Patent SE 2630397-4 Architecture
-![Hardware Silicon](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_pcb_v132_hardware.jpg)
+![Hardware Silicon](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/board_v1_3_2_with_jumpers_and parches.jpeg)
 
-![Patent Fig 1 Architecture](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_patent_fig1_architecture.jpg)
+![Patent Fig 1 Architecture](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/Fig1.png)
 
 ---
 
 ## 9. Forward Hadamard Propagation & Temporal Leakage Compensation Mechanics
 
-![Patent Fig 8 FHP](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_patent_fig8_fhp_circuit.jpg)
+![Patent Fig 8 FHP](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/Fig8_Hadamard_carrier_injection_circuit.png)
 
 ![Patent Fig 5 Temporal Leakage](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_patent_fig5_temporal_leakage.png)
 
