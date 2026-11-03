@@ -331,3 +331,33 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
 
 
 
+
+---
+
+## 2026-11-03 19:48 CET: Card 2 Broadened Window [4.5..5.5 ms] with Fine-Grained LR (0.08x), Stiff Regularization (λ = 1024), and Full Dynamic Swing (±80 LSB)
+
+### A. Experimental Protocol
+- **Target Hardware:** Card 2 (Rev 2.0 Silicon, 1k/5.1k summing attenuators, repaired Channel 3).
+- **Architecture:** Flat Baseline Protocol ($W=0, W_{\text{null}}=0$).
+- **Hyperparameter Tuning (Olle Welin directive):**
+  - $\text{LR} = 0.08\text{x}$ (fine-grained steps, $3.1\times$ smaller than prior $0.25\text{x}$).
+  - $\lambda = 1024$ (stiff restoring spring, $2\times$ stronger than prior $512$).
+  - Full input excitation: $\pm 80\text{ LSB}$ swing (`--d-line 1`, $+12.9\text{ dB}$ higher signal energy).
+- **Measurement Cadence:** 10 strata $\times K=20$ vectors $= 200$ physical Hadamard demodulations per epoch across $[4500\dots 5500]\,\mu\text{s}$.
+
+### B. Empirical Silicon Findings
+1. **Total Immunity to Weight Drift:**
+   - In Run 1 ($\text{LR}=0.25\text{x}, \lambda=512$), Channel 2 drifted up to $+88\text{ LSB}$.
+   - Under the stiffer $\lambda=1024$ spring, **all diagonal weights remained strictly bound within $\pm 45\text{ LSB}$** ($W_8 = [-1, -33, -14, -45, +30, -6]\text{ LSB}$).
+   - $0\%$ clamping across all columns and 100% linear triode margin.
+2. **Full Dynamic Swing Resolution:**
+   - Open-loop baseline ($W=0$, Ep 0..99): Window mean loss $= 96\,135.9\text{ LSB}^2$ ($3.52\text{ bits}$).
+   - Active training (Ep 100..500): Window mean loss suppressed to **$75\,795.0\text{ LSB}^2$** ($-21.2\%$), with best window loss of **$57\,128.0\text{ LSB}^2$** ($3.89\text{ bits}$ ENOB at Ep 191).
+   - Single-point $5.0\,\text{ms}$ snapshot reached **$547.5\text{ LSB}^2$ ($7.24\text{ bits}$ ENOB at Ep 164)**.
+3. **Decisive Late-Window Flattening:**
+   - At $5300\,\mu\text{s}$: Pre $= 52\,635\text{ LSB}^2 \to$ Post $= 16\,573\text{ LSB}^2$ (**$-68.5\%$ error drop, $4.82\text{ bits}$ ENOB**).
+   - At $5400\,\mu\text{s}$: Pre $= 76\,505\text{ LSB}^2 \to$ Post $= 34\,556\text{ LSB}^2$ (**$-54.8\%$ error drop, $4.26\text{ bits}$ ENOB**).
+   - At $5500\,\mu\text{s}$: Pre $= 109\,795\text{ LSB}^2 \to$ Post $= 47\,735\text{ LSB}^2$ (**$-56.5\%$ error drop, $4.02\text{ bits}$ ENOB**).
+4. **Documentation & Artifacts:**
+   - Publication PDF compiled: `FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING80_REPORT_EN.pdf` (9 pages).
+   - Publication Markdown: `FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING80_REPORT_EN.md`.
