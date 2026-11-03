@@ -106,7 +106,34 @@ The term $\lambda \cdot (W_t - W_{\text{base}})$ is a physical restoring force, 
 
 ---
 
-## 5. The Empirical Evidence: Card 2 ($3.9\text{ k}\Omega$ vs $5.1\text{ k}\Omega$)
+## 5. The Fallacy of the Sigmoid Knee Pre-Bias ("S-Böjarna") vs. Flat Equilibrium ($W_{\text{null}} = 0$)
+
+A widespread theoretical misconception in early analog neural network modeling was the idea of **pre-biasing the multiplier weights into the "knee" or inflection bend of the sigmoid activation function** ($W = \pm 16\text{ LSB}$):
+
+### A. The Theoretical Trap:
+The digital intuition argued that because a neural network requires non-linearity, the weights should be statically biased into the non-linear curvature ("S-böjarna") of Sigmoid 4 to maximize non-linear expressivity.
+
+### B. What Physical Silicon Revealed:
+1. **Catastrophic Dynamic Range Destruction:**  
+   When the auxiliary network was pre-biased into the sigmoid knee ($W = \pm 16\text{ LSB}$ in the legacy Phase 2 protocol), the multiplier cells injected massive unbalanced DC currents directly into the ColTIA summing junctions. Quiescent loss exploded to **$209\,323\text{ LSB}^2$ ($2.95\text{ bits ENOB}$)**!
+2. **The Perverted L2 Anchor:**  
+   Anchoring L2 regularization to that knee baseline ($W_{\text{base}} = W_{\text{knee}}$) meant that the regularizer's "rubber band" was continuously pulling the weights back into the high-distortion, saturated bend, actively fighting gradient descent.
+3. **Vanishing Gradient in the Saturation Tails:**  
+   By pushing the quiescent operating point toward the knee, dynamic signals immediately clipped against the asymptotic tails of the sigmoid where transconductance collapses ($d\sigma/dv \rightarrow 0$), paralyzing the demodulation engine.
+
+### C. The Breakthrough: True Linear Center ($W_{\text{null}} = 0$)
+Following Lead Engineer Olle's directive to eliminate the artificial knee perturbation and anchor the system at a **completely flat baseline ($W = 0$, $W_{\text{null}} = 0$)**, physical silicon delivered its cleanest, most stable performance:
+* **Maximal Symmetric Transconductance:** At $v \approx 0$, the sigmoid exhibits its maximum slope ($d\sigma/dv = 0.25$), providing the highest possible analog sensitivity without pre-biasing into compression.
+* **Maximum Headroom in Both Polarities:** Zero quiescent offset preserves the full $\pm 750\text{ LSB}$ linear dynamic range of the $5.1\text{ k}\Omega$ attenuator.
+* **Empirical Validation:** Initiating active training directly from $W=0$ with L2 regularizing toward $W_{\text{null}} = 0$ produced a **$-55.7\%$ whole-phase error reduction** (from $2\,937.2\text{ LSB}^2$ / $6.05\text{ b}$ down to $1\,300.7\text{ LSB}^2$ / $6.71\text{ b}$), reaching all-time records of **$8.26\dots 8.77\text{ bits ENOB}$**.
+
+> **Cardinal Rule for Analog Neural Networks:**  
+> **NEVER pre-bias the quiescent state into the sigmoid knees or S-bends.**  
+> Anchor the baseline and L2 regularizer strictly at the **symmetric linear zero center ($W_{\text{null}} = 0$)**, and let the adaptive loop dynamically generate non-linear trim currents only when demanded by real-time errors!
+
+---
+
+## 6. The Empirical Evidence: Card 2 ($3.9\text{ k}\Omega$ vs $5.1\text{ k}\Omega$)
 
 The recent 20-run campaign on Card 2 provided dramatic confirmation of this physics:
 
@@ -119,7 +146,7 @@ The recent 20-run campaign on Card 2 provided dramatic confirmation of this phys
 
 ---
 
-## 6. The Complete Engineering Recipe for Stable Analog Convergence
+## 7. The Complete Engineering Recipe for Stable Analog Convergence
 
 To achieve sub-LSB convergence in physical analog neural networks, the following architectural rules must be strictly adhered to:
 
