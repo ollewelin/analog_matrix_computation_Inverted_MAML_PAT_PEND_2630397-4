@@ -404,3 +404,33 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 #   * PDF:  FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING80_REPORT_EN.pdf (9 sidor)
 #   * MD:   FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING80_REPORT_EN.md
 # ==============================================================================
+
+
+# ==============================================================================
+# DATUM: 2026-11-03 20:35 CET
+# HÅRDVARUKÖRNING SLUTFÖRD: 500 Epoker Breddade Fönster [4.5..5.5 ms] på Kort 2
+# Fintrimmad LR (0.08x), Styv Regularisering (lambda=1024) & Linjärt Sving (±40 LSB)
+# ==============================================================================
+# - Hårdvarukörning genomförd på Kort 2 (Rev 2.0 Silicon, 1k/5.1k attenuator, lagad CH3).
+# - Parametrar baserade på Olle Welins direktiv:
+#   * LR = 0.08x, L2-regularisering lambda = 1024.
+#   * In-data linjärt sving ±40 LSB (d_line=2).
+#   * Platt baslinjeprotokoll (W=0 start).
+# - Resultat:
+#   * Projektbästa medelfel över hela fönstret: 50 646.0 LSB² (3.98 bitar ENOB)!
+#     Slår Körning 1 (55 349.1 LSB²) och Körning 2 (75 795.0 LSB²).
+#   * Bästa enskilda epok nådde 43 147.2 LSB² (4.10 bitar ENOB vid Epok 186).
+#   * Slutvikter M8: [-2, -39, -5, -24, -2, -1] LSB — maximal vikt endast 39 LSB, noll klamping!
+#   * Pre- vs Post-sweep:
+#     - Vid 5100 us: 29 288 -> 2 901 LSB² (-90.1% felminskning, 6.04 bitar ENOB).
+#     - Vid 5300 us: 86 789 -> 17 544 LSB² (-79.8% felminskning, 4.75 bitar ENOB).
+#     - Vid 5400 us: 130 923 -> 37 981 LSB² (-71.0% felminskning, 4.19 bitar ENOB).
+# - Fysikalisk analys ±40 vs ±80 LSB:
+#   * Både matematisk skalning (11.0 - log2(RMSE) vid halverad LSB-avvikelse ger +1.0 bit)
+#     OCH äkta kisel-fördel (triodområdet I_d ~ (V_gs-V_th)*V_ds - 0.5*V_ds² minimerar
+#     den olinjära distorsionstermen -0.5*V_ds² och ColTIA-opampens strömbelastning).
+# - Genererade filer och publikationsrapporter:
+#   * JSON: FPGA_code/logs/mode_a_extended_training/mode_a_500ep_broadened_4p5to5p5ms_card2_flat_lr0p08_reg1024_swing40.json
+#   * PDF:  FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING40_REPORT_EN.pdf (14 sidor, proportionella figurer, Epok 300)
+#   * MD:   FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING40_REPORT_EN.md
+# ==============================================================================

@@ -361,3 +361,30 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
 4. **Documentation & Artifacts:**
    - Publication PDF compiled: `FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING80_REPORT_EN.pdf` (9 pages).
    - Publication Markdown: `FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING80_REPORT_EN.md`.
+
+---
+
+## 2026-11-03 20:35 CET: Card 2 Broadened Window [4.5..5.5 ms] with LR=0.08x, λ=1024, and ±40 LSB Linear Swing (Run 3)
+
+### A. Experimental Protocol
+- **Target Hardware:** Card 2 (Rev 2.0 Silicon, 1k/5.1k summing attenuators, repaired Channel 3).
+- **Hyperparameters:** $\text{LR} = 0.08\text{x}$, $\lambda = 1024$, Input swing $\pm 40\text{ LSB}$ (`--d-line 2`).
+- **Standardized Visualization:** Epoch 300 reference for 3D weight landscapes, native aspect ratios preserved across 14-page publication report.
+
+### B. Empirical Silicon Findings & 3-Run Comparison
+1. **New All-Time Record Full-Window Performance:**
+   - Phase 2 mean window loss dropped to **$50\,646.0\text{ LSB}^2$ ($3.98\text{ bits}$ ENOB)**.
+   - Outperforms Run 1 ($55\,349.1\text{ LSB}^2, 3.92\text{ b}$) and Run 2 ($75\,795.0\text{ LSB}^2, 3.69\text{ b}$).
+   - Peak window epoch reached **$43\,147.2\text{ LSB}^2$ ($4.10\text{ bits}$ ENOB)** at Epoch 186.
+2. **Drift Immunity & Linear Margins:**
+   - Final M8 Diagonal Weights at Epoch 500: $[-2, -39, -5, -24, -2, -1]\text{ LSB}$.
+   - Max weight is only $39\text{ LSB}$ (compared to $+88\text{ LSB}$ in Run 1), with 0% clamping and massive headroom.
+3. **Exceptional Late-Window Flattening:**
+   - At $5100\,\mu\text{s}$: Pre $= 29\,288\text{ LSB}^2 \to$ Post $= 2\,901\text{ LSB}^2$ (**$-90.1\%$ error collapse, $6.04\text{ bits}$ ENOB**).
+   - At $5300\,\mu\text{s}$: Pre $= 86\,789\text{ LSB}^2 \to$ Post $= 17\,544\text{ LSB}^2$ (**$-79.8\%$ error collapse, $4.75\text{ bits}$ ENOB**).
+   - At $5400\,\mu\text{s}$: Pre $= 130\,923\text{ LSB}^2 \to$ Post $= 37\,981\text{ LSB}^2$ (**$-71.0\%$ error collapse, $4.19\text{ bits}$ ENOB**).
+4. **Physical Analysis: $\pm 40\text{ LSB}$ vs $\pm 80\text{ LSB}$**:
+   - Both mathematical scaling ($\text{ENOB} = 11.0 - \log_2(\text{RMSE})$ awards $+1.0\text{ bit}$ when absolute error scales proportionally with signal) AND physical silicon advantages (strictly operating in the linear triode region where quadratic distortion $-\frac{1}{2}V_{ds}^2$ is negligible and ColTIA current summing stays uncompressed) contribute to the result.
+5. **Documentation & Artifacts:**
+   - Publication PDF compiled: `FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING40_REPORT_EN.pdf` (14 pages, uncompressed proportional schematics & photos).
+   - Publication Markdown: `FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING40_REPORT_EN.md`.
