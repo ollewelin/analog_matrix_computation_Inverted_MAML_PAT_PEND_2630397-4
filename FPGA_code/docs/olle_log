@@ -327,10 +327,28 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 #   (inklusive Milestone 2-körningen kl 06:20 där Fas 1 gav 10 608 LSB² och 5.13 bitar) 
 #   var alltså VÄLDIGT FELAKTIGA och missvisande, eftersom Kanal 4 ensam orsakade 
 #   7 072 LSB² i fel p.g.a. ett DC-offset på -117.5 LSB från avbrottet!
-# - Åtgärd:
-#   Kanal 4 på Kort 1 ska lödas om med nytt 0402 5.1k-motstånd. När lödningen är 
-#   åtgärdad kommer även Kort 1 att nå en öppen loop-baslinje på >6.5 bitar och 
-#   kunna jämföras rättvist mot det nu lagade Kort 2.
+# - Åtgärd & Status:
+#   Kanal 4 på Kort 1 har nu lötts om av Olle Welin (0402 5.1k-motståndet).
+#   Lödningen är fixad men hårdvaran är ÄNNU EJ TESTAD på testriggen.
+#   Tester på Kort 1 genomförs efter att planerade tester på Kort 2 är slutförda.
 # ==============================================================================
+
+
+# ==============================================================================
+# DATUM: 2026-11-03 18:44 CET
+# RAPPORT: Inverted MAML Platt Baslinje (W=0) PDF Genererad för Kort 2
+# ==============================================================================
+# - Publikationsfärdig 2-sidig vetenskaplig PDF-rapport genererad:
+#   FPGA_code/docs/INVERTED_MAML_CARD2_FLAT_BASELINE_EXPERIMENT_REPORT.pdf
+# - Dokumenterar det banbrytande experimentet där vi eliminerade knä-störningen 
+#   (tidigare 209 000 LSB²) och startade aktiv träning direkt från jämvikt W=0 
+#   med L2 förankrad vid W_null=0 (lambda=512):
+#   * Hel-fas medelfel sjönk från 2937.2 LSB² (6.05 bitar) till 1300.7 LSB² (6.71 bitar).
+#   * Kontinuerlig felminskning på -55.7% och +0.66 bitar ENOB över alla 401 tränade epoker.
+#   * Topp-prestanda nådde 133.9 LSB² (8.26 bitar ENOB) vid epok 454.
+#   * Slutvikter konvergerade till finjusterande analoga trimströmmar:
+#     M8 = [-2, +4, -1, -1, +11, -4] LSB.
+# ==============================================================================
+
 
 

@@ -284,11 +284,24 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
 
 ### A. Observation & Physical DMM Verification
 - Telemetric analysis of Card 1's quiescent baseline from the Nov 3 06:20 golden run revealed that Channel 4 (index 4) had an isolated DC error of $-117.5\text{ LSB}$, contributing $7\,072\text{ LSB}^2$ out of the total $10\,608.8\text{ LSB}^2$ Phase 1 loss.
-- Lead Engineer Olle Welin probed Card 1 with a digital multimeter and **physically confirmed an open circuit on the 0402 $5.1\text{ k}\Omega$ series summing attenuator resistor on Channel 4**.
+- Lead Engineer Olle Welin probed Card 1 with a digital multimeter and **physically confirmed an open circuit on the 0402 $5.1\text{ k}\Omega$ series summing attenuator resistor on Channel 4** (poor solder joint).
 
 ### B. Scientific & Architectural Impact
 - **All previous 1k/5.1k measurements on Card 1 are invalid / severely skewed:** The baseline measurements conducted on Card 1 (including Milestone 2 06:20) operated with an open circuit on Channel 4. 
 - The fact that Card 1 still converged and reached an apparent $7.73\text{ bits}$ at Epoch 437 was achieved with only 5 functioning compensation channels.
 - When Channel 4 on Card 1 is resoldered, Card 1's quiescent Phase 1 accuracy will rise from $5.13\text{ bits}$ to $>6.5\text{ bits}$, achieving the same symmetry as the newly repaired Card 2.
-- **Action Item:** Resolder 0402 $5.1\text{ k}\Omega$ resistor on Card 1 Channel 4 prior to comparative benchmarking.
+
+### C. Repair Status: Fixed but Not Tested
+- **Hardware Repair Completed:** Olle Welin has physically resoldered the 0402 $5.1\text{ k}\Omega$ resistor on Channel 4 on Card 1.
+- **Current Status:** Solder joint fixed, but **not yet tested** on the test bench / FPGA setup.
+- Testing on Card 1 will be scheduled after completing the planned tests on Card 2 (4.5–5.5 ms delay sweep and live thermal disturbance rejection).
+
+---
+
+## 2026-11-03 18:44 CET: Publication PDF Generated for Card 2 Flat Baseline Experiment
+
+- Compiled publication-quality 2-page report: `FPGA_code/docs/INVERTED_MAML_CARD2_FLAT_BASELINE_EXPERIMENT_REPORT.pdf`
+- Validated complete elimination of legacy Phase 2 knee disturbance ($209\,000\text{ LSB}^2$).
+- Verified whole-phase loss reduction of $-55.7\%$ (from $2\,937.2$ down to $1\,300.7\text{ LSB}^2$), $+0.66\text{ bits}$ ENOB improvement across all 401 active training epochs, and peak performance of $8.26\text{ bits}$ ($133.9\text{ LSB}^2$).
+
 
