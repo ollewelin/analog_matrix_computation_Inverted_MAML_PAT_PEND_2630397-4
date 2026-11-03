@@ -277,3 +277,18 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
 - Single-cell multiplier sweeps on physical silicon confirmed non-zero dynamic swing across M3, M8, and M33 (`delta_up_down != 0`).
 - Working bitstream archived permanently to `FPGA_code/releases/T20_Custom_Verified/` (`.hex`, `.bit`, `.bin`).
 - Obsolete Oct 10 prototype directory `FPGA_code/T20F256/` removed from repository.
+
+---
+
+## 2026-11-03 18:29 CET: Physical Open Circuit Confirmed on Card 1 Channel 4 (0402 5.1k Resistor)
+
+### A. Observation & Physical DMM Verification
+- Telemetric analysis of Card 1's quiescent baseline from the Nov 3 06:20 golden run revealed that Channel 4 (index 4) had an isolated DC error of $-117.5\text{ LSB}$, contributing $7\,072\text{ LSB}^2$ out of the total $10\,608.8\text{ LSB}^2$ Phase 1 loss.
+- Lead Engineer Olle Welin probed Card 1 with a digital multimeter and **physically confirmed an open circuit on the 0402 $5.1\text{ k}\Omega$ series summing attenuator resistor on Channel 4**.
+
+### B. Scientific & Architectural Impact
+- **All previous 1k/5.1k measurements on Card 1 are invalid / severely skewed:** The baseline measurements conducted on Card 1 (including Milestone 2 06:20) operated with an open circuit on Channel 4. 
+- The fact that Card 1 still converged and reached an apparent $7.73\text{ bits}$ at Epoch 437 was achieved with only 5 functioning compensation channels.
+- When Channel 4 on Card 1 is resoldered, Card 1's quiescent Phase 1 accuracy will rise from $5.13\text{ bits}$ to $>6.5\text{ bits}$, achieving the same symmetry as the newly repaired Card 2.
+- **Action Item:** Resolder 0402 $5.1\text{ k}\Omega$ resistor on Card 1 Channel 4 prior to comparative benchmarking.
+

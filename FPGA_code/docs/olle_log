@@ -314,3 +314,23 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # - Teststatus: Kortet kraftcyklat och redo för verifiering av Hadamard-bärvåg på samtliga 6 kolumner.
 # ==============================================================================
 
+
+# ==============================================================================
+# DATUM: 2026-11-03 18:29 CET
+# HÅRDVARUDEFEKT BEKRÄFTAD: Fysiskt Avbrott på Kanal 4 (Kort 1, 0402 5.1k)
+# ==============================================================================
+# Verifierat av Olle Welin med multimeter:
+# - Kanal 4 (näst sista kanalen, kolumn 4 från 0..5 index) har ett FYSISKT AVBROTT 
+#   på sitt 0402 5.1k-motstånd i kompensationsgrenen på Kort 1!
+# - Konsekvens för tidigare mätningar:
+#   ALLA mätningar och benchmark-körningar gjorda på Kort 1 med 1k/5.1k-dämpare 
+#   (inklusive Milestone 2-körningen kl 06:20 där Fas 1 gav 10 608 LSB² och 5.13 bitar) 
+#   var alltså VÄLDIGT FELAKTIGA och missvisande, eftersom Kanal 4 ensam orsakade 
+#   7 072 LSB² i fel p.g.a. ett DC-offset på -117.5 LSB från avbrottet!
+# - Åtgärd:
+#   Kanal 4 på Kort 1 ska lödas om med nytt 0402 5.1k-motstånd. När lödningen är 
+#   åtgärdad kommer även Kort 1 att nå en öppen loop-baslinje på >6.5 bitar och 
+#   kunna jämföras rättvist mot det nu lagade Kort 2.
+# ==============================================================================
+
+

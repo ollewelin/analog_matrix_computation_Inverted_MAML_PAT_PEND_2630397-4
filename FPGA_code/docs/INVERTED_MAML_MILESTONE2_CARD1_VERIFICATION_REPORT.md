@@ -9,6 +9,12 @@
 > **Loggdata**: [`mode_a_500ep_llm_toeplitz_rho85_reg512_card1_milestone2_45lsb.json`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/logs/llm_noise_campaign/mode_a_500ep_llm_toeplitz_rho85_reg512_card1_milestone2_45lsb.json)  
 > **PDF-Rapport**: [`INVERTED_MAML_MILESTONE2_CARD1_VERIFICATION_REPORT.pdf`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/INVERTED_MAML_MILESTONE2_CARD1_VERIFICATION_REPORT.pdf)
 
+> [!WARNING]
+> **KRITISK HÅRDVARUUPPDATERING (2026-11-03 kl 18:29, Olle Welin):**  
+> Fysisk mätning med multimeter har bekräftat att **Kanal 4 på Kort 1 har ett fysiskt avbrott** på sitt 0402 $5.1\text{ k}\Omega$-motstånd i kompensationsgrenen!  
+> Detta innebär att alla mätningar i denna rapport på Kort 1 (inklusive Fas 1-baslinjen på $10\,608.8\text{ LSB}^2$, där Kanal 4 ensam stod för $7\,072.0\text{ LSB}^2$ p.g.a. $-117.5\text{ LSB}$ DC-fel) utfördes med en defekt kanal och ger en gravt missvisande bild av Kort 1:s verkliga potential.  
+> När Kanal 4 löds om kommer Kort 1:s öppna loop-baslinje att hoppa upp till $>6.5\text{ bitar}$ och hela kortet bli symmetriskt.
+
 ---
 
 ## 1. Sammanfattning & Full Upprättelse för Hårdvaran
