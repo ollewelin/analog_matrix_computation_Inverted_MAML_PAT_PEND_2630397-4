@@ -434,3 +434,36 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 #   * PDF:  FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING40_REPORT_EN.pdf (14 sidor, proportionella figurer, Epok 300)
 #   * MD:   FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING40_REPORT_EN.md
 # ==============================================================================
+
+
+# ==============================================================================
+# DATUM: 2026-11-03 21:15 CET
+# HÅRDVARUKÖRNINGAR SLUTFÖRDA: Rena 5.0 ms Snapshot-Experiment (3 Körningar)
+# Jämförelse mellan LLM Toeplitz (±40 & ±80 LSB) samt Vitt Brus (±40 LSB)
+# ==============================================================================
+# - Alla tre körningar genomförda på Kort 2 (Rev 2.0 Silicon, 1k/5.1k attenuator, lagad CH3).
+# - Platt baslinjeprotokoll (W=0 jämviktsstart, LR=0.08x, lambda=1024 förankrad vid W_null=0).
+#
+# 1. KÖRNING 1: Rent 5.0 ms, LLM Toeplitz (rho=0.85), Sving ±40 LSB (d_line=2)
+#    * Fas 1 (W=0): Snitt 18 851.9 LSB² (4.68 bitar ENOB).
+#    * Fas 2 (Träning): Snitt sjönk till 15 118.8 LSB² (4.85 bitar), toppepok nådde 9 922.5 LSB² (5.15 bitar).
+#    * Pre- vs Post-sweep:
+#      - Vid 5000 us: 15 177.5 -> 1 740.3 LSB² (-88.5% felkollaps, 6.50 bitar ENOB!).
+#      - Vid 4900 us: 13 104.5 -> 2 142.7 LSB² (-83.6% felkollaps, 6.29 bitar ENOB!).
+#      - Vid 5100 us: 47 731.5 -> 4 402.3 LSB² (-90.8% felkollaps, 5.93 bitar ENOB!).
+#    * Slutvikter M8: [9, -1, 1, 4, 13, -6] LSB (max endast 13 LSB, 0% klamping).
+#    * Rapport: INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REPORT.pdf (2 sidor).
+#
+# 2. KÖRNING 2: Rent 5.0 ms, Vitt Brus (Uniform Oberoende), Sving ±40 LSB (d_line=2)
+#    * Fas 1 (W=0): Snitt 17 561.4 LSB² (4.75 bitar ENOB).
+#    * Fas 2 (Träning): Snitt 16 739.0 LSB² (4.79 bitar), toppepok nådde 10 741.5 LSB² (5.09 bitar).
+#    * Slutvikter M8: [-1, 0, 1, 3, 10, -4] LSB (max endast 10 LSB, 0% klamping).
+#    * Rapport: INVERTED_MAML_CARD2_5MS_PURE_WHITE_REPORT.pdf (2 sidor).
+#
+# 3. KÖRNING 3: Rent 5.0 ms, LLM Toeplitz (rho=0.85), Full Sving ±80 LSB (d_line=1)
+#    * Fas 1 (W=0): Snitt 52 925.3 LSB² (3.95 bitar ENOB).
+#    * Fas 2 (Träning): Snitt sjönk till 42 281.0 LSB² (4.11 bitar), toppepok nådde 32 046.0 LSB² (4.31 bitar).
+#    * Slutvikter M8: [7, 1, 0, 16, 12, -9] LSB (max endast 16 LSB, 0% klamping).
+#    * Bekräftar matematisk och fysikalisk skalning mellan ±40 och ±80 LSB.
+#    * Rapport: INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_SWING80_REPORT.pdf (2 sidor).
+# ==============================================================================

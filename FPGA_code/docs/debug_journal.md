@@ -388,3 +388,28 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
 5. **Documentation & Artifacts:**
    - Publication PDF compiled: `FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING40_REPORT_EN.pdf` (14 pages, uncompressed proportional schematics & photos).
    - Publication Markdown: `FPGA_code/docs/INVERTED_MAML_CARD2_BROADENED_LR008_REG1024_SWING40_REPORT_EN.md`.
+
+---
+
+## 2026-11-03 21:15 CET: Pure 5.0 ms Snapshot Silicon Characterization on Card 2 (3 Runs)
+
+### A. Experimental Suite
+1. **Run 1: Pure 5.0 ms, LLM Toeplitz ($\rho = 0.85$), $\pm 40\text{ LSB}$ Swing (`d_line=2`)**
+   - Phase 1 Baseline Mean: $18\,851.9\text{ LSB}^2$ ($4.68\text{ b}$).
+   - Phase 2 Training Mean: **$15\,118.8\text{ LSB}^2$ ($4.85\text{ b}$)**, Peak: **$9\,922.5\text{ LSB}^2$ ($5.15\text{ b}$)**.
+   - Pre- vs Post-Sweep at $5000\,\mu\text{s}$: $15\,177.5 \to 1\,740.3\text{ LSB}^2$ (**$-88.5\%$ drop, $6.50\text{ bits}$ ENOB**).
+   - Pre- vs Post-Sweep at $4900\,\mu\text{s}$: $13\,104.5 \to 2\,142.7\text{ LSB}^2$ (**$-83.6\%$ drop, $6.29\text{ bits}$ ENOB**).
+   - Weights $W_8$: $[9, -1, 1, 4, 13, -6]\text{ LSB}$ (0% clamping, max $13\text{ LSB}$).
+   - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REPORT.pdf` (2 pages).
+
+2. **Run 2: Pure 5.0 ms, White Noise (Uniform Independent), $\pm 40\text{ LSB}$ Swing (`d_line=2`)**
+   - Phase 1 Baseline Mean: $17\,561.4\text{ LSB}^2$ ($4.75\text{ b}$).
+   - Phase 2 Training Mean: **$16\,739.0\text{ LSB}^2$ ($4.79\text{ b}$)**, Peak: **$10\,741.5\text{ LSB}^2$ ($5.09\text{ b}$)**.
+   - Weights $W_8$: $[-1, 0, 1, 3, 10, -4]\text{ LSB}$ (0% clamping, max $10\text{ LSB}$).
+   - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_WHITE_REPORT.pdf` (2 pages).
+
+3. **Run 3: Pure 5.0 ms, LLM Toeplitz ($\rho = 0.85$), $\pm 80\text{ LSB}$ Full Swing (`d_line=1`)**
+   - Phase 1 Baseline Mean: $52\,925.3\text{ LSB}^2$ ($3.95\text{ b}$).
+   - Phase 2 Training Mean: **$42\,281.0\text{ LSB}^2$ ($4.11\text{ b}$)**, Peak: **$32\,046.0\text{ LSB}^2$ ($4.31\text{ b}$)**.
+   - Weights $W_8$: $[7, 1, 0, 16, 12, -9]\text{ LSB}$ (0% clamping, max $16\text{ LSB}$).
+   - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_SWING80_REPORT.pdf` (2 pages).
