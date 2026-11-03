@@ -49,6 +49,18 @@ DOCS_DIR.mkdir(parents=True, exist_ok=True)
 ARTIFACT_DIR = Path("/home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a")
 
 
+def drain_udp(client: MamlUdpClient):
+    try:
+        old_to = client.sock.gettimeout()
+        client.sock.settimeout(0.002)
+        while True:
+            client.sock.recvfrom(2048)
+    except Exception:
+        pass
+    finally:
+        client.sock.settimeout(old_to)
+
+
 def run_5ms_batch_epoch(
     client: MamlUdpClient,
     k_batch: int,
@@ -69,7 +81,8 @@ def run_5ms_batch_epoch(
         reg_q16,
     )
     raw = None
-    for attempt in range(10):
+    for attempt in range(15):
+        drain_udp(client)
         raw = client._send_binary(MAML_CMD_BATCH_STEP, pkt)
         if raw is not None and len(raw) >= client.TELEM_SIZE:
             break
@@ -291,6 +304,7 @@ def main():
                 f"{eval_cur['mean_loss_lsb2']:>10.1f} L² | {eval_cur['mean_rmse_lsb']:>9.2f} L | {eval_cur['mean_enob_bits']:>10.2f} b | "
                 f"{str(t_cur['w8_diag']):<25} [{rate:.1f} ep/s, ETA {remain:.0f}s]"
             )
+            sys.stdout.flush()
 
     total_dur = time.time() - t_start
     print("=" * 105)

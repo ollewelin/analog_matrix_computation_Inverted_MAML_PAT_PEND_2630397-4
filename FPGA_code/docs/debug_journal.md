@@ -413,3 +413,25 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
    - Phase 2 Training Mean: **$42\,281.0\text{ LSB}^2$ ($4.11\text{ b}$)**, Peak: **$32\,046.0\text{ LSB}^2$ ($4.31\text{ b}$)**.
    - Weights $W_8$: $[7, 1, 0, 16, 12, -9]\text{ LSB}$ (0% clamping, max $16\text{ LSB}$).
    - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_SWING80_REPORT.pdf` (2 pages).
+
+4. **Run 4: Pure 5.0 ms, LLM Toeplitz ($\rho = 0.85$), $\pm 80\text{ LSB}$, Lower Regularization $\lambda = 341$ (`d_line=1`)**
+   - Phase 1 Baseline Mean: $52\,925.3\text{ LSB}^2$ ($3.95\text{ b}$).
+   - Phase 2 Training Mean: **$43\,214.5\text{ LSB}^2$ ($4.10\text{ b}$)**, Peak: **$29\,849.0\text{ LSB}^2$ ($4.36\text{ b}$)**.
+   - Pre- vs Post-Sweep at $5300\,\mu\text{s}$: $77\,600 \to 13\,040\text{ LSB}^2$ (**$-83.2\%$ error drop, $4.97\text{ bits}$ ENOB**).
+   - Weights $W_8$: $[10, 0, 2, 25, 17, -15]\text{ LSB}$ (0% clamping, max $25\text{ LSB}$).
+   - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG341_SWING80_REPORT.pdf` (2 pages).
+
+5. **Run 5: Pure 5.0 ms, White Noise (Uniform Independent), $\pm 80\text{ LSB}$, Lower Regularization $\lambda = 341$ (`d_line=1`)**
+   - Phase 1 Baseline Mean: $49\,300.0\text{ LSB}^2$ ($4.01\text{ b}$).
+   - Phase 2 Training Mean: **$43\,155.0\text{ LSB}^2$ ($4.10\text{ b}$)**, Peak: **$35\,855.5\text{ LSB}^2$ ($4.23\text{ b}$)**.
+   - Weights $W_8$: $[-1, 6, 2, 7, 18, -10]\text{ LSB}$ (0% clamping, max $18\text{ LSB}$).
+   - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_WHITE_REG341_SWING80_REPORT.pdf` (2 pages).
+
+6. **Run 6: Pure 5.0 ms, LLM Toeplitz ($\rho = 0.85$), $\pm 40\text{ LSB}$, Lower Regularization $\lambda = 341$ (`d_line=2`)**
+   - Phase 1 Baseline Mean: $18\,851.9\text{ LSB}^2$ ($4.68\text{ b}$).
+   - Phase 2 Training Mean: **$14\,384.2\text{ LSB}^2$ ($4.89\text{ b}$)**, Peak: **$9\,454.0\text{ LSB}^2$ ($5.19\text{ b}$)**.
+   - Pre- vs Post-Sweep at $5100\,\mu\text{s}$: $31\,670 \to 10\,790\text{ LSB}^2$ (**$-65.9\%$ drop, $5.70\text{ bits}$ ENOB**).
+   - Pre- vs Post-Sweep at $5200\,\mu\text{s}$: $55\,360 \to 10\,470\text{ LSB}^2$ (**$-81.1\%$ drop, $5.42\text{ bits}$ ENOB**).
+   - Weights $W_8$: $[2, -3, 2, 2, 8, -9]\text{ LSB}$ (0% clamping, max $9\text{ LSB}$).
+   - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG341_SWING40_REPORT.pdf` (2 pages).
+
