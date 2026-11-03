@@ -304,4 +304,30 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
 - Validated complete elimination of legacy Phase 2 knee disturbance ($209\,000\text{ LSB}^2$).
 - Verified whole-phase loss reduction of $-55.7\%$ (from $2\,937.2$ down to $1\,300.7\text{ LSB}^2$), $+0.66\text{ bits}$ ENOB improvement across all 401 active training epochs, and peak performance of $8.26\text{ bits}$ ($133.9\text{ LSB}^2$).
 
+---
+
+## 2026-11-03 19:10 CET: Card 2 Broadened Window [4.5..5.5 ms] 500-Epoch Experiment Completed
+
+### A. Experimental Protocol
+- Target: Card 2 (Rev 2.0 Silicon, 1k/5.1k summing attenuator, repaired Channel 3).
+- Architecture: 2-phase Flat Baseline Protocol ($W=0, W_{\text{null}}=0, \lambda=512, \text{LR}=0.25\text{x}$).
+- Workload: $K=20$ vectors $\times 10$ strata $= 200$ physical Hadamard demodulations per epoch across $[4500\dots 5500]\,\mu\text{s}$.
+- Pre- and Post-Training 11-point temporal window characterization.
+
+### B. Empirical Results
+- **200-Sample Full Window [4.5..5.5 ms]:**
+  - Phase 1 (Ep 0..99, $W=0$): Mean Window Loss $= 59\,740.3\text{ LSB}^2$ ($3.86\text{ bits}$ ENOB).
+  - Phase 2 (Ep 100..500, active training): Mean Window Loss $= 55\,349.1\text{ LSB}^2$ ($3.92\text{ bits}$ ENOB).
+  - Peak Window Performance: $43\,552.0\text{ LSB}^2$ ($4.09\text{ bits}$ ENOB).
+- **5.0 ms Center Snapshot:**
+  - Peak 5.0 ms ENOB reached **$7.29\text{ bits}$ ($511.5\text{ LSB}^2$)**.
+- **Temporal Profile Improvement:**
+  - At $4800\,\mu\text{s}$: Pre-training error dropped from $585\,321.2$ down to $29\,764.7\text{ LSB}^2$ (**$-94.9\%$ reduction**).
+  - At $5000\,\mu\text{s}$: Pre-training error dropped from $445\,518.3$ down to $13\,684.2\text{ LSB}^2$ (**$-96.9\%$ reduction**).
+- **Convergence & Stability:**
+  - Final M8 Diagonal Weights at Epoch 500: $[+4, -41, +88, -9, -17, -5]\text{ LSB}$.
+  - $0\%$ clamping across all columns (well within $\pm 120\text{ LSB}$ boundaries).
+- **Next Step:** Live on-chip Thermal Disturbance Rejection test (Heater ON/OFF during active training).
+
+
 

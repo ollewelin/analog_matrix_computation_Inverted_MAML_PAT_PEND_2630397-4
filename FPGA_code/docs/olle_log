@@ -351,4 +351,26 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # ==============================================================================
 
 
+# ==============================================================================
+# DATUM: 2026-11-03 19:10 CET
+# HÅRDVARUKÖRNING SLUTFÖRD: 500 Epoker Breddade Fönster [4.5..5.5 ms] på Kort 2
+# ==============================================================================
+# - Hårdvarukörning genomförd på Kort 2 (Rev 2.0 Silicon, 1k/5.1k attenuator, lagad CH3).
+# - Platt Baslinjeprotokoll (W=0, W_null=0, lambda=512, LR=0.25x):
+#   * Fas 1 (Ep 0..99): W=0 öppen loop (200 mätningar/epok över 10 strata).
+#   * Fas 2 (Ep 100..500): Träning direkt från W=0 (ingen knä-störning).
+# - Resultat:
+#   * 200-samplingars fönster [4.5..5.5 ms]:
+#     Snittfel sjönk från 59 740.3 LSB² (3.86 bitar) till 55 349.1 LSB² (3.92 bitar),
+#     bästa fönstermätning nådde 43 552.0 LSB² (4.09 bitar).
+#   * 5.0 ms centrumpunkt:
+#     Toppprestanda nådde 511.5 LSB² (7.29 bitar ENOB).
+#   * Tidsundersökning före/efter: Vid 5000 us sjönk felet med -96.9% och vid 4800 us med -94.9%.
+#   * Slutvikter M8: [4, -41, 88, -9, -17, -5] LSB — noll klampade kolumner.
+# - Logg: FPGA_code/logs/mode_a_extended_training/mode_a_500ep_broadened_4p5to5p5ms_card2_flat_500ep.json
+# - Figur: FPGA_code/docs/figures/fig_mode_a_500ep_broadened_4p5to5p5ms_card2_flat_500ep.png
+# - Nästa planerade hårdvarutest på Kort 2: Värme ON/OFF (Thermal Disturbance Rejection under drift).
+# ==============================================================================
+
+
 
