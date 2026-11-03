@@ -229,13 +229,15 @@ class MamlUdpClient:
         except OSError:
             pass
 
-    def _send_binary(self, opcode: int, payload: bytes = b"") -> Optional[bytes]:
+    def _send_binary(self, opcode: int, payload: bytes = b"", expect_reply: bool = True) -> Optional[bytes]:
         if self.use_simulator:
             return None
         pkt = struct.pack("<IB", MAML_UDP_MAGIC, opcode) + payload
         with self._lock:
             try:
                 self.sock.sendto(pkt, (self.host, self.port))
+                if not expect_reply:
+                    return b""
                 data, _ = self.sock.recvfrom(1500)
                 if len(data) >= 5:
                     magic, msg_type = struct.unpack("<IB", data[:5])
@@ -805,10 +807,8 @@ class MamlUdpClient:
 
     def draw_fresh_vector(self) -> Optional[MamlTelemetry]:
         """Draw a single fresh locked random/colored vector on physical silicon without resetting weights."""
-        raw = self._send_binary(MAML_CMD_RAND_DATA, struct.pack("<B", 2))
-        if raw is not None:
-            return self._parse_hw_telemetry(raw)
-        return None
+        self._send_binary(MAML_CMD_RAND_DATA, struct.pack("<B", 2), expect_reply=False)
+        return self.get_telemetry()
 
     def run_single_cell_multiplier_curve(
         self,

@@ -97,13 +97,20 @@ def main():
     parser.add_argument("--lr", type=float, default=0.25)
     parser.add_argument("--reg-lambda", type=int, default=512)
     parser.add_argument("--rho", type=float, default=0.85)
+    parser.add_argument("--d-line", type=int, default=2, help="Input swing divider: 2 for +/-40-45 LSB, 1 for +/-80 LSB (default 2)")
+    parser.add_argument("--tag", default="", help="Optional tag for output files")
     parser.add_argument("--skip-version-guard", action="store_true")
     args = parser.parse_args()
+
+    tag_str = f"_{args.tag}" if args.tag else ""
+    out_json = LOG_DIR / f"mode_a_500ep_llm_toeplitz_rho{int(args.rho*100)}_reg{args.reg_lambda}{tag_str}.json"
+    out_fig = DOCS_DIR / f"fig_mode_a_500ep_llm_rho{int(args.rho*100)}_reg{args.reg_lambda}{tag_str}.png"
 
     print("=" * 80)
     print("INVERTED MAML: 500-EPOCH MODE A TRAINING WITH LLM TOEPLITZ NOISE")
     print(f"Target: {args.host}:{args.port} | Epochs: {args.epochs} | LR: {args.lr:.2f}x")
     print(f"L2 Regularization: STRICTLY ON (lambda = {args.reg_lambda}) | Spatial rho: {args.rho:.2f}")
+    print(f"Input Divider (d_line): {args.d_line} ({'±40-45 LSB' if args.d_line >= 2 else '±80 LSB'})")
     print("=" * 80)
 
     if not args.skip_version_guard:
@@ -114,7 +121,7 @@ def main():
     client = MamlUdpClient(host=args.host, port=args.port, timeout=1.5)
 
     # 1. Reset gain knobs
-    client.set_gain_experiment(d_line=1, w33=1, target_gain=1.0, clamp=120)
+    client.set_gain_experiment(d_line=args.d_line, w33=1, target_gain=1.0, clamp=120)
     time.sleep(0.03)
 
     # 2. Configure initial Mode A: Training OFF (mode=0), LEDs ON, jumper_mode=3
@@ -234,7 +241,7 @@ def main():
     total_time = time.time() - t_start
 
     # Save JSON log
-    out_file = LOG_DIR / f"mode_a_500ep_llm_toeplitz_rho{int(args.rho*100):02d}_reg{args.reg_lambda}.json"
+    out_file = out_json
     summary_obj = {
         "metadata": {
             "title": "500-Epoch Mode A Silicon Training with LLM Toeplitz In-Data & L2 Regularization",
@@ -268,7 +275,7 @@ def main():
     print("=" * 80)
 
     # Generate Figure
-    fig_path = DOCS_DIR / f"fig_mode_a_500ep_llm_rho{int(args.rho*100):02d}_reg{args.reg_lambda}.png"
+    fig_path = out_fig
     ep_list = [r["epoch"] for r in records]
     loss_list = [r["loss_lsb2"] for r in records]
     enob_list = [r["enob_bits"] for r in records]
