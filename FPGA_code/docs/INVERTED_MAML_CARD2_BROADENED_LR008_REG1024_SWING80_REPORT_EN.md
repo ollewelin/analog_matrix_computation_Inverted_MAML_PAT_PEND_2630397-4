@@ -65,7 +65,7 @@ Following Lead Engineer Olle Welin's directive, this experiment tested the hypot
 
 ---
 
-## 4. 3D Dual-2T1C Weight Topographies (Flat Baseline vs. Trained Golden State)
+## 4. 3D Dual-2T1C Weight Topographies (Flat Baseline vs. Trained State at Epoch 300)
 
 ![3D Weight Topography](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_mode_a_3d_weight_landscapes_baseline_vs_ep500_card2_flat_lr0p08.png)
 

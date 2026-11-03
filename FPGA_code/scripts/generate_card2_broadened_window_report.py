@@ -55,21 +55,20 @@ def get_proportional_image(img_path: Path, max_w_mm: float = 175.0, max_h_mm: fl
     return Image(str(img_path), width=target_w * mm, height=target_h * mm)
 
 
-def generate_3d_landscapes(data: dict) -> Path:
+def generate_3d_landscapes(data: dict, target_ep: int = 300) -> Path:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     epochs = data["epochs"]
     w3_base = np.array(epochs[0]["w_m3"])
     w8_base = np.array(epochs[0]["w_m8"])
     
-    # Golden state at best 5.0ms snapshot or epoch 500
-    best_5ms_ep = 360
-    min_5ms_l = 999999.0
-    for e in epochs:
-        if e["epoch"] >= 100 and e["loss_lsb2"] < min_5ms_l:
-            min_5ms_l = e["loss_lsb2"]
-            best_5ms_ep = e["epoch"]
+    # Select trained state at Epoch 300 (or closest available epoch)
+    e_matches = [e for e in epochs if e["epoch"] == target_ep]
+    if e_matches:
+        e_gold = e_matches[0]
+    else:
+        e_gold = min(epochs, key=lambda e: abs(e["epoch"] - target_ep))
+        target_ep = e_gold["epoch"]
             
-    e_gold = [e for e in epochs if e["epoch"] == best_5ms_ep][0]
     w3_gold = np.array(e_gold["w_m3"])
     w8_gold = np.array(e_gold["w_m8"])
 
@@ -82,8 +81,8 @@ def generate_3d_landscapes(data: dict) -> Path:
     panels = [
         (1, w3_base, "1. Matrix 3: Flat Baseline Origin (Epoch 0, W=0, LR=0)", 8, 6, ["R0", "R1", "R2", "R3", "R4", "R5", "ClkB1", "ClkRef"]),
         (2, w8_base, "2. Matrix 8: Flat Baseline Origin (Epoch 0, W=0, LR=0)", 7, 6, ["R0", "R1", "R2", "R3", "R4", "R5", "Bias"]),
-        (3, w3_gold, f"3. Matrix 3: Trained Golden State (Epoch {best_5ms_ep}, 5.0ms ENOB {e_gold['enob_bits']:.2f}b)", 8, 6, ["R0", "R1", "R2", "R3", "R4", "R5", "ClkB1", "ClkRef"]),
-        (4, w8_gold, f"4. Matrix 8: Trained Golden State (Epoch {best_5ms_ep}, Loss {e_gold['loss_lsb2']:.1f} LSB²)", 7, 6, ["R0", "R1", "R2", "R3", "R4", "R5", "Bias"]),
+        (3, w3_gold, f"3. Matrix 3: Trained State (Epoch {target_ep}, 5.0ms ENOB {e_gold['enob_bits']:.2f}b)", 8, 6, ["R0", "R1", "R2", "R3", "R4", "R5", "ClkB1", "ClkRef"]),
+        (4, w8_gold, f"4. Matrix 8: Trained State (Epoch {target_ep}, Loss {e_gold['loss_lsb2']:.1f} LSB²)", 7, 6, ["R0", "R1", "R2", "R3", "R4", "R5", "Bias"]),
     ]
 
     for idx, mat, title, num_rows, num_cols, row_labels in panels:
@@ -479,7 +478,7 @@ def build_markdown_report(data: dict, fig_3d: Path, fig_5ms: Path, fig_win: Path
         "",
         "---",
         "",
-        "## 4. 3D Dual-2T1C Weight Topographies (Flat Baseline vs. Trained Golden State)",
+        "## 4. 3D Dual-2T1C Weight Topographies (Flat Baseline vs. Trained State at Epoch 300)",
         "",
         f"![3D Weight Topography](file://{ARTIFACT_DIR / fig_3d.name})",
         "",
@@ -700,11 +699,12 @@ def build_pdf_report(data: dict, fig_3d: Path, fig_5ms: Path, fig_win: Path,
     story.append(PageBreak())
 
     # PAGE 2: 3D Topographies (Proportional)
-    story.append(Paragraph("3. 3D Dual-2T1C Weight Topographies (Flat Baseline vs. Trained Golden State)", h1_style))
+    ep300_data = [e for e in epochs if e["epoch"] == 300][0]
+    story.append(Paragraph("3. 3D Dual-2T1C Weight Topographies (Flat Baseline vs. Trained State at Epoch 300)", h1_style))
     story.append(Paragraph(
         "The 4-panel 3D bar landscapes document the physical weights programmed into the Dual-2T1C analog multipliers. "
         "Subplots 1 &amp; 2 show the true flat baseline at Epoch 0 (W=0 LSB). "
-        f"Subplots 3 &amp; 4 show the trained Golden State at Epoch {best_5ms_ep} where 5.0 ms resolution reached {best_5ms_b:.2f} bits ENOB.",
+        f"Subplots 3 &amp; 4 show the mature trained state at Epoch 300 where 5.0 ms resolution reached {ep300_data['enob_bits']:.2f} bits ENOB (Loss {ep300_data['loss_lsb2']:.1f} LSB²).",
         body_style
     ))
     story.append(Spacer(1, 2 * mm))
