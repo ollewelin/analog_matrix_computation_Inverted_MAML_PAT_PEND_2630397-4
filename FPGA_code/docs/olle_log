@@ -498,3 +498,37 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 #    * Slutvikter M8: [2, -3, 2, 2, 8, -9] LSB (max endast 9 LSB, noll klamping).
 #    * Rapport: INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG341_SWING40_REPORT.pdf (2 sidor).
 # ==============================================================================
+#
+# ==============================================================================
+# DATUM: 2026-11-03 21:55 CET
+# HÅRDVARUKÖRNING 7 SLUTFÖRD: Ytterligare Lättad Regularisering (lambda = 160)
+# Rent 5.0 ms på Kort 2 (Toeplitz ±40 LSB, LR=0.08x, lambda=160)
+# ==============================================================================
+# - Fas 1 Baslinje Snitt: 20 436.4 LSB² (4.62 bitar ENOB).
+# - Fas 2 Träning Snitt: 13 820.0 LSB² (4.92 bitar), Bästa epok: 9 386.0 LSB² (5.19 bitar vid Ep 150).
+# - Pre- vs Post-sweep:
+#   - Vid 5100 us: 32.9k -> 10.2k LSB² (-69.0%, 5.16 bitar ENOB).
+#   - Vid 5200 us: 60.0k -> 7.6k LSB² (-87.3%, 5.39 bitar ENOB!).
+#   - Vid 5300 us: 97.5k -> 19.8k LSB² (-79.7%, 4.67 bitar ENOB).
+# - Slutvikter M8: [9, -2, 0, 2, 6, -10] LSB (max 10 LSB, 0% klamping).
+# - Rapport: INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG160_SWING40_REPORT.pdf (2 sidor).
+#
+# ==============================================================================
+# FORSKNINGENS TRE HUVUDSPÅR (MILSTONES TAXONOMI ENLIGT OLLE):
+# ==============================================================================
+# 1. Milestone 1: Fast vektor (Single Fixed Vector)
+#    - Testar Hadamard-respons och analog gradientextraktion för en punkt.
+#    - Nådde upp till 8.26 bitar (133.9 LSB²) då nätverket minimerar residualen
+#      för exakt den fasta punkten utan stimulusvarians.
+#
+# 2. Milestone 2: Variabla indatavektorer vid 1 tidpunkt (t.ex. 5.0 ms rent)
+#    - Testar generaliserad analog rumslig kompensation över hela vektorrymden R^6
+#      (Toeplitz rho=0.85 och Vitt brus, ±40 vs ±80 LSB swing, lambda 1024, 341, 160).
+#    - Kiselns sanna rumsliga precision: 4.9 - 5.2 bitar kontinuerligt snitt,
+#      med upp till 6.50 bitar i post-sweep.
+#
+# 3. Milestone 3: Variabla indatavektorer OCH breddat tidsfönster (4.5 - 5.5 ms)
+#    - Fullständig spatio-temporal Inverted MAML meta-learning över multipla strata
+#      (optimerar för både godtyckliga spatiala vektorer och 2T1C temporal urladdning).
+# ==============================================================================
+

@@ -435,3 +435,27 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
    - Weights $W_8$: $[2, -3, 2, 2, 8, -9]\text{ LSB}$ (0% clamping, max $9\text{ LSB}$).
    - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG341_SWING40_REPORT.pdf` (2 pages).
 
+7. **Run 7: Pure 5.0 ms, LLM Toeplitz ($\rho = 0.85$), $\pm 40\text{ LSB}$, Lowest Regularization $\lambda = 160$ (`d_line=2`)**
+   - Phase 1 Baseline Mean: $20\,436.4\text{ LSB}^2$ ($4.62\text{ b}$).
+   - Phase 2 Training Mean: **$13\,820.0\text{ LSB}^2$ ($4.92\text{ b}$)**, Peak: **$9\,386.0\text{ LSB}^2$ ($5.19\text{ b}$)**.
+   - Pre- vs Post-Sweep at $5100\,\mu\text{s}$: $32\,875.2 \to 10\,187.0\text{ LSB}^2$ (**$-69.0\%$ drop, $5.16\text{ bits}$ ENOB**).
+   - Pre- vs Post-Sweep at $5200\,\mu\text{s}$: $59\,987.7 \to \mathbf{7\,622.0\text{ LSB}^2}$ (**$-87.3\%$ drop, $5.39\text{ bits}$ ENOB**).
+   - Weights $W_8$: $[9, -2, 0, 2, 6, -10]\text{ LSB}$ (0% clamping, max $10\text{ LSB}$).
+   - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG160_SWING40_REPORT.pdf` (2 pages).
+
+---
+
+### B. Forskningsarkitektur: De Tre Huvudmilstolparna (Olle:s taxonomi)
+För att förstå skillnaden mellan de extrema noteringarna (t.ex. 8.26 bitar i den tidiga flat-baseline-rapporten) och batch-resultaten klargörs de tre fundamentala milstolparna:
+
+1. **Milestone 1: Fast vektor (Single Fixed Vector)**
+   - *Syfte:* Testa ren analog Hadamard-respons och gradientextraktion på kislet utan interferens från stimulusvarians.
+   - *Fysik:* Eftersom indata är låst till en enda punkt i $\mathbb{R}^6$ finns noll rumslig varians. Loopen kan konvergera direkt ner mot kiselns analoga brusgolv ($133.9\text{ LSB}^2 = 8.26\text{ bitar}$ ENOB), vilket bevisar att Hadamard-demoduleringen fungerar perfekt för en enskild punkt.
+2. **Milestone 2: Variabla indatavektorer vid 1 tidpunkt (t.ex. 5.0 ms rent)**
+   - *Syfte:* Utvärdera generaliserad analog kompensation över hela vektorrymden $\mathbb{R}^6$ med stokastiskt roterande indata (Toeplitz $\rho=0.85$ och Vitt brus) vid olika sväng ($\pm 40$ vs $\pm 80\text{ LSB}$) och L2-styvheter ($\lambda = 1024, 341, 160$).
+   - *Fysik:* Nätverket måste finna vikter som minimerar felet över alla inkommande vektorer simultant. Resultatet är kiselns sanna rumsliga precision ($4.9 - 5.2\text{ bitar}$ kontinuerligt snitt, upp till $6.5\text{ bitar}$ vid 5.0 ms post-sweep).
+3. **Milestone 3: Variabla indatavektorer OCH breddat tidsfönster ([4500..5500] µs)**
+   - *Syfte:* Fullständig spatio-temporal Inverted MAML meta-learning över multipla strata.
+   - *Fysik:* Nätverket tvingas optimera för både godtyckliga spatiala vektorer OCH 2T1C-cellernas temporala urladdningskurvor under 10 ms-cykeln.
+
+
