@@ -1,0 +1,89 @@
+{
+  "title": "Inverted MAML Kort 2 Milestone 2 - 10-Run Statistical Summary (1k/5.1k Attenuator)",
+  "date": "2026-11-03 12:08:10",
+  "hardware": "Card 2 (Rev 2.0 Silicon, NEW 1k/5.1k attenuator, MCP6444 on DAC2)",
+  "total_runs": 10,
+  "epochs_per_run": 500,
+  "runs": [
+    {
+      "run_index": 1,
+      "best_loss_lsb2": 197.6,
+      "best_loss_epoch": 137,
+      "best_enob_bits": 7.98,
+      "final_loss_lsb2": 811.2,
+      "final_enob_bits": 6.96
+    },
+    {
+      "run_index": 2,
+      "best_loss_lsb2": 411.1,
+      "best_loss_epoch": 428,
+      "best_enob_bits": 7.45,
+      "final_loss_lsb2": 26330.4,
+      "final_enob_bits": 4.45
+    },
+    {
+      "run_index": 3,
+      "best_loss_lsb2": 378.1,
+      "best_loss_epoch": 315,
+      "best_enob_bits": 7.51,
+      "final_loss_lsb2": 5263.9,
+      "final_enob_bits": 5.61
+    },
+    {
+      "run_index": 4,
+      "best_loss_lsb2": 376.8,
+      "best_loss_epoch": 163,
+      "best_enob_bits": 7.51,
+      "final_loss_lsb2": 2194.4,
+      "final_enob_bits": 6.24
+    },
+    {
+      "run_index": 5,
+      "best_loss_lsb2": 510.2,
+      "best_loss_epoch": 302,
+      "best_enob_bits": 7.29,
+      "final_loss_lsb2": 4519.4,
+      "final_enob_bits": 5.72
+    },
+    {
+      "run_index": 6,
+      "best_loss_lsb2": 301.1,
+      "best_loss_epoch": 452,
+      "best_enob_bits": 7.68,
+      "final_loss_lsb2": 2617.9,
+      "final_enob_bits": 6.12
+    },
+    {
+      "run_index": 7,
+      "best_loss_lsb2": 406.7,
+      "best_loss_epoch": 305,
+      "best_enob_bits": 7.46,
+      "final_loss_lsb2": 32005.1,
+      "final_enob_bits": 4.31
+    },
+    {
+      "run_index": 8,
+      "best_loss_lsb2": 96.3,
+      "best_loss_epoch": 293,
+      "best_enob_bits": 8.5,
+      "final_loss_lsb2": 7684.8,
+      "final_enob_bits": 5.34
+    },
+    {
+      "run_index": 9,
+      "best_loss_lsb2": 306.6,
+      "best_loss_epoch": 276,
+      "best_enob_bits": 7.66,
+      "final_loss_lsb2": 3699.9,
+      "final_enob_bits": 5.87
+    },
+    {
+      "run_index": 10,
+      "best_loss_lsb2": 629.7,
+      "best_loss_epoch": 431,
+      "best_enob_bits": 7.14,
+      "final_loss_lsb2": 1656.6,
+      "final_enob_bits": 6.45
+    }
+  ]
+}

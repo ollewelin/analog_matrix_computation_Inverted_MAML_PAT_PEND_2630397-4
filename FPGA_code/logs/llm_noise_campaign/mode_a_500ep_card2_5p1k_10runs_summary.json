@@ -1,0 +1,17 @@
+{
+  "title": "Inverted MAML Kort 2 Milestone 2 - 10-Run Statistical Summary (1k/5.1k Attenuator)",
+  "date": "2026-11-03 15:44:52",
+  "hardware": "Card 2 (Rev 2.0 Silicon, NEW 1k/5.1k attenuator, MCP6444 on DAC2)",
+  "total_runs": 1,
+  "epochs_per_run": 500,
+  "runs": [
+    {
+      "run_index": 1,
+      "best_loss_lsb2": 65.9,
+      "best_loss_epoch": 377,
+      "best_enob_bits": 8.77,
+      "final_loss_lsb2": 474.4,
+      "final_enob_bits": 7.35
+    }
+  ]
+}
