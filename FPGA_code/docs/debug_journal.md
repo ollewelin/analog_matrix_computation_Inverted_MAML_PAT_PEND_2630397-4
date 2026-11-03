@@ -458,4 +458,10 @@ För att förstå skillnaden mellan de extrema noteringarna (t.ex. 8.26 bitar i 
    - *Syfte:* Fullständig spatio-temporal Inverted MAML meta-learning över multipla strata.
    - *Fysik:* Nätverket tvingas optimera för både godtyckliga spatiala vektorer OCH 2T1C-cellernas temporala urladdningskurvor under 10 ms-cykeln.
 
+---
+
+## 2026-11-04 Planerat: 10 Konsekutiva Körningar vid 5.0 ms (Statistisk Kampanj)
+- Köra en svit med 10 konsekutiva körningar på samma optimala regim för att generera en tydlig statistisk linje med sammanslagna medelvärden, standardavvikelse och konfidensintervall för både Loss och ENOB.
+
+
 

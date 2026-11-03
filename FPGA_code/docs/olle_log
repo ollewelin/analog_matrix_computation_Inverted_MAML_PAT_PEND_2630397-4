@@ -531,4 +531,12 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 #    - Fullständig spatio-temporal Inverted MAML meta-learning över multipla strata
 #      (optimerar för både godtyckliga spatiala vektorer och 2T1C temporal urladdning).
 # ==============================================================================
+#
+# ==============================================================================
+# PLAN FÖR IMORGON (2026-11-04):
+# ==============================================================================
+# - 10 konsekutiva körningar på det bästa 5.0 ms-läget i följd.
+# - Skapa en tydlig statistisk linje på sammanslagna körningar (medel, std dev, min/max).
+# ==============================================================================
+
 
