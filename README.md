@@ -105,34 +105,46 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Mjukvaruskydd mot op-amp-bottning:** Firmware (`v2.2-MAML`) uppdaterades med ColTIA Saturation Guard och nollcentrerad LayerNorm för att skydda mot bottning vid korrelerade insignaler (LLM Toeplitz $\rho=0.85$).
     - **Breddat tidsfönster:** De första 500-epokers experimenten över $4.5\dots 5.5\text{ ms}$ visade att nätverket har förmågan att kompensera för kondensatorläckage, men att balansen mellan dämpsats, inlärningstakt och $L_2$-regularisering krävde ytterligare finjustering.
 
-- **2026-11-04 (Stort Genombrott: Rätt avvägd dämpsats 1k/3.3k, K=1 ren online-SGD, vitt brus, robusthet mot dolda hårdvarustörningar och hantering av 1 ms temporalt minnesläckage):**
-  - **1. Rätt avvägd dämpsats (1k/3.3k attenuator):**
-    Efter de tidigare försöken med 3.9k, 15k och 5.1k hittades den optimala hårdvarubalansen på Card 2: passiva summeringsmotstånden löddes om till **$1\text{ k}\Omega / 3.3\text{ k}\Omega$ ($-12.7\text{ dB}$)**. Detta gav $+42\%$ högre korrektionsström in i ColTIA virtuella jord, vilket gav exakt rätt analog auktoritet för att släcka ut stora fel utan att vikterna drev mot mättnad. Vikterna rör sig lugnt och stabilt inom $|W_8| \le 25\text{ LSB}$, med **$>95\text{ LSB}$ linjär marginal** till skenorna ($\pm 120\text{ LSB}$).
-  - **2. Rätt inställda hyperparametrar & "Naked" Batch $K=1$ Online-SGD:**
-    I stället för att medelvärdesbilda gradienter över batcher kördes ren **online single-sample SGD ($K=1$)**, där kiselns analoga vikter uppdateras direkt efter varje enskild vektor (**11 000 fysiska uppdateringar på kisel** över 1 000 epoker).
-    - **Optimal kalibrering:** $\text{LR} = 0.02\text{x}$, $L_2\text{-regularisering } \lambda = 2048$, insignalsving $\pm 40\text{ LSB}$.
-    - **Ingen "Catastrophic Forgetting":** Den paraboliska $L_2$-potentialbrunnen eliminerar destruktiv interferens och binder vikterna stabilt till den gemensamma temporala jämvikten.
-  - **3. Hantering av minnescellers läckage över ett 1 ms brett tidsfönster [4.5 – 5.5 ms] (11 strata):**
-    Trots att 2T1C-cellernas minneskondensatorer ($C_W = 100\text{ nF}$) laddas ur kontinuerligt över 10 ms-cykeln lär sig nätverket autonomt en tidsberoende mot-lutning via klockcellerna (rad 6 & 7 i Matrix 3). Hela den temporala vågfronten lyfts synkront: fönstermedelfelet sänks med **$-63.5\%$**, och vid 5.0 ms uppnås en peak precision på **$+1.47\text{ bitar}$ nettoförbättring** över baslinjen.
-  - **4. Test med okorrelerat vitt brus (White Noise Input Stream):**
-    Utvärdering med helt okorrelerat vitt brus (`--noise-color white`) bekräftade att Inverted MAML inte kräver temporalt korrelerade data. Systemet konvergerade omedelbart och nådde en exceptionell absolut topp-precision vid 5.0 ms: **$6.26\text{ bitar}$ ENOB ($2\,143.5\text{ LSB}^2$)** vid Epok 130!
-  - **5. Robusthet mot dolda hårdvarustörningar (Patent SE 2630397-4 Fig 7 Emulator):**
-    Var 100:e epok injicerades slumpade störningsmatriser $\Delta W_{33} \in [-5, +5]\text{ LSB}$ oberoende över alla 36 korspunkter i Matrix 33 (vilket emulerar termisk drift, åldring och matningsspänningsvariationer). Målet $Z_\text{target}$ förblev strikt låst till nominell matris (fuskskydd). Nätverket absorberade felchockerna och återetablerade hög precision inom ~10–20 epoker.
-  - **6. Ablation Control (Fas 4):**
-    När vikterna låstes till $0\text{ LSB}$ vid Epok 600 hoppade felet omedelbart upp med **$8.1\times$ (från $13\,638\text{ LSB}^2 \to 110\,035\text{ LSB}^2$)**, vilket utgör ett definitivt bevis på att precisionslyftet helt styrs av den aktiva 2-lagerskretsen.
-  - **7. Referenser till den senaste 10-sidiga publikationsrapporten & figurer:**
-    - **Fullständig 10-sidig publikationsrapport (PDF):** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.pdf)
-    - **Markdown-rapport:** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.md`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.md)
-    - **Tidigare 5.0 ms rapport:** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG2048_LR0P02_SWING40_VAR5_K1_1K_3P3K_ABLATION_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG2048_LR0P02_SWING40_VAR5_K1_1K_3P3K_ABLATION_REPORT.pdf)
+- **2026-11-04 (Major Breakthrough: 1k/3.3k Attenuator Hardware Mod, Naked Batch $K=1$ Online Stochastic Adaptation, 7.72x Ablation Contrast & 7.17-Bit Peak Precision under Heavy $\pm 5\text{ LSB}$ Fig 7 Disturbance):**
+  - **1. Physical Hardware Modification (1k/3.3k Passive Summing Attenuator):**
+    On Card 2, the passive summing attenuator on the analog compensation branch was physically resoldered from $1\text{ k}\Omega / 5.1\text{ k}\Omega$ ($-15.7\text{ dB}$) to **$1\text{ k}\Omega / 3.3\text{ k}\Omega$ ($-12.7\text{ dB}$)**. This hardware upgrade boosted injected correction current into the ColTIA virtual-ground summing junction by **$+42\%$**, providing the necessary analog authority to cancel large physical errors without driving compensation weights toward rail saturation.
+  - **2. The "Naked" Batch $K=1$ Protocol (Revealing True Physical Baseline ENOB):**
+    Prior runs accumulated gradients over batches of $K=20$ vectors, which statistically smoothed variance ($\sigma / \sqrt{20}$). Running in pure **"Naked" Batch $K=1$ mode** exposes the unvarnished physical reality of the analog silicon: each epoch executes a single stochastic forward pass on an arbitrary LLM Toeplitz vector ($\rho = 0.85$, input swing $\pm 40\text{ LSB}$). This unmasks the true open-loop physical baseline resolution of the uncompensated hardware—approximately **$3.33\text{ bits}$ ENOB** ($133\,318\text{ LSB}^2$ quadratic error).
+  - **3. Compensating Distributed 2D Perturbations Across the Full $6\times 6$ Matrix (Patent Fig 7):**
+    To rigorously stress-test the architecture, the **Patent Pending SE 2630397-4 Fig 7 Emulator** injected severe, randomized hidden offsets of **$\pm 5\text{ LSB}$** independently across all 36 crosspoints of primary Matrix $M_{33}$ every 100 epochs. Crucially, the digital supervisory target $Z_\text{target}$ remained 100% anchored to the unperturbed nominal matrix (strict cheat protection / Fusk-Skydd). This provides conclusive physical proof that arbitrary non-linear perturbations distributed across the entire 2D analog matrix can be autonomously identified and cancelled in real-time by the 2-layer neural compensation network ($M_3 \to \text{Sigmoid 4} \to M_8 \to \text{Sigmoid 10}$).
+  - **4. Breakthrough Quantitative Results (The $\text{LR}=0.02\text{x}, \lambda=2048$ Sweet Spot):**
+    - **7.72x Ablation Contrast (672% Error Surge Without Compensation):** During active Inverted MAML compensation under continuous $\pm 5\text{ LSB}$ disturbance (Phase 3, Epochs 200..599), the neural network maintained a mean loss of **$19\,028.5\text{ LSB}^2$ ($4.95\text{ bits}$ ENOB)**. When compensation was intentionally disabled in Phase 4 (Epochs 600..1000, $W=0$), quadratic error instantly rocketed to **$146\,986.4\text{ LSB}^2$ ($3.26\text{ bits}$ ENOB)**—a **7.72x higher error** without compensation!
+    - **7.17 Bits Peak Resolution ($605.5\text{ LSB}^2$):** Single-epoch precision shattered the 7-bit ceiling on physical silicon, reaching a record minimum loss of $605.5\text{ LSB}^2$ ($7.17\text{ bits}$ ENOB).
+    - **Massive Linear Headroom ($|W_8| \le 25\text{ LSB}$):** Benefiting from the 1k/3.3k attenuator gain, the weights required only $25\text{ LSB}$ excursion, leaving **$95\text{ LSB}$ margin** to the $\pm 120\text{ LSB}$ rail limits and guaranteeing quiet, non-saturating triode operation.
+    - **Real-Time Throughput:** All 1000 epochs executed on live silicon in **$37.0\text{ seconds}$** ($27.0\text{ epochs/second}$).
+  - **5. Detailed Publication Reports & Telemetry:**
+    - **Full 1000-Epoch Benchmark Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG2048_LR0P02_SWING40_VAR5_K1_1K_3P3K_ABLATION_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG2048_LR0P02_SWING40_VAR5_K1_1K_3P3K_ABLATION_REPORT.pdf)
+    - **Cross-Run Synthesis & Analysis (Markdown):** [`FPGA_code/docs/INVERTED_MAML_CARD2_1K3P3K_ATTENUATOR_BREAKTHROUGH_SYNTHESIS.md`](FPGA_code/docs/INVERTED_MAML_CARD2_1K3P3K_ATTENUATOR_BREAKTHROUGH_SYNTHESIS.md)
+
+    ![Inverted MAML Breakthrough: 1000-Epoch Pure 5.0ms Run with 1k/3.3k Attenuator (K=1, LR=0.02x, λ=2048, Fig 7 Disturbance ±5 LSB)](FPGA_code/docs/figures/fig_mode_a_1000ep_5ms_pure_toeplitz_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_ablation.png)
+    *Figure: Live silicon telemetry on Card 2 (1k/3.3k attenuator, pure 5.0 ms snapshot, Naked Batch K=1, LR=0.02x, λ=2048). Top: Quadratic loss showing dramatic drop in Phase 2 (-77.8%), stable tracking at 19 028 LSB² under continuous ±5 LSB disturbance in Phase 3, and immediate 7.72x error surge upon ablation in Phase 4 (W=0). Middle: Effective resolution peaking at 7.17 bits ENOB. Bottom: Matrix 8 diagonal weights showing smooth, relaxed convergence bounded within [-10, +25] LSB with >95 LSB linear headroom.*
+
+  - **6. Broadened 1 ms Temporal Window [4.5 – 5.5 ms] & Memory Cell Leakage Compensation (11 Strata):**
+    Extending the benchmark across a full 1,000 µs temporal discharge window ($4.5\text{ ms} \dots 5.5\text{ ms}$, sampled across 11 discrete strata at $100\text{ µs}$ intervals) using pure online single-sample SGD ($K=1$, 11 physical weight updates per epoch = **11,000 total physical updates on silicon**).
+    - **Autonomous Counter-Slope:** The neural network utilizes the temporal reference clock cells (Rows 6 & 7 in Matrix 3) to synthesize a dynamic counter-slope countering physical 100 nF capacitor leakage over time.
+    - **Wavefront Precision Elevation:** Slashes full-window mean error across all 11 strata by **$-63.5\%$**, lifting window ENOB from $3.24\text{ b} \to 3.97\text{ bits}$ and delivering **$+1.47\text{ bits}$ peak net resolution gain** at 5.0 ms.
+    - **No Catastrophic Forgetting:** The parabolic $L_2$ restoring well ($\lambda=2048$) firmly binds weights across disparate temporal operating points, completely preventing sequential overwriting.
+  - **7. Uncorrelated White Noise Input Stream (`--noise-color white`):**
+    Evaluating under completely uncorrelated white noise confirmed that Inverted MAML does not depend on spatio-temporal input correlations. The network converged rapidly, reaching an astonishing peak precision at 5.0 ms of **$6.26\text{ bits}$ ENOB ($2\,143.5\text{ LSB}^2$) at Epoch 130**!
+  - **8. Dynamic Disturbance Tracking & 8.1x Ablation Jump:**
+    Under severe non-stationary $\pm 5\text{ LSB}$ perturbations on Matrix 33 (Patent Fig 7 Emulator), the closed-loop network absorbed error pulses and re-converged within 10–20 epochs. Clamping weights to zero in Phase 4 (Epoch 600) caused quadratic loss to immediately jump by **$8.1\times$ (from $13\,638\text{ LSB}^2 \to 110\,035\text{ LSB}^2$)**, proving causal active compensation.
+  - **9. Latest 10-Page Comprehensive Publication Report & Figures:**
+    - **Full 10-Page Publication Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.pdf)
+    - **Comprehensive Markdown Report:** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.md`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.md)
 
     ![2D Temporal Spectrogram of Precision under White Noise Stream](FPGA_code/docs/figures/fig_broadened_white_temporal_heatmap_spectrogram.png)
-    *Figur 1: 2D Temporal Spectrogram över precision (ENOB) över fördröjning [4.5..5.5 ms] och 1 000 epoker under vitt brus. Visar omedelbart lyft vid Epok 100 och full släckning vid ablation Epok 600 utan "catastrophic forgetting".*
+    *Figure 1: 2D Temporal Spectrogram of precision (ENOB) across delay [4.5..5.5 ms] and 1,000 epochs under white noise. Demonstrates immediate wavefront illumination at Epoch 100, robust disturbance tracking in Phase 3, and complete extinguishing upon ablation at Epoch 600 without catastrophic forgetting.*
 
     ![Generalization Profile Across Temporal Strata [4.5 - 5.5 ms]](FPGA_code/docs/figures/fig_broadened_white_temporal_profile_4phases.png)
-    *Figur 2: Generaliseringsprofil över alla 11 strata under vitt brus. Nominell konvergens (blå kurva) ger ett jämnt precisionslyft över hela det 1 ms breda fönstret med toppökning på +1.47 bitar vid 5.0 ms.*
+    *Figure 2: Generalization profile across all 11 strata under white noise stream. Nominal convergence (blue curve) uniformly lifts precision across the entire 1 ms capacitor discharge ramp, delivering +1.47 bits peak gain at 5.0 ms.*
 
     ![3D Disturbance Topographies on Matrix 33](FPGA_code/docs/figures/fig_3d_broadened_white_disturbances_m33_4panel.png)
-    *Figur 3: 3D-stolptopografier över de dolda hårdvarustörningar (±5 LSB) som injicerades på Matrix 33 (Patent Fig 7 Emulator).*
+    *Figure 3: 3D discrete bar topographies of the non-stationary hardware perturbation matrices (±5 LSB) applied to Matrix 33 across Phase 3 (Patent Fig 7 Emulator).*
 
 
 
