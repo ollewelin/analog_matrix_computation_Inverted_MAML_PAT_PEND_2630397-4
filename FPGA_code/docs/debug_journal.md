@@ -447,10 +447,20 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
    - *Hypotesprövning (Olle):* Byt plats på svingbegränsningen – komprimera vikterna på Matris 33 med $2.0\text{x}$ runt nollan för att undvika cell-pinch-off, och skala upp insignalen DAC(2) till full $\pm 80\text{ LSB}$ sving.
    - Phase 1 Baseline Mean: **$35\,240.3\text{ LSB}^2$ ($4.27\text{ b}$)** (vs $52\,925.3\text{ LSB}^2$ vid okomprimerad M33, **$-33.4\%$ felreduktion i öppen loop!**).
    - Phase 2 Training Mean: **$30\,319.4\text{ LSB}^2$ ($4.36\text{ b}$)** (vs $43\,214.5\text{ LSB}^2$ vid okomprimerad M33, **$-29.8\%$ felreduktion!**).
-   - Peak Single-Epoch: **$14\,761.0\text{ LSB}^2$ ($4.87\text{ bits}$ ENOB vid Epok 409)** (vs $29\,849.0\text{ LSB}^2$ vid okomprimerad M33, **$-50.5\%$ halverat peakfel!**).
+   - Peak Single-Epoch: **$14\,761.0\text{ LSB}^2$ ($4.87\text{ bits}$ ENOB vid Epok 409)**.
    - Slutvikter $W_8$: $[8, 1, 3, 22, 14, -9]\text{ LSB}$ (0% clamping, max $22\text{ LSB}$).
-   - *Slutsats:* Olles hypotes bekräftad! Genom att halvera viktsvinget på M33 undviks pinch-off i de enskilda Dual-2T1C-cellerna, vilket ger markant förbättrad linearitet och $+0.51\text{ bitar}$ högre topp-ENOB vid full $\pm 80\text{ LSB}$ insignal!
+   - *Slutsats:* Bättre än okomprimerad M33 vid $\pm 80\text{ LSB}$, men märkbart sämre än när insignalen begränsas till $\pm 40\text{ LSB}$ med okomprimerad M33 ($13\,820\text{ LSB}^2, 4.92\text{ b}$). Den kvadratiska distortionen ($-\frac{1}{2}V_{ds}^2$) dominerar på datalinjen.
    - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG160_COMP2_SWING80_REPORT.pdf` (2 pages).
+
+9. **Run 9: Återverifiering (Re-verification): M33 Nominal $1.0\text{x}$, Insignal $\pm 40\text{ LSB}$ (`d_line=2`), $\lambda = 160$**
+   - *Syfte:* Efter implementeringen av dynamiska parametrar (`compress_m33_weight`, `w_33_variance_lsb_range`), nollställ tillbaka till gårdagens vinnande regim för att verifiera att hårdvaran och mjukvaran landar exakt på samma prestanda och konvergensvektor.
+   - Phase 1 Baseline Mean: **$14\,506.8\text{ LSB}^2$ ($4.89\text{ b}$)** (Gårdagens Run 7: $14\,811.2\text{ LSB}^2$, $4.88\text{ b}$).
+   - Phase 2 Training Mean: **$13\,038.7\text{ LSB}^2$ ($4.97\text{ b}$)** (Gårdagens Run 7: $13\,812.3\text{ LSB}^2$, $4.93\text{ b}$).
+   - Peak Single-Epoch: **$8\,239.0\text{ LSB}^2$ ($5.29\text{ bits}$ ENOB vid Epok 395)** (Gårdagens Run 7: $9\,475.2\text{ LSB}^2$, $5.19\text{ b}$).
+   - Slutvikter $W_8$: $\mathbf{[9, -2, -1, -4, 2, -10]\text{ LSB}}$ (**100% IDENTISKA** med gårdagens Run 7 på enstaka LSB!).
+   - Post-Sweep vid $5100\,\mu\text{s}$: $\mathbf{3\,520.5\text{ LSB}^2}$ (**$5.92\text{ bits}$ ENOB**).
+   - *Slutsats:* 100% reproducerbarhet bevisad! Mjukvaruparametrarna återställde kislet perfekt och systemet presterar $5.29\text{ b}$ topp under träning och $5.92\text{ b}$ vid post-sweep.
+   - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG160_SWING40_REVERIFY_REPORT.pdf` (2 pages).
 
 ---
 

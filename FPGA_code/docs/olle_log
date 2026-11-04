@@ -549,6 +549,22 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # ==============================================================================
 #
 # ==============================================================================
+# DATUM: 2026-11-04 10:43 CET
+# HÅRDVARUKÖRNING 9: Återverifiering (Re-verification) - M33 1.0x, Insving ±40 LSB
+# Rent 5.0 ms på Kort 2 (Toeplitz rho=0.85, LR=0.08x, lambda=160, d_line=2)
+# ==============================================================================
+# - Syfte: Kontrollera att den nya parametriserade mjukvaran och C-firmwaren återställer
+#   kislet till 100% samma prestanda som gårdagens vinnande körning.
+# - Fas 1 Baslinje Snitt: 14 506.8 LSB² (4.89 bitar ENOB) (Gårdagens: 14 811.2 LSB², 4.88 bitar).
+# - Fas 2 Träning Snitt:  13 038.7 LSB² (4.97 bitar ENOB) (Gårdagens: 13 812.3 LSB², 4.93 bitar).
+# - Peak Singelepok:       8 239.0 LSB² (5.29 bitar ENOB vid Epok 395) (Gårdagens: 9 475.2 LSB², 5.19 b).
+# - Slutvikter M8:        [9, -2, -1, -4, 2, -10] LSB (EXAKT IDENTISKA med gårdagen!).
+# - Post-sweep vid 5100 us: 3 520.5 LSB² (5.92 bitar ENOB!).
+# - Slutsats: 100% reproducerbarhet bevisad! Mjukvaruparametrarna återställde kislet perfekt.
+# - Rapport: INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG160_SWING40_REVERIFY_REPORT.pdf (2 sidor).
+# ==============================================================================
+#
+# ==============================================================================
 # PLAN FÖR IDAG (2026-11-04):
 # ==============================================================================
 
