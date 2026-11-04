@@ -52,9 +52,10 @@ def main():
         lr_str = f"lr{str(args.lr).replace('.', 'p')}"
         swing_str = f"swing{80 if args.d_line == 1 else 40}"
         var_str = f"var{args.variance}"
+        k_str = f"_k{args.k_batch}" if args.k_batch != 20 else ""
         comp_str = f"_comp{int(args.compress_m33_weight)}" if args.compress_m33_weight > 1.0 else ""
         abl_str = "_ablation" if args.epochs >= 600 else ""
-        tag = f"{args.noise_color}_reg{args.reg_lambda}_{lr_str}_{swing_str}_{var_str}{comp_str}{abl_str}"
+        tag = f"{args.noise_color}_reg{args.reg_lambda}_{lr_str}_{swing_str}_{var_str}{k_str}{comp_str}{abl_str}"
     else:
         tag = args.tag
 
@@ -108,3 +109,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

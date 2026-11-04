@@ -678,6 +678,34 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # ==============================================================================
 #
 # ==============================================================================
+# DATUM: 2026-11-04 11:50 CET
+# HÅRDVARUKÖRNING 14: 1000 Epoker Rent 5.0 ms med Litet Batchfönster K = 4
+# LR = 0.08x, Lambda = 1024 (Styv L2-norm), Störning ±3 LSB, Insving ±40 LSB
+# ==============================================================================
+# - Syfte & Upplägg (Olle):
+#   Undersök loopens dynamik och träningshastighet när batchstorleken minskas från
+#   K=20 till K=4 (4 kondensatoruppladdningar per epok istället för 20).
+# - Träningshastighet: 1000 epoker slutfördes på endast 74.8 sekunder (~13.4 epoker/sekund)!
+# - 100-Epokers Segmentanalys:
+#   * Epok 0 .. 99 (Fas 1 Baslinje W=0): Snitt 47 131.1 LSB² (4.06 b), Bästa 7 030.0 LSB² (5.40 b).
+#     (Högre medelfel och varians på grund av färre samplade vektorer per epok).
+#   * Epok 100 .. 199 (Fas 2 Nominell Träning): Snitt 33 518.0 LSB² (4.31 b), Bästa 14 306.0 LSB² (4.89 b).
+#     Kraftig reduktion av felet (-28.9%, +0.25 bitar) direkt vid träningens start!
+#   * Epok 200 .. 599 (Fas 3 Aktiv Störning ±3 LSB): Snitt 42 993.9 LSB² (4.18 b), Bästa 8 156.0 LSB² (5.30 b).
+#     Loopen håller felet stabilt runt 43k trots 4 på varandra följande störningsbyten.
+#   * Epok 600 .. 1000 (Fas 4 Ablation W=0, Träning AV): Snitt 53 955.5 LSB² (3.98 b).
+# - Fysikalisk Slutsats:
+#   1. Med K=4 är träningshastigheten ~3x snabbare än K=20 (74.8s vs 227s).
+#   2. Den stokastiska variansen i gradientuppskattningen är högre, vilket ger ett högre genomsnittligt
+#      brusgolv för varje enskild epok (~43k LSB² vs ~16k LSB² vid K=20).
+#   3. Ablationskontrasten blir ännu tydligare: när kompensationen slås av i Fas 4 exploderar
+#      felet från 42.9k till 53.9k LSB², vilket visar Inverted MAML:s direkta skyddseffekt!
+# - Logg: FPGA_code/logs/mode_a_extended_training/mode_a_1000ep_5ms_pure_toeplitz_reg1024_lr0p08_swing40_var3_k4_ablation.json
+# - Figur: FPGA_code/docs/figures/fig_mode_a_1000ep_5ms_pure_toeplitz_reg1024_lr0p08_swing40_var3_k4_ablation.png
+# - Rapport: INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG1024_LR0P08_SWING40_VAR3_K4_ABLATION_REPORT.pdf (2 sidor exakt).
+# ==============================================================================
+#
+# ==============================================================================
 # PLAN FÖR IDAG (2026-11-04):
 # ==============================================================================
 

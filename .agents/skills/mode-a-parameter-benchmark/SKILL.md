@@ -83,3 +83,4 @@ Or using the unified wrapper script:
    - Epoch 600 (Red solid): Phase 4 Ablation (Training OFF, W=0)
    - Epoch 700, 800, 900, 1000 (Orange dashed): Disturbance Shift (W=0)
 5. **Injected Matrices:** Display all randomized disturbance matrices in Section 5 (PDF grid) and Section 3/4 (Markdown codeblocks).
+

@@ -520,6 +520,17 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
     - *Slutsats:* $LR=0.16\text{x}$ ger blixtsnabb respons men kan vid kraftiga $\pm 4\text{ LSB}$ asymmetriska störningar driva enskilda kanaler nära klampningsgränsen ($+114\text{ LSB}$). $LR=0.08\text{x} - 0.10\text{x}$ erbjuder optimal kompromiss mellan snabbhet och dämpningsmarginal.
     - *Rapport:* `FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG150_LR0P16_SWING40_VAR4_ABLATION_REPORT.pdf` (exakt 2 sidor).
 
+14. **Run 14: 1000 Epoker Rent 5.0 ms med Litet Batchfönster $K = 4$, $LR = 0.08\text{x}$, $\lambda = 1024$ (Styv L2-norm), Störning $\pm 3\text{ LSB}$**
+    - *Syfte & Hypotes (Olle):* Undersök loopens dynamik och träningshastighet när batchstorleken minskas från $K=20$ till $K=4$ (endast 4 kondensatoruppladdningar per epok istället för 20).
+    - *Träningshastighet:* 1000 epoker slutfördes på endast **$74.8\text{ sekunder}$** ($13.4\text{ epoker/sekund}$, ~3x snabbare än $K=20$).
+    - *Empiriska Mätresultat:*
+      * **Fas 1 (Ep 0..99, Baslinje W=0):** Medelfel **$47\,131.1\text{ LSB}^2$ ($4.06\text{ b}$)**, Bästa $7\,030.0\text{ LSB}^2$ ($5.40\text{ b}$).
+      * **Fas 2 (Ep 100..199, Nominell Träning):** Medelfel **$33\,518.0\text{ LSB}^2$ ($4.31\text{ b}$)**, Bästa $14\,306.0\text{ LSB}^2$ ($4.89\text{ b}$). Felet pressas ner kraftigt med $-28.9\%$ ($+0.25\text{ b}$) direkt vid träningens påslag.
+      * **Fas 3 (Ep 200..599, Aktiv Störning $\pm 3\text{ LSB}$):** Medelfel **$42\,993.9\text{ LSB}^2$ ($4.18\text{ b}$)**, Bästa $8\,156.0\text{ LSB}^2$ ($5.30\text{ b}$). Loopen bibehåller stabil analog kompensation trots 4 på varandra följande störningsbyten.
+      * **Fas 4 (Ep 600..1000, Ablation $W=0$, Träning AV):** Medelfel exploderar till **$53\,955.5\text{ LSB}^2$ ($3.98\text{ b}$)** när kompensationen slås av!
+    - *Slutsats:* Mindre batch ($K=4$) ökar träningshastigheten dramatiskt (3.8 min -> 1.2 min) på bekostnad av högre stokastisk samplingsvarians, men ablationskontrasten ($42.9\text{k}$ med träning PÅ vs $53.9\text{k}$ med träning AV) visar med kristallklar skärpa att Inverted MAML aktivt skyddar beräkningsprecisionen.
+    - *Rapport:* `FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG1024_LR0P08_SWING40_VAR3_K4_ABLATION_REPORT.pdf` (exakt 2 sidor).
+
 ---
 
 ### B. Forskningsarkitektur: De Tre Huvudmilstolparna (Olle:s taxonomi)
