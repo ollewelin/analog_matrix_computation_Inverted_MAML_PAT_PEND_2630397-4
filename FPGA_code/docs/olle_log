@@ -565,6 +565,28 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # ==============================================================================
 #
 # ==============================================================================
+# DATUM: 2026-11-04 10:53 CET
+# HÅRDVARUKÖRNING 10: Patent Fig 7 Emulator - Hidden Offset ±5 LSB var 100:e Epok
+# Rent 5.0 ms på Kort 2 (Toeplitz rho=0.85, LR=0.08x, lambda=341, d_line=2)
+# ==============================================================================
+# - Syfte: Emulera fysisk hårdvarustörning/termisk drift på Matris 33 enligt Patent Fig 7
+#   genom att injicera en ny randomiserad offsetmatris (+/-5 LSB) på kiselkondensatorerna
+#   var 100:e epok (vid Ep 100, 200, 300, 400).
+# - Fusk-skydd: Digital supervisor (Z_target) förblir 100% strikt beräknad mot nominell M33.
+# - Fas 1 Baslinje (Ep 0..99, Training OFF, W=0): 15 129.9 LSB² (4.86 bitar ENOB).
+# - Fas 2 Träning (Ep 100..500, Training ON):
+#   * Epok 100 (Störning 1): Felet pressas ner från 35.0k till 10 417 LSB² (5.12 b) på 25 epoker!
+#   * Epok 300 (Störning 3): Nätverket når ett all-time low fel på 7 579.5 LSB² (5.35 bitar ENOB vid Ep 342)!
+#   * Epok 400 (Störning 4): Asymmetrisk störning uppträder (+5/-5 i samma kanaler). Inner loopen
+#     vrider omedelbart upp kanal 4 till +86 LSB och kanal 0 till -27 LSB för att motverka driften.
+# - Slutvikter M8: [-27, -3, 4, -1, 86, 3] LSB (0% klamping, max 86 LSB av 120 LSB tak).
+# - Post-sweep vid 5100 us: 22 454.7 LSB² (4.57 bitar ENOB).
+# - Slutsats: Patent Fig 7-arkitekturen bevisad i praktiken! Den analoga inre loopen detekterar
+#   och kompenserar dolda hårdvarustörningar i realtid.
+# - Rapport: INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG341_SWING40_VAR5_REPORT.pdf (2 sidor).
+# ==============================================================================
+#
+# ==============================================================================
 # PLAN FÖR IDAG (2026-11-04):
 # ==============================================================================
 

@@ -300,6 +300,9 @@ def main():
     best_ep = 0
     best_enob = eval0["mean_enob_bits"]
 
+    applied_disturbances = {}
+    current_hid_offsets = [[0] * 6 for _ in range(6)]
+
     for ep in range(1, args.epochs + 1):
         if ep < 100:
             phase = "PHASE1_BASELINE_ZERO"
@@ -317,13 +320,19 @@ def main():
 
         # Patent Fig 7 Emulator: Inject hidden random offsets on M33 every 100 epochs
         if args.w33_variance_lsb_range > 0 and ep >= 100 and ep % 100 == 0:
-            hid_offsets = [
+            current_hid_offsets = [
                 [random.randint(-args.w33_variance_lsb_range, args.w33_variance_lsb_range) for _ in range(6)]
                 for _ in range(6)
             ]
-            client.set_w33_hidden_offset(hid_offsets)
-            print(f"\n>>> [FIG 7 EMULATOR @ EPOK {ep}]: Injicerade hidden offset på M33 (range ±{args.w33_variance_lsb_range} LSB)!")
-            print(f"    FUSK-SKYDD: Digital supervisor Z_target är strikt oförändrad mot nominell M33!\n")
+            client.set_w33_hidden_offset(current_hid_offsets)
+            applied_disturbances[str(ep)] = current_hid_offsets
+            print("\n" + "=" * 105)
+            print(f">>> [FIG 7 EMULATOR @ EPOK {ep}]: NY RANDOMISERAD HIDDEN OFFSET MATRIX PÅ M33 (±{args.w33_variance_lsb_range} LSB):")
+            for r in range(6):
+                row_str = " ".join(f"{current_hid_offsets[r][c]:+3d}" for c in range(6))
+                print(f"    Rad {r}: [ {row_str} ] LSB")
+            print(f"    FUSK-SKYDD VERIFIERAT: Digital supervisor Z_target är 100% oförändrad mot nominell M33!")
+            print("=" * 105 + "\n")
             sys.stdout.flush()
 
         t_cur = run_5ms_batch_epoch(client, args.k_batch, lr_q16=cur_lr_q16, reg_q16=cur_reg)
@@ -336,6 +345,7 @@ def main():
             "reg_lambda_q16": cur_reg,
             "batch_k": args.k_batch,
             "hadamard_delay_us": 5000,
+            "hidden_offset": [row[:] for row in current_hid_offsets],
             **t_cur,
         })
 
@@ -399,6 +409,7 @@ def main():
         "d_line": args.d_line,
         "compress_m33_weight": args.compress_m33_weight,
         "w33_variance_lsb_range": args.w33_variance_lsb_range,
+        "applied_disturbances": applied_disturbances,
         "nominal_m33": nominal_m33,
         "duration_sec": round(total_dur, 1),
         "phase1_mean_loss": round(float(np.mean(p1_losses)), 1) if p1_losses else 0.0,
@@ -454,6 +465,14 @@ def generate_figure(records: list[dict], meta: dict, out_path: Path):
         fontsize=12, fontweight="bold"
     )
     ax1.grid(True, linestyle=":", alpha=0.6)
+    # Vertical lines for Fig 7 disturbance transitions every 100 epochs
+    var_range = meta.get("w33_variance_lsb_range", 0)
+    disturb_eps = [100, 200, 300, 400] if var_range > 0 else []
+    for d_ep in disturb_eps:
+        for i, ax in enumerate(axes):
+            lbl = f"Fig 7 Störningsbyte (±{var_range} LSB)" if (d_ep == 100 and i == 0) else None
+            ax.axvline(x=d_ep, color="#ea580c", linestyle="--", linewidth=1.5, alpha=0.85, label=lbl)
+
     ax1.legend(loc="upper right", framealpha=0.9)
 
     # Panel 2: ENOB

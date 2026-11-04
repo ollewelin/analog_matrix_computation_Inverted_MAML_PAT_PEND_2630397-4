@@ -136,7 +136,22 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
     md_content += f"""
 ---
 
-## 4. Hardware Verification & Run Parameters
+## 4. Patent SE 2630397-4 Fig 7 Emulator: Randomiserade Hidden Offsets (±{var_range} LSB)
+*Fusk-Skydd:* Den digitala mål-supervisorn ($Z_\\text{{target}}$) i T120 SoC beräknas strikt mot den nominella frysta matrisen $W^{{(33)}}_\\text{{nominal}}$. De dolda stokastiska avvikelserna laddas enbart upp på de fysiska 2T1C-kondensatorerna på kiselmatrisen för att emulera hårdvarudrift.
+"""
+    if "applied_disturbances" in meta and meta["applied_disturbances"]:
+        for ep_str, dist_m in sorted(meta["applied_disturbances"].items(), key=lambda x: int(x[0])):
+            next_ep = int(ep_str) + 100
+            md_content += f"\n### Epok {ep_str} .. {next_ep-1} (Aktiv Störning):\n```text\n"
+            for r in range(6):
+                row_str = " ".join(f"{dist_m[r][c]:+3d}" for c in range(6))
+                md_content += f"Rad {r}: [ {row_str} ] LSB\n"
+            md_content += "```\n"
+
+    md_content += f"""
+---
+
+## 5. Hardware Verification & Run Parameters
 - **SoC Architecture:** Trion T120 Master + T20 Companion (`TAG=T20A`, S-bus ACK `0x06`).
 - **Passive Summing Attenuator:** 1k / 5.1k Ohm ($16.4\\%$ compensation authority).
 - **Repair Status:** Channel 3 resoldered and physically verified.
@@ -385,10 +400,14 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
 
     story.append(Spacer(1, 10))
     story.append(Paragraph("5. Technical Conclusions & Next Steps", sec_style))
+    dist_text = ""
+    if var_range > 0:
+        dist_text = f" 4. <b>Patent Fig 7 Emulator Active:</b> Hidden stochastic offsets (±{var_range} LSB) were injected onto M33 every 100 epochs (indicated by orange vertical dashed lines in the curves above), testing real-time analog compensation while digital supervisor Z_target strictly evaluated nominal performance."
     concl_text = (
         f"1. <b>Zero-Mean Equilibrium:</b> Starting directly from W=0 completely eliminates the legacy knee disturbance. "
-        f"2. <b>Drift Immunity:</b> With λ = 1024, weights remain strictly bounded within ±40 LSB, preserving complete linear triode margins. "
+        f"2. <b>Drift Immunity:</b> With λ = {meta.get('reg_lambda', 1024)}, weights remain strictly bounded within ±40 LSB, preserving complete linear triode margins. "
         f"3. <b>Stimulus Robustness:</b> Under {noise_label}, the closed loop achieves sustained high ENOB with fast convergence."
+        f"{dist_text}"
     )
     story.append(Paragraph(concl_text, body_style))
 

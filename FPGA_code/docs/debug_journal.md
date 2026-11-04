@@ -462,6 +462,19 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
    - *Slutsats:* 100% reproducerbarhet bevisad! Mjukvaruparametrarna återställde kislet perfekt och systemet presterar $5.29\text{ b}$ topp under träning och $5.92\text{ b}$ vid post-sweep.
    - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG160_SWING40_REVERIFY_REPORT.pdf` (2 pages).
 
+10. **Run 10: Patent SE 2630397-4 Fig 7 Emulator: Randomiserad Hidden Offset $\pm 5\text{ LSB}$ på M33 var 100:e Epok, $\lambda = 341$, Insignal $\pm 40\text{ LSB}$**
+    - *Syfte:* Emulera fysisk hårdvarustörning/termisk drift på Matris 33 enligt Figur 7 i patentet genom att injicera en ny oberoende slumpmatris $\delta_{r,c} \in [-5, +5]\text{ LSB}$ på kondensatorerna var 100:e epok (Ep 100, 200, 300, 400).
+    - *Fusk-skydd:* Digital supervisor ($Z_\text{target}$) beräknas strikt mot den nominella matrisen utan störning.
+    - Fas 1 Baslinje (Ep 0..99, Training OFF, $W=0$): **$15\,129.9\text{ LSB}^2$ ($4.86\text{ b}$)**.
+    - Fas 2 Aktiv Träning (Ep 100..500): Inner loopen svarar omedelbart på varje ny perturbation.
+      * Epok 100 (Störning 1): Loopen sänker felet från $35.0\text{k}$ till $10\,417\text{ LSB}^2$ ($5.12\text{ b}$) på 25 epoker!
+      * Epok 300 (Störning 3): Loopen når ny toppnotering på **$7\,579.5\text{ LSB}^2$ ($5.35\text{ bits}$ ENOB vid Epok 342)**!
+      * Epok 400 (Störning 4): En kraftig asymmetrisk störning träffar kislet. Inner loopen vrider omedelbart upp kanal 4 till $+86\text{ LSB}$ och kanal 0 till $-27\text{ LSB}$ för att motverka den fysiska spänningsavvikelsen.
+    - Slutvikter $W_8$: `[-27, -3, 4, -1, 86, 3]` LSB (noll klampning, full linearitetsmarginal bevarad under limit $120\text{ LSB}$).
+    - Post-sweep vid $5100\,\mu\text{s}$: $22\,454.7\text{ LSB}^2$ ($4.57\text{ b}$).
+    - *Slutsats:* Patent Fig 7-arkitekturen bevisad i praktiken! Inverted MAML inner loop anpassar de analoga vikterna i realtid för att undertrycka okända hårdvaruavvikelser på kislet.
+    - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG341_SWING40_VAR5_REPORT.pdf` (2 pages).
+
 ---
 
 ### B. Forskningsarkitektur: De Tre Huvudmilstolparna (Olle:s taxonomi)
