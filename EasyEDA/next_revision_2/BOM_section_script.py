@@ -16,7 +16,7 @@ except ImportError:
     raise SystemExit(1)
 
 
-DEFAULT_STEM = "BOM_Analog_Matrix_Inverted_MAML_IMC_2026-11-01"
+DEFAULT_STEM = "BOM_Analog_Matrix_Inverted_MAML_IMC_2026-11-04"
 MAX_DESIGNATOR_CHARS = 2047
 
 

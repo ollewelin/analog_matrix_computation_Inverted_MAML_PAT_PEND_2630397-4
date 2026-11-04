@@ -1,7 +1,7 @@
 ================================================================================
 INVERTED MAML ANALOG MATRIX - PCB VERSION 2.0 PRODUCTION & ERRATA NOTES
-Date: 2026-11-01
-Project: ProPrj_Inverted_MAML_6x6_2026-11-01.epro2
+Date: 2026-11-04
+Project: ProPrj_Inverted_MAML_6x6_copy_2026-11-04.epro2
 ================================================================================
 
 1. Purpose:
@@ -9,23 +9,25 @@ Project: ProPrj_Inverted_MAML_6x6_2026-11-01.epro2
    and signal integrity fixes identified during Version 1.3.2 testing on physical silicon.
 
 2. Production Files in this Directory:
-   - PCB Project:        ProPrj_Inverted_MAML_6x6_2026-11-01.epro2
-   - Gerber Zip:         Gerber_Inverted_MAML_IMC_2026-11-01.zip (6-layer board, PTH/NPTH drills, flying probe)
-   - Pick and Place:     PickAndPlace_Inverted_MAML_IMC_2026_11_01.csv (UTF-16LE with coordinates & rotation)
-   - Original BOM:       BOM_Analog_Matrix_Inverted_MAML_IMC_2026-11-01.csv (Raw EasyEDA export)
-   - JLCPCB Split BOM:   BOM_Analog_Matrix_Inverted_MAML_IMC_2026-11-01_Designator_max_2047_char.csv
+   - PCB Project:        ProPrj_Inverted_MAML_6x6_copy_2026-11-04.epro2
+   - Gerber Zip:         Gerber_Inverted_MAML_IMC_2026-11-04.zip (6-layer board, PTH/NPTH drills, flying probe)
+   - Pick and Place:     PickAndPlace_Inverted_MAML_IMC_2026_11_04.csv (UTF-16LE with coordinates & rotation)
+   - Original BOM:       BOM_Analog_Matrix_Inverted_MAML_IMC_2026-11-04.csv (Raw EasyEDA export)
+   - JLCPCB Split BOM:   BOM_Analog_Matrix_Inverted_MAML_IMC_2026-11-04_Designator_max_2047_char.csv
                          (Formatted for JLCPCB SMT: splits designator lists exceeding 2047 chars)
-   - Utility Scripts:    BOM_section_script.py & verify_section.py (configured for 2026-11-01 stem)
+   - Utility Scripts:    BOM_section_script.py & verify_section.py (configured for 2026-11-04 stem)
 
 3. Key Errata Fixes & Component Changes from PCB v1.3.2 -> v2.0:
    - Item 1 (Op-Amp Upgrade for DAC2 In-Data Rows):
      U1$CBB16 and U2$CBB16 are upgraded to MCP6444-E/SL (SOIC-14, LCSC: C108882).
      High drive capability eliminates dynamic row voltage sag during simultaneous multi-column load.
      Weight DAC buffers remain MCP6024T-I/SL-MS (LCSC: C54539958, Qty 30).
-   - Item 2 (Summing Junction Attenuator Optimization):
+   - Item 2 (Summing Junction Attenuator Optimization - Breakthrough 1k / 3.3k):
      Summing junction resistors R2$CBB15, R3$CBB15, R4$CBB15, R6$CBB15, R7$CBB15, R8$CBB15
-     updated from 3.9 kOhm to 5.1 kOhm (0402WGF5101TCE, LCSC: C25905, Qty 6).
-     Provides optimal Vernier authority with robust Hadamard SNR (+18 dB, 40..60 LSB swing).
+     updated to 3.3 kOhm (0402WGF3301TCE, LCSC: C25890). Combined with R1$CBB15 (1 kOhm),
+     this forms the breakthrough 1k / 3.3k passive summing attenuator, delivering optimal
+     Vernier authority with robust Hadamard SNR (+18 dB, 40..60 LSB swing, peak 5.71 b ENOB
+     and -58.3% error reduction across 4.5..5.5 ms verified on Card 2 silicon).
    - Item 3 (JTAG & CSI Mode Pin Pull-Ups):
      RDX2 / CSI pin pull-up resistor updated to 10 kOhm to ensure clean single-device
      JTAG boundary-scan mode on T120 Master and T20 Controller.
@@ -40,14 +42,14 @@ Project: ProPrj_Inverted_MAML_6x6_2026-11-01.epro2
      (0402, C1$CBB22/CBB2) for proper AC coupling / filtering. Total 0 Ohm resistors reduced
      from 8 to 7, and 100 nF (C0402) decoupling capacitors increased from 26 to 27.
 
-4. JLCPCB BOM Split Validation:
+4. JLCPCB BOM Split Validation (2026-11-04):
    - 6 components exceeded the 2047-character limit in raw EasyEDA export:
-     * 100nF (Row 1): 4580 chars, Qty 328
-     * 2.2nF (Row 4): 2579 chars, Qty 180
-     * DOX3134A (Row 33): 7394 chars, Qty 516
-     * 1MOhm (Row 38): 3461 chars, Qty 240
-     * 20kOhm (Row 40): 3809 chars, Qty 270
-     * 10kOhm (Row 48): 3119 chars, Qty 210
+     * 100nF (Row 2): 4580 chars, Qty 328
+     * 2.2nF (Row 5): 2579 chars, Qty 180
+     * DOX3134A (Row 34): 7394 chars, Qty 516
+     * 1MOhm (Row 39): 3461 chars, Qty 240
+     * 20kOhm (Row 41): 3809 chars, Qty 270
+     * 10kOhm (Row 49): 3119 chars, Qty 210
    - All 6 rows cleanly partitioned into continuation rows by BOM_section_script.py.
    - Total rows: 100 original -> 109 sectioned. Maximum designator length: 2043 characters.
    - Verified 100% matched component count and reference designators via verify_section.py: CSV: OK.
