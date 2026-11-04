@@ -182,7 +182,10 @@ def main():
     time.sleep(0.03)
     client._send_binary(0x13, struct.pack("<BB", 1, 1))  # LEDs ON
     time.sleep(0.02)
-    client.set_data_color(COLOR_LLM_TOEPLITZ, args.rho)
+    if args.noise_color == "white":
+        client.set_data_color(COLOR_WHITE, 0.0)
+    else:
+        client.set_data_color(COLOR_LLM_TOEPLITZ, args.rho)
     time.sleep(0.03)
 
     # 2. Sätt PLATT baslinje och W_null = 0 i T120 RAM (90-byte all-zero payload)
