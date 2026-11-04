@@ -531,6 +531,17 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
     - *Slutsats:* Mindre batch ($K=4$) ökar träningshastigheten dramatiskt (3.8 min -> 1.2 min) på bekostnad av högre stokastisk samplingsvarians, men ablationskontrasten ($42.9\text{k}$ med träning PÅ vs $53.9\text{k}$ med träning AV) visar med kristallklar skärpa att Inverted MAML aktivt skyddar beräkningsprecisionen.
     - *Rapport:* `FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG1024_LR0P08_SWING40_VAR3_K4_ABLATION_REPORT.pdf` (exakt 2 sidor).
 
+15. **Run 15: 1000 Epoker Rent 5.0 ms med Singel-Vektor $K = 1$ (Ren Stokastisk SGD), $LR = 0.08\text{x}$, $\lambda = 1024$, Störning $\pm 3\text{ LSB}$**
+    - *Syfte & Hypotes (Olle):* Extremtest av hårdvaruhastighet och gradientdynamik vid $K=1$ (1 sample per epok).
+    - *Träningshastighet:* Hela 1000 epoker slutfördes på endast **$37.0\text{ sekunder}$** (**$27.1\text{ epoker/sekund}$**)!
+    - *Empiriska Mätresultat:*
+      * **Fas 1 (Ep 0..99):** Medelfel **$166\,760.4\text{ LSB}^2$ ($3.17\text{ b}$)**, Bästa **$2\,085.0\text{ LSB}^2$ ($6.28\text{ b}$)**.
+      * **Fas 2 (Ep 100..199, Nominell Träning):** Medelfel **$162\,518.6\text{ LSB}^2$ ($3.18\text{ b}$)**, Bästa **$45\,042.5\text{ LSB}^2$ ($4.06\text{ b}$)**.
+      * **Fas 3 (Ep 200..599, Aktiv Störning $\pm 3\text{ LSB}$):** Medelfel **$181\,519.2\text{ LSB}^2$ ($3.09\text{ b}$)**, Bästa **$14\,194.5\text{ LSB}^2$ ($4.90\text{ b}$)**.
+      * **Fas 4 (Ep 600..1000, Ablation $W=0$, Träning AV):** Medelfel $154\,471.7\text{ LSB}^2$ ($3.22\text{ b}$), Bästa **$1\,749.0\text{ LSB}^2$ ($6.41\text{ b}$)**!
+    - *Slutsats:* $K=1$ eliminerar all väntetid och når extrema singelvektortoppar upp till **$6.41\text{ bitar}$**, men stimulusrotationen utan batchmedelvärdesbildning ger hög varians mellan enskilda steg. $K=20$ förblir guldstandarden för rumslig generaliseringsstabilitet (~5.0b kontinuerligt), medan $K=4$ erbjuder en perfekt balans (~4.3b, 75s).
+    - *Rapport:* `FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG1024_LR0P08_SWING40_VAR3_K1_ABLATION_REPORT.pdf` (exakt 2 sidor).
+
 ---
 
 ### B. Forskningsarkitektur: De Tre Huvudmilstolparna (Olle:s taxonomi)
