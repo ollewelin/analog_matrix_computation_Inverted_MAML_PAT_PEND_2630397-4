@@ -96,7 +96,7 @@ def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, ou
         ax3.bar3d(xf - 0.275, yf - 0.275, zf, dx, dy, dz3,
                   color=c3, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
         ax3.set_title(f"Matrix 3 (8x6): {state_title}\n[Batch Loss: {e['batch_eval']['mean_loss_lsb2']:.0f} LSB², ENOB: {e['batch_eval']['mean_enob_bits']:.2f} b]",
-                      fontsize=9.5, fontweight="bold", pad=10)
+                      fontsize=9.0, fontweight="bold", pad=8)
         ax3.set_xticks(np.arange(8))
         ax3.set_xticklabels(m3_row_labels, fontsize=7, rotation=-20, ha="right")
         ax3.set_yticks(np.arange(6))
@@ -104,8 +104,8 @@ def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, ou
         ax3.set_zlim(-25, 15)
         ax3.set_zticks([-25, -20, -15, -10, -5, 0, 5, 10, 15])
         ax3.tick_params(axis="z", labelsize=7)
-        ax3.set_xlabel("Matrix Row", fontsize=8, labelpad=7)
-        ax3.set_ylabel("Column (0..5)", fontsize=8, labelpad=7)
+        ax3.set_xlabel("Matrix Row", fontsize=8, labelpad=6)
+        ax3.set_ylabel("Column (0..5)", fontsize=8, labelpad=6)
         ax3.set_zlabel("Weight [LSB]", fontsize=8, labelpad=4)
         ax3.view_init(elev=32, azim=-55)
 
@@ -123,7 +123,7 @@ def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, ou
         ax8.bar3d(xf8 - 0.275, yf8 - 0.275, zf8, dx8, dy8, dz8,
                   color=c8, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
         ax8.set_title(f"Matrix 8 (7x6): {state_title}\n[Weights: [{int(w8.min()):+d}, {int(w8.max()):+d}] LSB, Zero Clamping]",
-                      fontsize=9.5, fontweight="bold", pad=10)
+                      fontsize=9.0, fontweight="bold", pad=8)
         ax8.set_xticks(np.arange(7))
         ax8.set_xticklabels(m8_row_labels, fontsize=7, rotation=-20, ha="right")
         ax8.set_yticks(np.arange(6))
@@ -131,23 +131,25 @@ def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, ou
         ax8.set_zlim(-30, 45)
         ax8.set_zticks([-30, -20, -10, 0, 10, 20, 30, 40])
         ax8.tick_params(axis="z", labelsize=7)
-        ax8.set_xlabel("Matrix Row", fontsize=8, labelpad=7)
-        ax8.set_ylabel("Column (0..5)", fontsize=8, labelpad=7)
+        ax8.set_xlabel("Matrix Row", fontsize=8, labelpad=6)
+        ax8.set_ylabel("Column (0..5)", fontsize=8, labelpad=6)
         ax8.set_zlabel("Weight [LSB]", fontsize=8, labelpad=4)
         ax8.view_init(elev=32, azim=-55)
 
         panel_idx += 2
 
-    fig8.suptitle("INVERTED MAML SILICON: 3D DUAL-2T1C WEIGHT TOPOGRAPHIES (4 OPERATIONAL STATES)\nForward Hadamard Propagation (FHP) Real-Time Spatial Reconfiguration under Fig 7 Perturbations",
-                  fontsize=12.5, fontweight="bold", y=0.985)
+    fig8.suptitle("INVERTED MAML SILICON: 3D DUAL-2T1C WEIGHT TOPOGRAPHIES (4 OPERATIONAL STATES)",
+                  fontsize=12.0, fontweight="bold", y=0.99)
+    plt.subplots_adjust(hspace=0.42, wspace=0.18, top=0.93, bottom=0.03, left=0.06, right=0.94)
     fig8.savefig(out_8panel, dpi=180, bbox_inches="tight")
     plt.close(fig8)
     print(f"[+] Saved 8-Panel 3D Bar Figure to: {out_8panel}")
 
     # --- Helper for 4-Panel Figures ---
     def plot_4panel(ep_list, title_main, out_path):
-        fig = plt.figure(figsize=(15.5, 11.5), dpi=180)
-        plt.subplots_adjust(hspace=0.28, wspace=0.18, top=0.91, bottom=0.06, left=0.06, right=0.94)
+        fig = plt.figure(figsize=(15.5, 12.0), dpi=180)
+        # Ample spacing: top=0.87 leaves full headroom for suptitle at y=0.97; hspace=0.42 separates Row 1 and Row 2
+        plt.subplots_adjust(hspace=0.42, wspace=0.18, top=0.87, bottom=0.06, left=0.06, right=0.94)
 
         panel_idx = 1
         for ep, ep_title in ep_list:
@@ -169,7 +171,7 @@ def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, ou
             ax3.bar3d(xf - 0.275, yf - 0.275, zf, dx, dy, dz3,
                       color=c3, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
             ax3.set_title(f"Matrix 3 (8x6): {ep_title}\n[Batch Loss: {e['batch_eval']['mean_loss_lsb2']:.0f} LSB², ENOB: {e['batch_eval']['mean_enob_bits']:.2f} b]",
-                          fontsize=10.5, fontweight="bold", pad=12)
+                          fontsize=10.0, fontweight="bold", pad=8)
             ax3.set_xticks(np.arange(8))
             ax3.set_xticklabels(m3_row_labels, fontsize=7.5, rotation=-20, ha="right")
             ax3.set_yticks(np.arange(6))
@@ -177,9 +179,9 @@ def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, ou
             ax3.set_zlim(-25, 15)
             ax3.set_zticks([-25, -20, -15, -10, -5, 0, 5, 10, 15])
             ax3.tick_params(axis="z", labelsize=7.5)
-            ax3.set_xlabel("Matrix Row", fontsize=8.5, labelpad=8)
-            ax3.set_ylabel("Column (0..5)", fontsize=8.5, labelpad=8)
-            ax3.set_zlabel("Weight [LSB]", fontsize=8.5, labelpad=5)
+            ax3.set_xlabel("Matrix Row", fontsize=8.0, labelpad=6)
+            ax3.set_ylabel("Column (0..5)", fontsize=8.0, labelpad=6)
+            ax3.set_zlabel("Weight [LSB]", fontsize=8.0, labelpad=4)
             ax3.view_init(elev=32, azim=-55)
 
             # Matrix 8 (7x6)
@@ -196,7 +198,7 @@ def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, ou
             ax8.bar3d(xf8 - 0.275, yf8 - 0.275, zf8, dx8, dy8, dz8,
                       color=c8, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
             ax8.set_title(f"Matrix 8 (7x6): {ep_title}\n[Weights: [{int(w8.min()):+d}, {int(w8.max()):+d}] LSB, Zero Clamping]",
-                          fontsize=10.5, fontweight="bold", pad=12)
+                          fontsize=10.0, fontweight="bold", pad=8)
             ax8.set_xticks(np.arange(7))
             ax8.set_xticklabels(m8_row_labels, fontsize=7.5, rotation=-20, ha="right")
             ax8.set_yticks(np.arange(6))
@@ -204,14 +206,14 @@ def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, ou
             ax8.set_zlim(-30, 45)
             ax8.set_zticks([-30, -20, -10, 0, 10, 20, 30, 40])
             ax8.tick_params(axis="z", labelsize=7.5)
-            ax8.set_xlabel("Matrix Row", fontsize=8.5, labelpad=8)
-            ax8.set_ylabel("Column (0..5)", fontsize=8.5, labelpad=8)
-            ax8.set_zlabel("Weight [LSB]", fontsize=8.5, labelpad=5)
+            ax8.set_xlabel("Matrix Row", fontsize=8.0, labelpad=6)
+            ax8.set_ylabel("Column (0..5)", fontsize=8.0, labelpad=6)
+            ax8.set_zlabel("Weight [LSB]", fontsize=8.0, labelpad=4)
             ax8.view_init(elev=32, azim=-55)
 
             panel_idx += 2
 
-        fig.suptitle(title_main, fontsize=13, fontweight="bold", y=0.97)
+        fig.suptitle(title_main, fontsize=12.0, fontweight="bold", y=0.96)
         fig.savefig(out_path, dpi=180, bbox_inches="tight")
         plt.close(fig)
         print(f"[+] Saved 4-Panel 3D Figure to: {out_path}")
@@ -220,14 +222,14 @@ def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, ou
     plot_4panel([
         (0, "Baseline Uncompensated (Epoch 0, W=0)"),
         (150, "Nominal Equilibrium (Epoch 150, Dist=0)")
-    ], "INVERTED MAML SILICON: 3D DUAL-2T1C TOPOGRAPHIES (PART 1: BASELINE VS. NOMINAL)\nForward Hadamard Propagation (FHP) Initial Converged State on Card 2 Silicon",
+    ], "INVERTED MAML SILICON: 3D DUAL-2T1C TOPOGRAPHIES (PART 1: BASELINE VS. NOMINAL)",
     out_part1)
 
     # --- 1C. Part 2: Disturbance 1 (Ep 250) vs. Disturbance 2 (Ep 350) ---
     plot_4panel([
         (250, "Adapted under Disturbance 1 (Epoch 250, Dist=±5 LSB)"),
         (350, "Adapted under Disturbance 2 (Epoch 350, Polarity Inverted)")
-    ], "INVERTED MAML SILICON: 3D DUAL-2T1C TOPOGRAPHIES (PART 2: DISTURBANCE TRACKING)\nForward Hadamard Propagation (FHP) Dynamic Spatial Relocation under Non-Stationary Perturbations",
+    ], "INVERTED MAML SILICON: 3D DUAL-2T1C TOPOGRAPHIES (PART 2: DISTURBANCE TRACKING)",
     out_part2)
 
 
