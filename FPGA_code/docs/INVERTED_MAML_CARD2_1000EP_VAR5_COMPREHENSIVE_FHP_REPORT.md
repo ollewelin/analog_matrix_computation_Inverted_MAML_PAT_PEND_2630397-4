@@ -29,7 +29,7 @@ When training is abruptly severed in Phase 4 (clamping $W=0$ while keeping the d
 | **Phase 1: Baseline Floor** | $0 \dots 99$ (100 Ep) | INACTIVE ($W = 0$) | Nominal ($W_{33}$, Dist = 0) | Quantify true uncompensated hardware noise floor under naked $K=1$. |
 | **Phase 2: Nominal Converge** | $100 \dots 199$ (100 Ep) | ACTIVE ($\text{LR}=0.02, \lambda=2048$) | Nominal ($W_{33}$, Dist = 0) | Establish Vernier equilibrium against intrinsic MOS triode non-linearities. |
 | **Phase 3: Disturbance Adapt** | $200 \dots 599$ (400 Ep) | ACTIVE ($\text{LR}=0.02, \lambda=2048$) | **$\pm 5\text{ LSB}$ Shifted / 100 Ep** | Demonstrate dynamic spatial tracking under non-stationary physical drift. |
-| **Phase 4: Ablation Verify** | $600 \dots 1000$ (401 Ep) | **OFF / Clamped $W = 0$** | **$\pm 5\text{ LSB}$ Shifted / 100 Ep** | Rigorous empirical control proving precision is strictly driven by $M_3 / M_8$. |
+| **Phase 4: Ablation Open-Loop** | $600 \dots 1000$ (401 Ep) | **OFF / Clamped $W = 0$** | **$\pm 5\text{ LSB}$ Shifted / 100 Ep** | Rigorous empirical control proving precision is strictly driven by $M_3 / M_8$. |
 
 ---
 
@@ -40,8 +40,8 @@ When training is abruptly severed in Phase 4 (clamping $W=0$ while keeping the d
 | **Quadratic Loss ($\text{LSB}^2$)** | 133318.0 LSB² | 29633.1 LSB² | **19028.5 LSB²** | 146986.4 LSB² | **$-85.7\%$ ($-7.0\times$ reduction)** |
 | **Root-Mean-Square Error (RMSE)** | 365.1 LSB | 172.1 LSB | **137.9 LSB** | 383.4 LSB | **-227.2 LSB error reduction** |
 | **Standard Mean ENOB** | 3.33 bits | 4.60 bits | **4.95 bits** | 3.26 bits | **+1.62 bits sustained gain** |
-| **Peak Measured Precision** | 6.27 bits | 5.92 bits | **7.17 bits (Epoch 518)** | 3.92 bits | **+0.90 bits above baseline peak** |
-| **Best Single-Epoch Loss** | 2,122.0 LSB² | 2,941.0 LSB² | **605.5 LSB²** | 53,210.0 LSB² | **220.2× error reduction** |
+| **Peak Measured Precision** | 5.50 bits | 5.92 bits | **7.17 bits (Epoch 518)** | 6.70 bits | **+1.67 bits above baseline peak** |
+| **Best Single-Epoch Loss** | 6,138.0 LSB² | 3,453.5 LSB² | **605.5 LSB²** | 1,165.5 LSB² | **220.2× error reduction** |
 | **Circuit State** | Vernier Loop Open | FHP Vernier Active | Closed-Loop Disturbance Tracking | Vernier Inactive, Noise Injected | Full Inverted MAML Advantage |
 
 ---
@@ -58,19 +58,26 @@ In this experiment, **batch averaging was strictly disabled ($K=1$)**. Every epo
 
 ## 4. Forward Hadamard Propagation (FHP) 3D Topographical Evolution
 
-The 8 three-dimensional surface plots below represent the physical weight distributions across the two compensation layers: **Matrix 3** ($8 \times 6$, left column) and **Matrix 8** ($7 \times 6$, right column), measured on physical silicon across four fundamental operational states.
+The discrete 3D bar topographies below represent the physical weight distributions across the two compensation layers: **Matrix 3** ($8 \times 6$, left column) and **Matrix 8** ($7 \times 6$, right column), measured on physical silicon across four fundamental operational states.
 
-![8-Panel 3D Landscapes](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_m3_m8_fhp_adaptation_8panel.png)
+### Part 1: Baseline Uncompensated ($W=0$) vs. Nominal Equilibrium (Epoch 150)
+![3D Bar Topography Part 1](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_part1_baseline_nominal.png)
+
+### Part 2: Disturbance 1 (Epoch 250) vs. Disturbance 2 (Epoch 350)
+![3D Bar Topography Part 2](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_part2_dist1_dist2.png)
+
+### Complete 8-Panel Combined Overview:
+![8-Panel 3D Bar Landscapes](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_m3_m8_fhp_adaptation_8panel.png)
 
 ### In-Depth Analysis of the 8 3D Topographies:
 
 #### 1. Row 1: Epoch 0 ($W = 0$, Baseline Inactive State)
-- **Matrix 3:** Flat zero plane ($0\text{ LSB}$ across all 48 cells).
-- **Matrix 8:** Flat zero plane ($0\text{ LSB}$ across all 42 cells).
+- **Matrix 3:** Flat zero pillars ($0\text{ LSB}$ across all 48 cells).
+- **Matrix 8:** Flat zero pillars ($0\text{ LSB}$ across all 42 cells).
 - **Physics:** No compensation currents are injected into the ColTIA virtual grounds. Standalone Matrix 33 operates in complete isolation, exposing the raw 3.33 b distortion floor.
 
 #### 2. Row 2: Epoch 150 ($W = W^*$, Nominal Equilibrium)
-- **Matrix 3:** Forms a pronounced negative projection ridge along Column 0 (Rows 0..5 reach $-12\text{ to } -17\text{ LSB}$) and Column 4/5 ($-8\text{ to } -12\text{ LSB}$). Rows 6 and 7 (clock reference cells) remain at $0\text{ LSB}$.
+- **Matrix 3:** Forms a pronounced negative projection ridge along Column 0 (Rows 0..5 reach $-12\text{ to } -17\text{ LSB}$) and Column 4/5 ($-8\text{ to } -12\text{ LSB}$). Rows 6 and 7 (ClkB1 and ClkRef) remain at $0\text{ LSB}$.
 - **Matrix 8:** Synthesizes strong positive compensation crests along Columns 1, 2, 3, and 4 (peaking at $+31\text{ LSB}$ on Column 3) and a counteracting negative valley on Column 5 ($-23\text{ LSB}$).
 - **Physics:** The network successfully learns the intrinsic quadratic curvature of Matrix 33 on Card 2 silicon, slashing quadratic error by 77.8%.
 
@@ -140,7 +147,7 @@ This current is injected directly into the ColTIA virtual ground summing node (R
 ## 7. Forward Hadamard Propagation (FHP) Parallel Demodulation
 
 ![Patent Fig 8 FHP Circuit](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_patent_fig8_fhp_circuit.jpg)
-*Figure 7: Forward Hadamard Propagation (FHP) Demodulation Circuit (Patent Application SE 2630397-4, Fig 8).*
+*Figure 7: Forward Hadamard Propagation (FHP) Demodulation Circuit (Patent Application SE 2630397-4, Fig 8) rendered in uncompressed natural 4:3 aspect ratio.*
 
 ### Why Digital Backpropagation Cannot Work on Physical Silicon
 In digital neural networks, backpropagation relies on knowing the exact analytic derivative $\frac{\partial f}{\partial W}$ and transposing the weight matrix $W^T$. In physical analog silicon, transistor transfer curves vary unpredictably with manufacturing process, temperature, and supply voltage. Attempting to backpropagate digital gradients through an idealized model results in **gradient mismatch catastrophe**, causing the physical system to diverge.

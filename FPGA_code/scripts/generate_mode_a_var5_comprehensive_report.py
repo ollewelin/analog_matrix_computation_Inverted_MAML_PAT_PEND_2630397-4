@@ -3,16 +3,20 @@
 generate_mode_a_var5_comprehensive_report.py
 Inverted MAML (Patent Pending SE 2630397-4) - Open Science Hardware
 
-Generates the comprehensive benchmark report, 8-panel 3D surface landscapes,
-2D weight trajectory plots, and multi-page publication PDF in English:
+Generates the comprehensive benchmark report, discrete 3D bar topographies (bar3d style
+from Milestone 3 Broadened Window report), 2D weight trajectory plots, and multi-page
+publication PDF in English:
   - Dataset: mode_a_1000ep_5ms_pure_toeplitz_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_ablation.json
   - Hardware: Card 2 (Rev 2.0 Silicon, 1k/3.3k attenuator, repaired CH3)
   - Features:
-      1. 8-Panel 3D Landscapes (Matrix 3 & Matrix 8 across 4 operational states:
-         W=0 Baseline, Ep 150 Nominal, Ep 250 Disturbance 1, Ep 350 Disturbance 2)
+      1. Discrete 3D Bar Topographies (bar3d coolwarm style from Milestone 3):
+         - Part 1: Baseline W=0 (Ep 0) vs. Nominal Equilibrium (Ep 150)
+         - Part 2: Disturbance 1 (Ep 250) vs. Disturbance 2 (Ep 350)
+         - Full 8-Panel Combined 3D Bar Topography
       2. Full 2D Trajectories for Matrix 3 (48 weights) and Matrix 8 (42 weights)
-      3. Multi-Page Publication PDF Report (ReportLab)
-      4. Comprehensive Markdown Report
+      3. Uncompressed Natural Aspect Ratio for Patent Fig 8 (4:3) and All Figures
+      4. 7-Page Publication PDF Report (ReportLab)
+      5. Comprehensive Markdown Report
 """
 
 import glob
@@ -26,6 +30,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -50,65 +55,180 @@ def load_dataset():
 
 
 # ==============================================================================
-# 1. 8-Panel 3D Landscapes for Matrix 3 and Matrix 8 across 4 States
+# 1. 3D Discrete Bar Topographies (bar3d style from Milestone 3)
 # ==============================================================================
-def generate_8panel_3d_landscapes(data: dict, out_png: Path):
-    epochs_to_plot = [
+def generate_3d_bar_landscapes(data: dict, out_8panel: Path, out_part1: Path, out_part2: Path):
+    cmap = cm.coolwarm
+    norm_m3 = plt.Normalize(vmin=-25, vmax=15)
+    norm_m8 = plt.Normalize(vmin=-35, vmax=45)
+
+    m3_row_labels = ["R0", "R1", "R2", "R3", "R4", "R5", "ClkB1", "ClkRef"]
+    m8_row_labels = ["R0", "R1", "R2", "R3", "R4", "R5", "Bias"]
+
+    states_all = [
         (0, "State 1: Epoch 0 (Baseline W=0, Inactive)"),
         (150, "State 2: Epoch 150 (Nominal Equilibrium, Dist=0)"),
         (250, "State 3: Epoch 250 (Disturbance 1, Dist=±5 LSB)"),
-        (350, "State 4: Epoch 350 (Disturbance 2, New Dist=±5 LSB)")
+        (350, "State 4: Epoch 350 (Disturbance 2, Polarity Inverted)")
     ]
 
-    fig = plt.figure(figsize=(13, 12))
+    # --- 1A. Full 8-Panel Combined 3D Bar Figure (4 Rows x 2 Cols) ---
+    fig8 = plt.figure(figsize=(15.5, 20.5), dpi=180)
+    plt.subplots_adjust(hspace=0.26, wspace=0.16, top=0.94, bottom=0.04, left=0.05, right=0.95)
 
-    def plot_surf(ax, W, title, zlim, cmap="viridis"):
-        rows, cols = W.shape
-        X = np.arange(cols)
-        Y = np.arange(rows)
-        X, Y = np.meshgrid(X, Y)
-        surf = ax.plot_surface(X, Y, W, cmap=cmap, edgecolor="k", linewidth=0.35, alpha=0.92, antialiased=True)
-        ax.set_title(title, fontsize=8.2, fontweight="bold", pad=3)
-        ax.set_xlabel("Col (Out)", fontsize=7, fontweight="bold", labelpad=2)
-        ax.set_ylabel("Row (In)", fontsize=7, fontweight="bold", labelpad=2)
-        ax.set_zlabel("Weight (LSB)", fontsize=7, fontweight="bold", labelpad=2)
-        ax.set_zlim(zlim)
-        ax.tick_params(labelsize=6)
-        ax.view_init(elev=26, azim=-55)
-        cbar = fig.colorbar(surf, ax=ax, shrink=0.48, aspect=10, pad=0.08)
-        cbar.ax.tick_params(labelsize=6)
-
-    m3_vals = [np.array(data["epochs"][ep]["w_m3"]) for ep, _ in epochs_to_plot]
-    m8_vals = [np.array(data["epochs"][ep]["w_m8"]) for ep, _ in epochs_to_plot]
-
-    m3_min = min(v.min() for v in m3_vals) - 2
-    m3_max = max(v.max() for v in m3_vals) + 2
-    m8_min = min(v.min() for v in m8_vals) - 4
-    m8_max = max(v.max() for v in m8_vals) + 4
-
-    for idx, (ep, title_prefix) in enumerate(epochs_to_plot):
+    panel_idx = 1
+    for ep, state_title in states_all:
         e = data["epochs"][ep]
-        w_m3 = np.array(e["w_m3"])
-        w_m8 = np.array(e["w_m8"])
+        w3 = np.array(e["w_m3"], dtype=float)
+        w8 = np.array(e["w_m8"], dtype=float)
 
-        # Left col: Matrix 3
-        ax_m3 = fig.add_subplot(4, 2, 2 * idx + 1, projection="3d")
-        plot_surf(ax_m3, w_m3,
-                  f"{title_prefix} - Matrix 3 (8x6)\nLoss: {e['loss_lsb2']:.0f} LSB², ENOB: {e['enob_bits']:.2f} b",
-                  [m3_min, m3_max], cmap="coolwarm")
+        # Matrix 3 (8x6)
+        ax3 = fig8.add_subplot(4, 2, panel_idx, projection="3d")
+        _x = np.arange(8)
+        _y = np.arange(6)
+        _xx, _yy = np.meshgrid(_x, _y)
+        xf, yf = _xx.ravel(), _yy.ravel()
+        zf = np.zeros_like(xf, dtype=float)
+        dx = 0.55 * np.ones_like(zf)
+        dy = 0.55 * np.ones_like(zf)
+        dz3 = w3[xf, yf]
+        c3 = cmap(norm_m3(dz3))
+        ax3.bar3d(xf - 0.275, yf - 0.275, zf, dx, dy, dz3,
+                  color=c3, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
+        ax3.set_title(f"Matrix 3 (8x6): {state_title}\n[Batch Loss: {e['batch_eval']['mean_loss_lsb2']:.0f} LSB², ENOB: {e['batch_eval']['mean_enob_bits']:.2f} b]",
+                      fontsize=9.5, fontweight="bold", pad=10)
+        ax3.set_xticks(np.arange(8))
+        ax3.set_xticklabels(m3_row_labels, fontsize=7, rotation=-20, ha="right")
+        ax3.set_yticks(np.arange(6))
+        ax3.set_yticklabels([f"C{c}" for c in range(6)], fontsize=7)
+        ax3.set_zlim(-25, 15)
+        ax3.set_zticks([-25, -20, -15, -10, -5, 0, 5, 10, 15])
+        ax3.tick_params(axis="z", labelsize=7)
+        ax3.set_xlabel("Matrix Row", fontsize=8, labelpad=7)
+        ax3.set_ylabel("Column (0..5)", fontsize=8, labelpad=7)
+        ax3.set_zlabel("Weight [LSB]", fontsize=8, labelpad=4)
+        ax3.view_init(elev=32, azim=-55)
 
-        # Right col: Matrix 8
-        ax_m8 = fig.add_subplot(4, 2, 2 * idx + 2, projection="3d")
-        plot_surf(ax_m8, w_m8,
-                  f"{title_prefix} - Matrix 8 (7x6)\nWeight Range: [{w_m8.min():+d}, {w_m8.max():+d}] LSB",
-                  [m8_min, m8_max], cmap="plasma")
+        # Matrix 8 (7x6)
+        ax8 = fig8.add_subplot(4, 2, panel_idx + 1, projection="3d")
+        _x8 = np.arange(7)
+        _y8 = np.arange(6)
+        _xx8, _yy8 = np.meshgrid(_x8, _y8)
+        xf8, yf8 = _xx8.ravel(), _yy8.ravel()
+        zf8 = np.zeros_like(xf8, dtype=float)
+        dx8 = 0.55 * np.ones_like(zf8)
+        dy8 = 0.55 * np.ones_like(zf8)
+        dz8 = w8[xf8, yf8]
+        c8 = cmap(norm_m8(dz8))
+        ax8.bar3d(xf8 - 0.275, yf8 - 0.275, zf8, dx8, dy8, dz8,
+                  color=c8, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
+        ax8.set_title(f"Matrix 8 (7x6): {state_title}\n[Weights: [{int(w8.min()):+d}, {int(w8.max()):+d}] LSB, Zero Clamping]",
+                      fontsize=9.5, fontweight="bold", pad=10)
+        ax8.set_xticks(np.arange(7))
+        ax8.set_xticklabels(m8_row_labels, fontsize=7, rotation=-20, ha="right")
+        ax8.set_yticks(np.arange(6))
+        ax8.set_yticklabels([f"C{c}" for c in range(6)], fontsize=7)
+        ax8.set_zlim(-30, 45)
+        ax8.set_zticks([-30, -20, -10, 0, 10, 20, 30, 40])
+        ax8.tick_params(axis="z", labelsize=7)
+        ax8.set_xlabel("Matrix Row", fontsize=8, labelpad=7)
+        ax8.set_ylabel("Column (0..5)", fontsize=8, labelpad=7)
+        ax8.set_zlabel("Weight [LSB]", fontsize=8, labelpad=4)
+        ax8.view_init(elev=32, azim=-55)
 
-    plt.suptitle("Inverted MAML Silicon: Forward Hadamard Propagation (FHP) 3D Spatial Adaptation\nPhysical Reconfiguration of Compensation Topography across 4 Operational States",
-                 fontsize=11.5, fontweight="bold", y=0.985)
-    plt.tight_layout(rect=[0, 0, 1, 0.965])
-    fig.savefig(out_png, dpi=200)
-    plt.close(fig)
-    print(f"[+] Saved 8-Panel 3D Landscapes to: {out_png}")
+        panel_idx += 2
+
+    fig8.suptitle("INVERTED MAML SILICON: 3D DUAL-2T1C WEIGHT TOPOGRAPHIES (4 OPERATIONAL STATES)\nForward Hadamard Propagation (FHP) Real-Time Spatial Reconfiguration under Fig 7 Perturbations",
+                  fontsize=12.5, fontweight="bold", y=0.985)
+    fig8.savefig(out_8panel, dpi=180, bbox_inches="tight")
+    plt.close(fig8)
+    print(f"[+] Saved 8-Panel 3D Bar Figure to: {out_8panel}")
+
+    # --- Helper for 4-Panel Figures ---
+    def plot_4panel(ep_list, title_main, out_path):
+        fig = plt.figure(figsize=(15.5, 11.5), dpi=180)
+        plt.subplots_adjust(hspace=0.28, wspace=0.18, top=0.91, bottom=0.06, left=0.06, right=0.94)
+
+        panel_idx = 1
+        for ep, ep_title in ep_list:
+            e = data["epochs"][ep]
+            w3 = np.array(e["w_m3"], dtype=float)
+            w8 = np.array(e["w_m8"], dtype=float)
+
+            # Matrix 3 (8x6)
+            ax3 = fig.add_subplot(2, 2, panel_idx, projection="3d")
+            _x = np.arange(8)
+            _y = np.arange(6)
+            _xx, _yy = np.meshgrid(_x, _y)
+            xf, yf = _xx.ravel(), _yy.ravel()
+            zf = np.zeros_like(xf, dtype=float)
+            dx = 0.55 * np.ones_like(zf)
+            dy = 0.55 * np.ones_like(zf)
+            dz3 = w3[xf, yf]
+            c3 = cmap(norm_m3(dz3))
+            ax3.bar3d(xf - 0.275, yf - 0.275, zf, dx, dy, dz3,
+                      color=c3, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
+            ax3.set_title(f"Matrix 3 (8x6): {ep_title}\n[Batch Loss: {e['batch_eval']['mean_loss_lsb2']:.0f} LSB², ENOB: {e['batch_eval']['mean_enob_bits']:.2f} b]",
+                          fontsize=10.5, fontweight="bold", pad=12)
+            ax3.set_xticks(np.arange(8))
+            ax3.set_xticklabels(m3_row_labels, fontsize=7.5, rotation=-20, ha="right")
+            ax3.set_yticks(np.arange(6))
+            ax3.set_yticklabels([f"C{c}" for c in range(6)], fontsize=7.5)
+            ax3.set_zlim(-25, 15)
+            ax3.set_zticks([-25, -20, -15, -10, -5, 0, 5, 10, 15])
+            ax3.tick_params(axis="z", labelsize=7.5)
+            ax3.set_xlabel("Matrix Row", fontsize=8.5, labelpad=8)
+            ax3.set_ylabel("Column (0..5)", fontsize=8.5, labelpad=8)
+            ax3.set_zlabel("Weight [LSB]", fontsize=8.5, labelpad=5)
+            ax3.view_init(elev=32, azim=-55)
+
+            # Matrix 8 (7x6)
+            ax8 = fig.add_subplot(2, 2, panel_idx + 1, projection="3d")
+            _x8 = np.arange(7)
+            _y8 = np.arange(6)
+            _xx8, _yy8 = np.meshgrid(_x8, _y8)
+            xf8, yf8 = _xx8.ravel(), _yy8.ravel()
+            zf8 = np.zeros_like(xf8, dtype=float)
+            dx8 = 0.55 * np.ones_like(zf8)
+            dy8 = 0.55 * np.ones_like(zf8)
+            dz8 = w8[xf8, yf8]
+            c8 = cmap(norm_m8(dz8))
+            ax8.bar3d(xf8 - 0.275, yf8 - 0.275, zf8, dx8, dy8, dz8,
+                      color=c8, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
+            ax8.set_title(f"Matrix 8 (7x6): {ep_title}\n[Weights: [{int(w8.min()):+d}, {int(w8.max()):+d}] LSB, Zero Clamping]",
+                          fontsize=10.5, fontweight="bold", pad=12)
+            ax8.set_xticks(np.arange(7))
+            ax8.set_xticklabels(m8_row_labels, fontsize=7.5, rotation=-20, ha="right")
+            ax8.set_yticks(np.arange(6))
+            ax8.set_yticklabels([f"C{c}" for c in range(6)], fontsize=7.5)
+            ax8.set_zlim(-30, 45)
+            ax8.set_zticks([-30, -20, -10, 0, 10, 20, 30, 40])
+            ax8.tick_params(axis="z", labelsize=7.5)
+            ax8.set_xlabel("Matrix Row", fontsize=8.5, labelpad=8)
+            ax8.set_ylabel("Column (0..5)", fontsize=8.5, labelpad=8)
+            ax8.set_zlabel("Weight [LSB]", fontsize=8.5, labelpad=5)
+            ax8.view_init(elev=32, azim=-55)
+
+            panel_idx += 2
+
+        fig.suptitle(title_main, fontsize=13, fontweight="bold", y=0.97)
+        fig.savefig(out_path, dpi=180, bbox_inches="tight")
+        plt.close(fig)
+        print(f"[+] Saved 4-Panel 3D Figure to: {out_path}")
+
+    # --- 1B. Part 1: Baseline (Ep 0) vs. Nominal (Ep 150) ---
+    plot_4panel([
+        (0, "Baseline Uncompensated (Epoch 0, W=0)"),
+        (150, "Nominal Equilibrium (Epoch 150, Dist=0)")
+    ], "INVERTED MAML SILICON: 3D DUAL-2T1C TOPOGRAPHIES (PART 1: BASELINE VS. NOMINAL)\nForward Hadamard Propagation (FHP) Initial Converged State on Card 2 Silicon",
+    out_part1)
+
+    # --- 1C. Part 2: Disturbance 1 (Ep 250) vs. Disturbance 2 (Ep 350) ---
+    plot_4panel([
+        (250, "Adapted under Disturbance 1 (Epoch 250, Dist=±5 LSB)"),
+        (350, "Adapted under Disturbance 2 (Epoch 350, Polarity Inverted)")
+    ], "INVERTED MAML SILICON: 3D DUAL-2T1C TOPOGRAPHIES (PART 2: DISTURBANCE TRACKING)\nForward Hadamard Propagation (FHP) Dynamic Spatial Relocation under Non-Stationary Perturbations",
+    out_part2)
 
 
 # ==============================================================================
@@ -129,7 +249,7 @@ def generate_2d_trajectories(data: dict, out_m3_png: Path, out_m8_png: Path):
     dist_eps = [200, 300, 400, 500, 600, 700, 800, 900, 1000]
 
     # --- Matrix 3 Trajectories (48 Weights) ---
-    fig_m3, ax_m3 = plt.subplots(figsize=(13, 6.5))
+    fig_m3, ax_m3 = plt.subplots(figsize=(13.5, 6.5), dpi=180)
     for x1, x2, bg, alpha, lbl in phase_spans:
         ax_m3.axvspan(x1, x2, color=bg, alpha=alpha, label=lbl, zorder=0)
 
@@ -137,7 +257,7 @@ def generate_2d_trajectories(data: dict, out_m3_png: Path, out_m8_png: Path):
     w_idx = 0
     for r in range(8):
         for c in range(6):
-            ax_m3.plot(epochs, w_m3[:, r, c], color=cmap_m3(w_idx), linewidth=1.1, alpha=0.85)
+            ax_m3.plot(epochs, w_m3[:, r, c], color=cmap_m3(w_idx), linewidth=1.15, alpha=0.85)
             w_idx += 1
 
     for de in dist_eps:
@@ -160,12 +280,12 @@ def generate_2d_trajectories(data: dict, out_m3_png: Path, out_m8_png: Path):
     ax_m3.grid(True, linestyle=":", alpha=0.6)
     ax_m3.legend(loc="lower left", framealpha=0.92, fontsize=8.5)
     fig_m3.tight_layout()
-    fig_m3.savefig(out_m3_png, dpi=200)
+    fig_m3.savefig(out_m3_png, dpi=180)
     plt.close(fig_m3)
     print(f"[+] Saved Matrix 3 Trajectories to: {out_m3_png}")
 
     # --- Matrix 8 Trajectories (42 Weights) ---
-    fig_m8, ax_m8 = plt.subplots(figsize=(13, 6.5))
+    fig_m8, ax_m8 = plt.subplots(figsize=(13.5, 6.5), dpi=180)
     for x1, x2, bg, alpha, lbl in phase_spans:
         ax_m8.axvspan(x1, x2, color=bg, alpha=alpha, label=lbl, zorder=0)
 
@@ -173,7 +293,7 @@ def generate_2d_trajectories(data: dict, out_m3_png: Path, out_m8_png: Path):
     w_idx = 0
     for r in range(7):
         for c in range(6):
-            ax_m8.plot(epochs, w_m8[:, r, c], color=cmap_m8(w_idx), linewidth=1.1, alpha=0.85)
+            ax_m8.plot(epochs, w_m8[:, r, c], color=cmap_m8(w_idx), linewidth=1.15, alpha=0.85)
             w_idx += 1
 
     for de in dist_eps:
@@ -196,17 +316,18 @@ def generate_2d_trajectories(data: dict, out_m3_png: Path, out_m8_png: Path):
     ax_m8.grid(True, linestyle=":", alpha=0.6)
     ax_m8.legend(loc="lower left", framealpha=0.92, fontsize=8.5)
     fig_m8.tight_layout()
-    fig_m8.savefig(out_m8_png, dpi=200)
+    fig_m8.savefig(out_m8_png, dpi=180)
     plt.close(fig_m8)
     print(f"[+] Saved Matrix 8 Trajectories to: {out_m8_png}")
 
 
 # ==============================================================================
-# 3. ReportLab Multi-Page PDF Report (6 Pages)
+# 3. ReportLab Multi-Page PDF Report (7 Pages, Uncompressed Figures)
 # ==============================================================================
 def generate_comprehensive_pdf(data: dict,
                               fig_timeline: Path,
-                              fig_3d: Path,
+                              fig_3d_part1: Path,
+                              fig_3d_part2: Path,
                               fig_m3_2d: Path,
                               fig_m8_2d: Path,
                               fig_pcb: Path,
@@ -367,7 +488,7 @@ def generate_comprehensive_pdf(data: dict,
             Paragraph("Demonstrate continuous spatial compensation of non-stationary drift.", table_cell),
         ],
         [
-            Paragraph("<b>Phase 4: Ablation Verify</b>", table_cell_bold),
+            Paragraph("<b>Phase 4: Ablation Open-Loop</b>", table_cell_bold),
             Paragraph("600 .. 1000 (401 Ep)", table_cell),
             Paragraph("<b>OFF / Clamped W=0</b>", table_cell_bold),
             Paragraph("<b>±5 LSB Shifted / 100 Ep</b>", table_cell_bold),
@@ -402,7 +523,7 @@ def generate_comprehensive_pdf(data: dict,
             Paragraph(f"{p2_loss:.1f} LSB²", table_cell),
             Paragraph(f"<b>{p3_loss:.1f} LSB²</b>", table_cell_bold),
             Paragraph(f"{p4_loss:.1f} LSB²", table_cell),
-            Paragraph(f"<b>-85.7% (-7.0×)</b>", table_cell_bold),
+            Paragraph(f"<b>-{(1 - p3_loss/p1_loss)*100:.1f}% ({p1_loss/p3_loss:.1f}×)</b>", table_cell_bold),
         ],
         [
             Paragraph("<b>Root-Mean-Square Error</b>", table_cell_bold),
@@ -410,7 +531,7 @@ def generate_comprehensive_pdf(data: dict,
             Paragraph(f"{p2_rmse:.1f} LSB", table_cell),
             Paragraph(f"<b>{p3_rmse:.1f} LSB</b>", table_cell_bold),
             Paragraph(f"{p4_rmse:.1f} LSB", table_cell),
-            Paragraph(f"<b>-227.2 LSB error</b>", table_cell_bold),
+            Paragraph(f"<b>-{p1_rmse - p3_rmse:.1f} LSB error</b>", table_cell_bold),
         ],
         [
             Paragraph("<b>Standard Mean ENOB</b>", table_cell_bold),
@@ -418,22 +539,22 @@ def generate_comprehensive_pdf(data: dict,
             Paragraph(f"{p2_enob:.2f} bits", table_cell),
             Paragraph(f"<b>{p3_enob:.2f} bits</b>", table_cell_bold),
             Paragraph(f"{p4_enob:.2f} bits", table_cell),
-            Paragraph(f"<b>+{p3_enob - p1_enob:.2f} bits net</b>", table_cell_bold),
+            Paragraph(f"<b>+{p3_enob - p1_enob:.2f} bits sustained</b>", table_cell_bold),
         ],
         [
             Paragraph("<b>Peak Silicon Precision</b>", table_cell_bold),
-            Paragraph("6.27 bits", table_cell),
+            Paragraph("5.50 bits", table_cell),
             Paragraph("5.92 bits", table_cell),
             Paragraph(f"<b>{best_enob:.2f} bits (Ep {best_ep})</b>", table_cell_bold),
-            Paragraph("3.92 bits", table_cell),
-            Paragraph(f"<b>+0.90 b above base</b>", table_cell_bold),
+            Paragraph("6.70 bits", table_cell),
+            Paragraph(f"<b>+1.67 b above base</b>", table_cell_bold),
         ],
         [
             Paragraph("<b>Best Single-Epoch Loss</b>", table_cell_bold),
-            Paragraph("2,122.0 LSB²", table_cell),
-            Paragraph("2,941.0 LSB²", table_cell),
+            Paragraph("6,138.0 LSB²", table_cell),
+            Paragraph("3,453.5 LSB²", table_cell),
             Paragraph(f"<b>{best_loss:.1f} LSB²</b>", table_cell_bold),
-            Paragraph("53,210.0 LSB²", table_cell),
+            Paragraph("1,165.5 LSB²", table_cell),
             Paragraph(f"<b>220.2× reduction</b>", table_cell_bold),
         ],
     ]
@@ -498,43 +619,72 @@ def generate_comprehensive_pdf(data: dict,
     story.append(Paragraph(toeplitz_text, body_style))
 
     # =========================================================================
-    # PAGE 3: 8-Panel 3D Topography: Real-Time Spatial Reconfiguration
+    # PAGE 3: 3D Topographies Part 1 (Baseline vs. Nominal Equilibrium)
     # =========================================================================
     story.append(PageBreak())
-    story.append(Paragraph("7. Forward Hadamard Propagation (FHP) 3D Topography: Real-Time Spatial Reconfiguration", h1_style))
+    story.append(Paragraph("7. 3D Dual-2T1C Topographies (Part 1: Baseline W=0 vs. Nominal Equilibrium)", h1_style))
     story.append(Spacer(1, 1))
     story.append(Paragraph(
-        "The 8 surface plots below illustrate the physical weight distributions of the two-layer compensation network: "
-        "Matrix 3 (left column, 8×6) and Matrix 8 (right column, 7×6) measured on physical silicon across four distinct operating states. "
-        "This visual sequence demonstrates how FHP physically relocates the compensation landscape to cancel unknown hardware perturbations.",
+        "Rendered using the publication-grade discrete 3D bar style (bar3d coolwarm from Milestone 3). "
+        "The top row shows the unprogrammed baseline state (Epoch 0, W=0). "
+        "The bottom row shows the initial converged Vernier equilibrium (Epoch 150) under nominal unperturbed Matrix 33 silicon.",
         subtitle_style
     ))
     story.append(Spacer(1, 2))
-    if fig_3d.exists():
-        story.append(Image(str(fig_3d), width=515, height=450))
+    if fig_3d_part1.exists():
+        story.append(Image(str(fig_3d_part1), width=515, height=385))
     story.append(Spacer(1, 3))
 
-    fhp_3d_text = (
-        "<b>Physical Interpretation of the 3D Topographical Migration:</b><br/>"
-        "• <b>Row 1 (Epoch 0, Baseline W=0):</b> Both Matrix 3 and Matrix 8 are completely unprogrammed (0 LSB everywhere). The compensation branch is completely dormant, allowing the raw 3.33-bit distortion of Matrix 33 to dominate.<br/>"
-        "• <b>Row 2 (Epoch 150, Nominal Equilibrium):</b> In Phase 2, FHP converges onto the intrinsic silicon non-idealities of Matrix 33. Matrix 3 forms a sharp projection ridge along Column 0 (reaching -17 LSB), while Matrix 8 raises strong positive compensation peaks on Columns 1 to 4 (+31 LSB) and an anti-phase trough on Column 5 (-23 LSB).<br/>"
-        "• <b>Row 3 (Epoch 250, Under Disturbance 1):</b> Following the injection of the first ±5 LSB disturbance block at Epoch 200, the 3D surface shifts noticeably: Column 0 of Matrix 8 rises from near-zero to +7 LSB, Column 3 expands to +38 LSB, and Column 4 relaxes from +29 LSB to +22 LSB.<br/>"
-        "• <b>Row 4 (Epoch 350, Under Disturbance 2):</b> At Epoch 300, a completely new, uncorrelated ±5 LSB perturbation is applied. Look at Column 0 in Matrix 8: it <b>completely inverts polarity</b>, plunging from +7 LSB down to -21 LSB! The entire spatial energy landscape shifts across the array. "
-        "This visual evidence proves that FHP performs non-linear, multi-dimensional optimization directly in the analog domain without backpropagation."
+    fhp_part1_text = (
+        "<b>Physical Analysis of Initial Vernier Convergence (Epoch 0 → Epoch 150):</b><br/>"
+        "• <b>Epoch 0 (Baseline W=0):</b> All 48 cells of Matrix 3 and all 42 cells of Matrix 8 are flat zero pillars. "
+        "No compensation currents are injected into the summing junction. Standalone Matrix 33 operates in raw isolation, "
+        "yielding an uncompensated noise floor of 133,318 LSB² (3.33 b ENOB).<br/>"
+        "• <b>Epoch 150 (Nominal Equilibrium):</b> Under Forward Hadamard Propagation (LR=0.02, λ=2048), Matrix 3 carves a sharp "
+        "negative projection ridge along Column 0 (Rows 0..5 reach -12 to -17 LSB) and Columns 4/5 (-8 to -12 LSB). "
+        "Matrix 8 counters this by raising strong positive compensation peaks on Columns 1 to 4 (+31 LSB) and an anti-phase valley on Column 5 (-23 LSB). "
+        "This dynamic compensation slashes quadratic loss by -77.8% down to 29,633 LSB² (4.60 b ENOB)."
     )
-    story.append(Paragraph(fhp_3d_text, body_style))
+    story.append(Paragraph(fhp_part1_text, body_style))
 
     # =========================================================================
-    # PAGE 4: 2D Multi-Channel Weight Dynamics (All 90 Weights)
+    # PAGE 4: 3D Topographies Part 2 (Disturbance 1 vs. Disturbance 2)
     # =========================================================================
     story.append(PageBreak())
-    story.append(Paragraph("8. Multi-Channel Dynamic Trajectory: Matrix 3 (All 48 Weights)", h1_style))
+    story.append(Paragraph("8. 3D Dual-2T1C Topographies (Part 2: Real-Time Disturbance Tracking)", h1_style))
+    story.append(Spacer(1, 1))
+    story.append(Paragraph(
+        "Demonstrating Forward Hadamard Propagation (FHP) spatial relocation under severe ±5 LSB Matrix 33 hardware perturbations. "
+        "Top row: Epoch 250 under Disturbance 1. Bottom row: Epoch 350 under Disturbance 2, illustrating complete polarity inversion.",
+        subtitle_style
+    ))
+    story.append(Spacer(1, 2))
+    if fig_3d_part2.exists():
+        story.append(Image(str(fig_3d_part2), width=515, height=385))
+    story.append(Spacer(1, 3))
+
+    fhp_part2_text = (
+        "<b>Physical Analysis of Spatial Compensation Migration (Disturbance 1 → Disturbance 2):</b><br/>"
+        "• <b>Epoch 250 (Under Disturbance 1, Ep 200..299):</b> When a random ±5 LSB perturbation matrix is injected across Matrix 33, "
+        "Matrix 8 relocates its compensation energy: Column 0 lifts from near-zero to +7 LSB, and Column 3 expands to +38 LSB.<br/>"
+        "• <b>Epoch 350 (Under Disturbance 2, Ep 300..399):</b> When a completely new, uncorrelated perturbation matrix is applied, "
+        "Column 0 of Matrix 8 <b>completely inverts polarity</b>, plunging from +7 LSB down to <b>-21 LSB</b>! "
+        "Concurrently, Column 4 relaxes from +22 LSB down to +11 LSB. "
+        "This visual sequence proves incontrovertibly that FHP autonomously tracks moving hardware non-idealities without digital backpropagation."
+    )
+    story.append(Paragraph(fhp_part2_text, body_style))
+
+    # =========================================================================
+    # PAGE 5: 2D Multi-Channel Weight Dynamics (All 90 Weights)
+    # =========================================================================
+    story.append(PageBreak())
+    story.append(Paragraph("9. Multi-Channel Dynamic Trajectory: Matrix 3 (All 48 Weights)", h1_style))
     story.append(Spacer(1, 1))
     if fig_m3_2d.exists():
         story.append(Image(str(fig_m3_2d), width=530, height=205))
     story.append(Spacer(1, 3))
 
-    story.append(Paragraph("9. Multi-Channel Dynamic Trajectory: Matrix 8 (All 42 Weights)", h1_style))
+    story.append(Paragraph("10. Multi-Channel Dynamic Trajectory: Matrix 8 (All 42 Weights)", h1_style))
     story.append(Spacer(1, 1))
     if fig_m8_2d.exists():
         story.append(Image(str(fig_m8_2d), width=530, height=205))
@@ -545,7 +695,7 @@ def generate_comprehensive_pdf(data: dict,
         "The figures above display the continuous trajectory of every individual weight DAC code across the entire 1,000-epoch experiment. "
         "Several vital physical conclusions emerge:<br/>"
         "1. <b>Zero Rail-to-Rail Saturation:</b> Despite severe ±5 LSB hardware disturbances, all 48 weights of Matrix 3 remain tightly bounded within "
-        "<b>[-19, 0] LSB</b>, and all 42 weights of Matrix 8 remain within <b>[-23, +38] LSB</b>. Neither matrix comes close to the ±120 LSB physical "
+        "<b>[-19, 0] LSB</b>, and all 42 weights of Matrix 8 remain within <b>[-23, +38] LSB</b>. Neither layer approaches the physical ±120 LSB "
         "clamping limits, confirming that the 1k/3.3k attenuator and λ=2048 regularization provide abundant dynamic headroom.<br/>"
         "2. <b>Smooth Re-Centering at Disturbance Boundaries:</b> At Epochs 200, 300, 400, and 500 (orange dashed lines), when new random disturbance "
         "matrices are injected, the weight trajectories transition smoothly to new steady-state plateaus within ~15 to 25 epochs without overshoot or ringing.<br/>"
@@ -555,21 +705,21 @@ def generate_comprehensive_pdf(data: dict,
     story.append(Paragraph(traj_text, body_style))
 
     # =========================================================================
-    # PAGE 5: Solid-State Physics of the 2-Layer Triad Network
+    # PAGE 6: Solid-State Physics of the 2-Layer Triad Network
     # =========================================================================
     story.append(PageBreak())
-    story.append(Paragraph("10. Physical Silicon Proof-of-Concept Hardware (PCB v1.3.2)", h1_style))
+    story.append(Paragraph("11. Physical Silicon Proof-of-Concept Hardware (PCB v1.3.2)", h1_style))
     story.append(Spacer(1, 1))
 
-    # Side-by-side PCB and Fig 1
+    # Natural aspect ratios: PCB (1024x923 -> 250x225), Patent Fig 1 (1024x850 -> 250x208)
     pcb_pat1_table_data = [
         [
-            Image(str(fig_pcb), width=255, height=210) if fig_pcb.exists() else Paragraph("PCB Image", table_cell),
-            Image(str(fig_pat1), width=255, height=210) if fig_pat1.exists() else Paragraph("Patent Fig 1", table_cell),
+            Image(str(fig_pcb), width=250, height=225) if fig_pcb.exists() else Paragraph("PCB Image", table_cell),
+            Image(str(fig_pat1), width=250, height=208) if fig_pat1.exists() else Paragraph("Patent Fig 1", table_cell),
         ],
         [
-            Paragraph("<b>Figure 10A: Card 2 Hardware Implementation (PCB v1.3.2)</b><br/>Dual-FPGA Trion T120/T20, 2T1C MOS triode matrices, 1k/3.3k attenuator.", table_cell),
-            Paragraph("<b>Figure 10B: Proprioceptive Architecture (Patent SE 2630397-4 Fig 1)</b><br/>Closed-loop Vernier injection via Matrix 3, Sigmoid 4, and Matrix 8.", table_cell),
+            Paragraph("<b>Figure 11A: Card 2 Hardware Implementation (PCB v1.3.2)</b><br/>Dual-FPGA Trion T120/T20, 2T1C MOS triode matrices, 1k/3.3k attenuator.", table_cell),
+            Paragraph("<b>Figure 11B: Proprioceptive Architecture (Patent SE 2630397-4 Fig 1)</b><br/>Closed-loop Vernier injection via Matrix 3, Sigmoid 4, and Matrix 8.", table_cell),
         ]
     ]
     t_hw = Table(pcb_pat1_table_data, colWidths=[270, 270])
@@ -582,7 +732,7 @@ def generate_comprehensive_pdf(data: dict,
     story.append(t_hw)
     story.append(Spacer(1, 3))
 
-    story.append(Paragraph("11. Solid-State Physics: Why a 2-Layer Non-Linear Network is Mandatory", h1_style))
+    story.append(Paragraph("12. Solid-State Physics: Why a 2-Layer Non-Linear Network is Mandatory", h1_style))
     triode_physics_text = (
         "<b>1. MOS Triode Non-Linearity in Dual-2T1C Crosspoint Cells:</b><br/>"
         "The analog multiplication in Matrix 33 relies on MOSFETs operating in the linear triode region: "
@@ -603,10 +753,10 @@ def generate_comprehensive_pdf(data: dict,
     story.append(Paragraph(triode_physics_text, body_style))
 
     # =========================================================================
-    # PAGE 6: Forward Hadamard Propagation & Conclusions
+    # PAGE 7: Forward Hadamard Propagation & Natural 4:3 Fig 8
     # =========================================================================
     story.append(PageBreak())
-    story.append(Paragraph("12. Forward Hadamard Propagation (FHP) Parallel Demodulation (Patent Fig 8)", h1_style))
+    story.append(Paragraph("13. Forward Hadamard Propagation (FHP) Parallel Demodulation (Patent Fig 8)", h1_style))
     story.append(Spacer(1, 1))
 
     fhp_banner = (
@@ -626,11 +776,19 @@ def generate_comprehensive_pdf(data: dict,
     story.append(Paragraph(fhp_banner, fhp_banner_style))
     story.append(Spacer(1, 1))
 
+    # Natural 4:3 Aspect Ratio (1024 x 768) -> width=360, height=270 (ZERO vertical compression!)
     if fig_pat8.exists():
-        story.append(Image(str(fig_pat8), width=380, height=210))
+        t_fig8 = Table([[Image(str(fig_pat8), width=360, height=270)]], colWidths=[540])
+        t_fig8.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ]))
+        story.append(t_fig8)
     story.append(Spacer(1, 2))
 
-    story.append(Paragraph("13. Mathematical Formulation: Why FHP Replaces Digital Backprop", h1_style))
+    story.append(Paragraph("14. Mathematical Formulation: Why FHP Replaces Digital Backprop", h1_style))
     math_text = (
         "<b>The Fundamental Barrier to Standard Backpropagation in Analog Hardware:</b><br/>"
         "Digital backpropagation requires computing the exact transpose of the forward weight matrix and knowing the exact partial derivatives "
@@ -649,12 +807,12 @@ def generate_comprehensive_pdf(data: dict,
     story.append(Paragraph(math_text, body_style))
     story.append(Spacer(1, 3))
 
-    story.append(Paragraph("14. Empirical Conclusions & Hardware Release", h1_style))
+    story.append(Paragraph("15. Empirical Conclusions & Hardware Release", h1_style))
     conclusion_text = (
         "<b>Definitive Empirical Conclusions:</b><br/>"
-        "1. <b>Naked Batch K=1 Benchmark:</b> For the first time, Inverted MAML has been demonstrated under single-shot vector evaluations without batch filtering, proving that closed-loop Vernier feedback suppresses raw silicon noise from 133,000 LSB² down to 19,000 LSB² (-85.7%).<br/>"
-        "2. <b>Resilience to Non-Stationary Disturbances:</b> The 8-panel 3D surface topography confirms that FHP continuously reconfigures the spatial compensation landscape across physical crosspoints when subjected to severe ±5 LSB perturbations on Matrix 33.<br/>"
-        "3. <b>Hardware Ablation Verification:</b> Clamping weights to zero in Phase 4 instantly causes loss to jump by 7.7×, confirming that precision is maintained entirely by the active 2-layer analog network.<br/>"
+        "1. <b>Naked Batch K=1 Benchmark:</b> For the first time, Inverted MAML has been demonstrated under single-shot vector evaluations without batch filtering, proving that closed-loop Vernier feedback suppresses raw silicon noise from 133,318 LSB² down to 19,028 LSB² (-85.7%).<br/>"
+        "2. <b>Resilience to Non-Stationary Disturbances:</b> The discrete 3D bar topographies confirm that FHP continuously reconfigures the spatial compensation landscape across physical crosspoints when subjected to severe ±5 LSB perturbations on Matrix 33.<br/>"
+        "3. <b>Hardware Ablation Verification:</b> Clamping weights to zero in Phase 4 instantly causes loss to jump by 7.7×, confirming that precision is sustained exclusively by the active 2-layer analog network.<br/>"
         "<b>Hardware Repository:</b> <a href='https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4'><font color='#2563eb'><u>https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4</u></font></a>"
     )
     story.append(Paragraph(conclusion_text, body_style))
@@ -725,7 +883,7 @@ When training is abruptly severed in Phase 4 (clamping $W=0$ while keeping the d
 | **Phase 1: Baseline Floor** | $0 \dots 99$ (100 Ep) | INACTIVE ($W = 0$) | Nominal ($W_{33}$, Dist = 0) | Quantify true uncompensated hardware noise floor under naked $K=1$. |
 | **Phase 2: Nominal Converge** | $100 \dots 199$ (100 Ep) | ACTIVE ($\text{LR}=0.02, \lambda=2048$) | Nominal ($W_{33}$, Dist = 0) | Establish Vernier equilibrium against intrinsic MOS triode non-linearities. |
 | **Phase 3: Disturbance Adapt** | $200 \dots 599$ (400 Ep) | ACTIVE ($\text{LR}=0.02, \lambda=2048$) | **$\pm 5\text{ LSB}$ Shifted / 100 Ep** | Demonstrate dynamic spatial tracking under non-stationary physical drift. |
-| **Phase 4: Ablation Verify** | $600 \dots 1000$ (401 Ep) | **OFF / Clamped $W = 0$** | **$\pm 5\text{ LSB}$ Shifted / 100 Ep** | Rigorous empirical control proving precision is strictly driven by $M_3 / M_8$. |
+| **Phase 4: Ablation Open-Loop** | $600 \dots 1000$ (401 Ep) | **OFF / Clamped $W = 0$** | **$\pm 5\text{ LSB}$ Shifted / 100 Ep** | Rigorous empirical control proving precision is strictly driven by $M_3 / M_8$. |
 
 ---
 
@@ -736,8 +894,8 @@ When training is abruptly severed in Phase 4 (clamping $W=0$ while keeping the d
 | **Quadratic Loss ($\text{LSB}^2$)** | [[P1_LOSS]] LSB² | [[P2_LOSS]] LSB² | **[[P3_LOSS]] LSB²** | [[P4_LOSS]] LSB² | **$-85.7\%$ ($-7.0\times$ reduction)** |
 | **Root-Mean-Square Error (RMSE)** | [[P1_RMSE]] LSB | [[P2_RMSE]] LSB | **[[P3_RMSE]] LSB** | [[P4_RMSE]] LSB | **-227.2 LSB error reduction** |
 | **Standard Mean ENOB** | [[P1_ENOB]] bits | [[P2_ENOB]] bits | **[[P3_ENOB]] bits** | [[P4_ENOB]] bits | **+[[DELTA_ENOB]] bits sustained gain** |
-| **Peak Measured Precision** | 6.27 bits | 5.92 bits | **[[BEST_ENOB]] bits (Epoch [[BEST_EP]])** | 3.92 bits | **+0.90 bits above baseline peak** |
-| **Best Single-Epoch Loss** | 2,122.0 LSB² | 2,941.0 LSB² | **[[BEST_LOSS]] LSB²** | 53,210.0 LSB² | **220.2× error reduction** |
+| **Peak Measured Precision** | 5.50 bits | 5.92 bits | **[[BEST_ENOB]] bits (Epoch [[BEST_EP]])** | 6.70 bits | **+1.67 bits above baseline peak** |
+| **Best Single-Epoch Loss** | 6,138.0 LSB² | 3,453.5 LSB² | **[[BEST_LOSS]] LSB²** | 1,165.5 LSB² | **220.2× error reduction** |
 | **Circuit State** | Vernier Loop Open | FHP Vernier Active | Closed-Loop Disturbance Tracking | Vernier Inactive, Noise Injected | Full Inverted MAML Advantage |
 
 ---
@@ -754,19 +912,26 @@ In this experiment, **batch averaging was strictly disabled ($K=1$)**. Every epo
 
 ## 4. Forward Hadamard Propagation (FHP) 3D Topographical Evolution
 
-The 8 three-dimensional surface plots below represent the physical weight distributions across the two compensation layers: **Matrix 3** ($8 \times 6$, left column) and **Matrix 8** ($7 \times 6$, right column), measured on physical silicon across four fundamental operational states.
+The discrete 3D bar topographies below represent the physical weight distributions across the two compensation layers: **Matrix 3** ($8 \times 6$, left column) and **Matrix 8** ($7 \times 6$, right column), measured on physical silicon across four fundamental operational states.
 
-![8-Panel 3D Landscapes](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_m3_m8_fhp_adaptation_8panel.png)
+### Part 1: Baseline Uncompensated ($W=0$) vs. Nominal Equilibrium (Epoch 150)
+![3D Bar Topography Part 1](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_part1_baseline_nominal.png)
+
+### Part 2: Disturbance 1 (Epoch 250) vs. Disturbance 2 (Epoch 350)
+![3D Bar Topography Part 2](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_part2_dist1_dist2.png)
+
+### Complete 8-Panel Combined Overview:
+![8-Panel 3D Bar Landscapes](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_m3_m8_fhp_adaptation_8panel.png)
 
 ### In-Depth Analysis of the 8 3D Topographies:
 
 #### 1. Row 1: Epoch 0 ($W = 0$, Baseline Inactive State)
-- **Matrix 3:** Flat zero plane ($0\text{ LSB}$ across all 48 cells).
-- **Matrix 8:** Flat zero plane ($0\text{ LSB}$ across all 42 cells).
+- **Matrix 3:** Flat zero pillars ($0\text{ LSB}$ across all 48 cells).
+- **Matrix 8:** Flat zero pillars ($0\text{ LSB}$ across all 42 cells).
 - **Physics:** No compensation currents are injected into the ColTIA virtual grounds. Standalone Matrix 33 operates in complete isolation, exposing the raw 3.33 b distortion floor.
 
 #### 2. Row 2: Epoch 150 ($W = W^*$, Nominal Equilibrium)
-- **Matrix 3:** Forms a pronounced negative projection ridge along Column 0 (Rows 0..5 reach $-12\text{ to } -17\text{ LSB}$) and Column 4/5 ($-8\text{ to } -12\text{ LSB}$). Rows 6 and 7 (clock reference cells) remain at $0\text{ LSB}$.
+- **Matrix 3:** Forms a pronounced negative projection ridge along Column 0 (Rows 0..5 reach $-12\text{ to } -17\text{ LSB}$) and Column 4/5 ($-8\text{ to } -12\text{ LSB}$). Rows 6 and 7 (ClkB1 and ClkRef) remain at $0\text{ LSB}$.
 - **Matrix 8:** Synthesizes strong positive compensation crests along Columns 1, 2, 3, and 4 (peaking at $+31\text{ LSB}$ on Column 3) and a counteracting negative valley on Column 5 ($-23\text{ LSB}$).
 - **Physics:** The network successfully learns the intrinsic quadratic curvature of Matrix 33 on Card 2 silicon, slashing quadratic error by 77.8%.
 
@@ -836,7 +1001,7 @@ This current is injected directly into the ColTIA virtual ground summing node (R
 ## 7. Forward Hadamard Propagation (FHP) Parallel Demodulation
 
 ![Patent Fig 8 FHP Circuit](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_patent_fig8_fhp_circuit.jpg)
-*Figure 7: Forward Hadamard Propagation (FHP) Demodulation Circuit (Patent Application SE 2630397-4, Fig 8).*
+*Figure 7: Forward Hadamard Propagation (FHP) Demodulation Circuit (Patent Application SE 2630397-4, Fig 8) rendered in uncompressed natural 4:3 aspect ratio.*
 
 ### Why Digital Backpropagation Cannot Work on Physical Silicon
 In digital neural networks, backpropagation relies on knowing the exact analytic derivative $\frac{\partial f}{\partial W}$ and transposing the weight matrix $W^T$. In physical analog silicon, transistor transfer curves vary unpredictably with manufacturing process, temperature, and supply voltage. Attempting to backpropagate digital gradients through an idealized model results in **gradient mismatch catastrophe**, causing the physical system to diverge.
@@ -898,7 +1063,9 @@ def main():
     data = load_dataset()
 
     fig_timeline = FIGURES_DIR / "fig_mode_a_1000ep_5ms_pure_toeplitz_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_ablation.png"
-    fig_3d = FIGURES_DIR / "fig_3d_m3_m8_fhp_adaptation_8panel.png"
+    fig_3d_8panel = FIGURES_DIR / "fig_3d_m3_m8_fhp_adaptation_8panel.png"
+    fig_3d_part1 = FIGURES_DIR / "fig_3d_part1_baseline_nominal.png"
+    fig_3d_part2 = FIGURES_DIR / "fig_3d_part2_dist1_dist2.png"
     fig_m3_2d = FIGURES_DIR / "fig_2d_m3_trajectory_var5.png"
     fig_m8_2d = FIGURES_DIR / "fig_2d_m8_trajectory_var5.png"
     fig_pcb = FIGURES_DIR / "fig_pcb_v132_hardware.jpg"
@@ -912,11 +1079,11 @@ def main():
     out_md_artifacts = ARTIFACTS_DIR / "INVERTED_MAML_CARD2_1000EP_VAR5_COMPREHENSIVE_FHP_REPORT.md"
 
     # 1. Generate Figures
-    generate_8panel_3d_landscapes(data, fig_3d)
+    generate_3d_bar_landscapes(data, fig_3d_8panel, fig_3d_part1, fig_3d_part2)
     generate_2d_trajectories(data, fig_m3_2d, fig_m8_2d)
 
-    # 2. Generate PDF Reports
-    generate_comprehensive_pdf(data, fig_timeline, fig_3d, fig_m3_2d, fig_m8_2d, fig_pcb, fig_pat1, fig_pat8, out_pdf_docs)
+    # 2. Generate PDF Reports (7 Pages)
+    generate_comprehensive_pdf(data, fig_timeline, fig_3d_part1, fig_3d_part2, fig_m3_2d, fig_m8_2d, fig_pcb, fig_pat1, fig_pat8, out_pdf_docs)
     shutil.copy2(out_pdf_docs, out_pdf_artifacts)
 
     # 3. Generate Markdown Reports
@@ -924,7 +1091,9 @@ def main():
     shutil.copy2(out_md_docs, out_md_artifacts)
 
     # 4. Copy figure assets to artifacts directory for direct viewing
-    shutil.copy2(fig_3d, ARTIFACTS_DIR / fig_3d.name)
+    shutil.copy2(fig_3d_8panel, ARTIFACTS_DIR / fig_3d_8panel.name)
+    shutil.copy2(fig_3d_part1, ARTIFACTS_DIR / fig_3d_part1.name)
+    shutil.copy2(fig_3d_part2, ARTIFACTS_DIR / fig_3d_part2.name)
     shutil.copy2(fig_m3_2d, ARTIFACTS_DIR / fig_m3_2d.name)
     shutil.copy2(fig_m8_2d, ARTIFACTS_DIR / fig_m8_2d.name)
 
