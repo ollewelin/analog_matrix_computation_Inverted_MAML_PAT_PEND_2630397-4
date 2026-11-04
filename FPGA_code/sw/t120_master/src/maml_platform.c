@@ -341,6 +341,7 @@ static int8_t   g_active_m33[6][6] = {
     { -28, +32,  -4, +40,  -8, +82 }
 };
 static uint8_t  g_w33_is_custom      = 0u;   /* 0 = default hardcoded k_default_m33, 1 = custom loaded */
+static int8_t   g_hid_w_m33[6][6]    = {0};  /* Patent Fig 7 Hidden offset emulator for M33 */
 static uint8_t  g_color_mode         = COLOR_WHITE;
 static uint8_t  g_color_rho_q8       = 180u; /* Default ~0.70 LLM correlation (180/256) */
 static uint16_t g_clip_events_cnt    = 0u;   /* Counter of suppressed updates due to ColTIA clipping */
@@ -450,7 +451,10 @@ static void maml_refresh_all_columns(void) {
         }
         w12[7] = trim_code; /* Ref 38 TRIM_DAC on W_12 channel 8 */
         for (int r = 0; r < 6; r++) {
-            w34[r] = off_to_dac_u8(-g_tel.w_m33[r][col]);
+            int32_t w = (int32_t)g_tel.w_m33[r][col] + (int32_t)g_hid_w_m33[r][col];
+            if (w > 120)  w = 120;
+            if (w < -120) w = -120;
+            w34[r] = off_to_dac_u8(-w);
         }
         w34[6] = g_dac_row7_code; /* DAC2_D_ROW7 (TRIM_B1) */
         w34[7] = g_dac_row8_code; /* DAC2_D_ROW8 (TRIM_REF) */
@@ -473,7 +477,10 @@ static void maml_refresh_all_columns(void) {
         }
         w12[7] = trim_code; /* Ref 38 TRIM_DAC on W_12 channel 8 */
         for (int r = 0; r < 6; r++) {
-            w34[r] = off_to_dac_u8(+g_tel.w_m33[r][col]);
+            int32_t w = (int32_t)g_tel.w_m33[r][col] + (int32_t)g_hid_w_m33[r][col];
+            if (w > 120)  w = 120;
+            if (w < -120) w = -120;
+            w34[r] = off_to_dac_u8(+w);
         }
         w34[6] = g_dac_row7_code; /* DAC2_D_ROW7 (TRIM_B1) */
         w34[7] = g_dac_row8_code; /* DAC2_D_ROW8 (TRIM_REF) */
@@ -2558,11 +2565,15 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
             if (req_len >= 6) {
                 uint8_t subcmd = req[5];
                 if (subcmd == 0) {
-                    /* Reset to factory default k_default_m33 */
+                    /* Reset to factory default k_default_m33 and clear hidden offsets */
                     memcpy(g_active_m33, k_default_m33, sizeof(g_active_m33));
+                    memset(g_hid_w_m33, 0, sizeof(g_hid_w_m33));
                     g_w33_is_custom = 0u;
+                    maml_load_default_m33();
+                    maml_recompute_z_target();
+                    maml_refresh_all_columns();
                 } else if (subcmd == 1 && req_len >= 42) {
-                    /* Load custom 6x6 int8 weights from req[6..41] */
+                    /* Load custom nominal 6x6 int8 weights from req[6..41] and clear hidden offsets */
                     const int8_t *custom_w = (const int8_t *)&req[6];
                     for (int r = 0; r < 6; r++) {
                         for (int c = 0; c < 6; c++) {
@@ -2572,11 +2583,27 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                             g_active_m33[r][c] = val;
                         }
                     }
+                    memset(g_hid_w_m33, 0, sizeof(g_hid_w_m33));
                     g_w33_is_custom = 1u;
+                    maml_load_default_m33();
+                    maml_recompute_z_target();
+                    maml_refresh_all_columns();
+                } else if (subcmd == 2 && req_len >= 42) {
+                    /* Patent Fig 7: Load HIDDEN offset 6x6 int8 perturbations onto physical silicon
+                     * CRITICAL (FUSK-SKYDD): Strictly does NOT update g_active_m33 or recompute z_target!
+                     * Digital supervisor remains rigidly anchored to unperturbed nominal weights! */
+                    const int8_t *hid_w = (const int8_t *)&req[6];
+                    for (int r = 0; r < 6; r++) {
+                        for (int c = 0; c < 6; c++) {
+                            g_hid_w_m33[r][c] = hid_w[r * 6 + c];
+                        }
+                    }
+                    maml_refresh_all_columns();
+                } else if (subcmd == 3) {
+                    /* Clear hidden offset back to 0 without touching nominal weights */
+                    memset(g_hid_w_m33, 0, sizeof(g_hid_w_m33));
+                    maml_refresh_all_columns();
                 }
-                maml_load_default_m33();
-                maml_recompute_z_target();
-                maml_refresh_all_columns();
             }
             t20_sync_heater_and_wdog();
             maml_sync_shadow_bytes();

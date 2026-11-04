@@ -21,6 +21,7 @@ import time
 import json
 import math
 import struct
+import random
 import argparse
 from pathlib import Path
 import numpy as np
@@ -47,6 +48,26 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 DOCS_DIR = REPO_ROOT / "FPGA_code" / "docs" / "figures"
 DOCS_DIR.mkdir(parents=True, exist_ok=True)
 ARTIFACT_DIR = Path("/home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a")
+
+# Exact Factory Calibrated Frozen Reference Payload for Matrix 33 (SE 2630397-4)
+ORIGINAL_M33 = [
+    [+76, -20, +28,  -4, +44, -36],  # Row 0
+    [-20, +84, -12, +44,  -4, +36],  # Row 1
+    [+36,  -4, +80, -16, +32,  -4],  # Row 2
+    [ -4, +40,  -8, +72, -12, +44],  # Row 3
+    [+44, -12, +28, -12, +76,  -8],  # Row 4
+    [-28, +32,  -4, +40,  -8, +82],  # Row 5
+]
+
+
+def get_compressed_m33(compress_factor: float) -> list[list[int]]:
+    """Compresses Matrix 33 weights symmetrically around zero: w_comp = round(w_orig / compress_factor)."""
+    if compress_factor <= 1.0:
+        return [row[:] for row in ORIGINAL_M33]
+    return [
+        [int(round(v / compress_factor)) for v in row]
+        for row in ORIGINAL_M33
+    ]
 
 
 def drain_udp(client: MamlUdpClient):
@@ -175,24 +196,41 @@ def main():
     parser.add_argument("--noise-color", choices=["toeplitz", "white"], default="toeplitz")
     parser.add_argument("--rho", type=float, default=0.85)
     parser.add_argument("--d-line", type=int, default=2, help="Data line divider (1=>+/-80, 2=>+/-40 LSB)")
+    parser.add_argument("--compress-m33-weight", type=float, default=1.0, help="Compress factor for M33 weights (e.g. 2.0 halves swing)")
+    parser.add_argument("--w33-variance-lsb-range", type=int, default=0, help="Hidden random offset range [LSB] injected on M33 every 100 epochs (Patent Fig 7 Emulator)")
     parser.add_argument("--tag", type=str, default="card2_5ms_pure")
     args = parser.parse_args()
 
     color_mode = COLOR_WHITE if args.noise_color == "white" else COLOR_LLM_TOEPLITZ
     color_desc = "White Noise (Uniform Independent)" if args.noise_color == "white" else f"LLM Toeplitz (rho = {args.rho})"
     swing_desc = "+/-40 LSB" if args.d_line == 2 else "+/-80 LSB"
+    comp_desc = f"M33 Komprimerad {args.compress_m33_weight:.1f}x" if args.compress_m33_weight > 1.0 else "M33 Original Nominell"
+    var_desc = f"Fig 7 Hidden Disturbance ±{args.w33_variance_lsb_range} LSB" if args.w33_variance_lsb_range > 0 else "100% Fryst M33"
 
     print("=" * 105)
     print("INVERTED MAML: 500-EPOCH PURE 5.0 ms SNAPSHOT EXPERIMENT ON CARD 2")
     print("FLAT BASELINE PROTOCOL: Active Training directly from W = 0 with L2 anchored at W_null = 0")
     print(f"Target: {args.host}:{args.port} | Epochs: {args.epochs} | Batch K: {args.k_batch} @ strictly 5000 µs (1 Stratum)")
     print(f"Noise Profile: {color_desc} | LR: {args.lr:.2f}x | L2 Reg: λ = {args.reg_lambda} | Data Div: {args.d_line} ({swing_desc})")
+    print(f"Matrix 33 State: {comp_desc} | Disturbance: {var_desc}")
     print("=" * 105)
 
     ver_info = ensure_version_guard(host=args.host, port=args.port)
     client = MamlUdpClient(host=args.host, port=args.port, timeout=8.0)
 
-    # 1. Konfigurera regim
+    # 1. Konfigurera regim & M33
+    nominal_m33 = get_compressed_m33(args.compress_m33_weight)
+    if args.compress_m33_weight > 1.0:
+        client.set_w33_matrix(nominal_m33)
+        min_w = min(min(r) for r in nominal_m33)
+        max_w = max(max(r) for r in nominal_m33)
+        print(f"[*] M33 komprimerad med faktor {args.compress_m33_weight:.1f}x runt nollan (Swing: [{min_w:+d}, {max_w:+d}] LSB)")
+    else:
+        client.set_w33_matrix(None)  # Reset factory default
+        print("[*] M33 körs med fabrikskalibrerad 100% fryst originalmatris (Swing: [-36, +84] LSB)")
+    client.clear_w33_hidden_offset()
+    time.sleep(0.03)
+
     client.set_gain_experiment(d_line=args.d_line, w33=1, target_gain=1.0, clamp=120)
     time.sleep(0.03)
 
@@ -277,6 +315,17 @@ def main():
             print(f">>> [EPOK 100]: SLÅR PÅ AKTIV TRÄNING DIREKT FRÅN W = 0 VID 5.0 ms! (LR={args.lr:.2f}x, λ={args.reg_lambda}, W_null=0)")
             print("=" * 105)
 
+        # Patent Fig 7 Emulator: Inject hidden random offsets on M33 every 100 epochs
+        if args.w33_variance_lsb_range > 0 and ep >= 100 and ep % 100 == 0:
+            hid_offsets = [
+                [random.randint(-args.w33_variance_lsb_range, args.w33_variance_lsb_range) for _ in range(6)]
+                for _ in range(6)
+            ]
+            client.set_w33_hidden_offset(hid_offsets)
+            print(f"\n>>> [FIG 7 EMULATOR @ EPOK {ep}]: Injicerade hidden offset på M33 (range ±{args.w33_variance_lsb_range} LSB)!")
+            print(f"    FUSK-SKYDD: Digital supervisor Z_target är strikt oförändrad mot nominell M33!\n")
+            sys.stdout.flush()
+
         t_cur = run_5ms_batch_epoch(client, args.k_batch, lr_q16=cur_lr_q16, reg_q16=cur_reg)
         eval_cur = t_cur["batch_eval"]
 
@@ -348,6 +397,9 @@ def main():
         "lr": args.lr,
         "reg_lambda": args.reg_lambda,
         "d_line": args.d_line,
+        "compress_m33_weight": args.compress_m33_weight,
+        "w33_variance_lsb_range": args.w33_variance_lsb_range,
+        "nominal_m33": nominal_m33,
         "duration_sec": round(total_dur, 1),
         "phase1_mean_loss": round(float(np.mean(p1_losses)), 1) if p1_losses else 0.0,
         "phase2_mean_loss": round(float(np.mean(p2_losses)), 1) if p2_losses else 0.0,
@@ -394,9 +446,11 @@ def generate_figure(records: list[dict], meta: dict, out_path: Path):
     ax1.axvspan(0, 100, color="#f1f5f9", alpha=0.7, label=f"Fas 1: Platt Baslinje W=0 (Snitt: {meta['phase1_mean_loss']:.1f} LSB²)")
     ax1.axvspan(100, len(epochs) - 1, color="#dcfce7", alpha=0.6, label=f"Fas 2: Aktiv Träning direkt från W=0 (Snitt: {meta['phase2_mean_loss']:.1f} LSB²)")
     ax1.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
+    comp_txt = f", M33 Kompr={meta.get('compress_m33_weight', 1.0):.1f}x" if meta.get("compress_m33_weight", 1.0) > 1.0 else ""
+    var_txt = f", Var=±{meta.get('w33_variance_lsb_range', 0)} LSB" if meta.get("w33_variance_lsb_range", 0) > 0 else ""
     ax1.set_title(
         f"Inverted MAML: 500 Epoker Rent 5.0 ms ({meta['metadata']['noise_color'].upper() if 'metadata' in meta else meta['noise_color'].upper()}) på Kort 2\n"
-        f"Platt Baslinje (W=0), LR={meta['lr']}x, λ={meta['reg_lambda']}, Insving +/-40 LSB, 1k/5.1k Dämpare",
+        f"Platt Baslinje (W=0), LR={meta['lr']}x, λ={meta['reg_lambda']}, Insving +/-{80 if meta['d_line']==1 else 40} LSB{comp_txt}{var_txt}, 1k/5.1k Dämpare",
         fontsize=12, fontweight="bold"
     )
     ax1.grid(True, linestyle=":", alpha=0.6)

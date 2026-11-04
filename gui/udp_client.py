@@ -321,6 +321,27 @@ class MamlUdpClient:
         res = self._send_binary(MAML_CMD_SET_W33, payload)
         return res is not None
 
+    def set_w33_hidden_offset(self, offsets_6x6: List[List[int]]) -> bool:
+        """
+        Patent Fig 7 Emulator: Inject hidden random offsets directly onto physical M33 capacitors.
+        CRITICAL (FUSK-SKYDD): Does NOT touch nominal weights or recompute Z_target!
+        Digital supervisor remains anchored to unperturbed nominal weights!
+        """
+        flat = []
+        for r in range(6):
+            for c in range(6):
+                w = int(offsets_6x6[r][c])
+                flat.append(max(-120, min(120, w)))
+        payload = struct.pack("<B36b", 2, *flat)
+        res = self._send_binary(MAML_CMD_SET_W33, payload)
+        return res is not None
+
+    def clear_w33_hidden_offset(self) -> bool:
+        """Clear all hidden M33 offsets back to 0 without touching nominal weights."""
+        payload = struct.pack("<B", 3)
+        res = self._send_binary(MAML_CMD_SET_W33, payload)
+        return res is not None
+
     def set_data_color(self, mode: int, rho: float = 0.70) -> bool:
         """
         Configure Data Line Noise Equalizer under runtime.

@@ -79,15 +79,20 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
     d_line_val = meta.get("d_line", 2)
     swing_str = r"\pm 40\text{ LSB}" if d_line_val == 2 else r"\pm 80\text{ LSB}"
     swing_plain = "±40 LSB" if d_line_val == 2 else "±80 LSB"
+    comp_factor = meta.get("compress_m33_weight", 1.0)
+    var_range = meta.get("w33_variance_lsb_range", 0)
+    comp_str = f"M33 Compressed {comp_factor:.1f}x" if comp_factor > 1.0 else "M33 Nominal 1.0x"
+    var_str = f"Fig 7 Disturbance ±{var_range} LSB" if var_range > 0 else "100% Frozen M33"
 
     # 1. Skriv Markdown Rapport
-    md_content = f"""# INVERTED MAML: Pure 5.0 ms Snapshot Experiment Report ({noise_type}, {swing_plain})
+    md_content = f"""# INVERTED MAML: Pure 5.0 ms Snapshot Experiment Report ({noise_type}, {swing_plain}, {comp_str})
 **Patent Pending:** SE 2630397-4 (Open Science Hardware)  
 **Target Hardware:** Card 2 (Rev 2.0 Silicon, 1k/5.1k attenuator, repaired CH3)  
 **Date:** {meta['date']}  
 **Stimulus Profile:** {noise_label}  
 **Architecture:** Flat Baseline Protocol ($W=0, W_\\text{{null}}=0, \\text{{LR}}={meta['lr']}\\text{{x}}, \\lambda={meta['reg_lambda']}$)  
 **Dynamic Input Swing:** ${swing_str}$ (`d_line={d_line_val}`)  
+**Matrix 33 State:** {comp_str} | **Disturbance (Fig 7):** {var_str}  
 
 ---
 
@@ -239,10 +244,10 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
     story = []
 
     # Title & Subtitle
-    story.append(Paragraph(f"Inverted MAML: Pure 5.0 ms Snapshot Experiment Report ({noise_type}, {swing_plain})", title_style))
+    story.append(Paragraph(f"Inverted MAML: Pure 5.0 ms Snapshot Experiment Report ({noise_type}, {swing_plain}, {comp_str})", title_style))
     story.append(Paragraph(
         f"<b>Stimulus:</b> {noise_label} | <b>Hardware:</b> Card 2 (Rev 2.0 Silicon, 1k/5.1k attenuator, repaired CH3)<br/>"
-        f"<b>Architecture:</b> Flat Baseline Protocol (W=0, W_null=0, LR={meta['lr']}x, λ={meta['reg_lambda']}, Swing {swing_plain}) | <b>Date:</b> {meta['date']}",
+        f"<b>Architecture:</b> Flat Baseline Protocol (W=0, W_null=0, LR={meta['lr']}x, λ={meta['reg_lambda']}, Swing {swing_plain}) | <b>M33:</b> {comp_str} ({var_str}) | <b>Date:</b> {meta['date']}",
         subtitle_style
     ))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))

@@ -533,8 +533,25 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # ==============================================================================
 #
 # ==============================================================================
-# PLAN FÖR IMORGON (2026-11-04):
+# DATUM: 2026-11-04 10:30 CET
+# HÅRDVARUKÖRNING 8: Komprimerad M33 (2.0x) vid Full DAC(2) Insving ±80 LSB
+# Rent 5.0 ms på Kort 2 (Toeplitz rho=0.85, LR=0.08x, lambda=160)
 # ==============================================================================
+# - Hypotesprövning (Olle): Halvera viktsvinget på M33 runt nollan (från [-36, +84] till
+#   [-18, +42] LSB) för att motverka pinch-off i cellerna, och öka DAC(2) insignal till ±80 LSB.
+# - Fas 1 Baslinje Snitt: 35 240.3 LSB² (4.27 bitar ENOB) - ett dropp med -33.4% från 52.9k LSB²!
+# - Fas 2 Träning Snitt:  30 319.4 LSB² (4.36 bitar ENOB) - ett dropp med -29.8% från 43.2k LSB²!
+# - Peak Singelepok:      14 761.0 LSB² (4.87 bitar ENOB vid Epok 409) - halverat peakfel (-50.5%)!
+# - Slutvikter M8:        [8, 1, 3, 22, 14, -9] LSB (max 22 LSB, 0% klamping).
+# - Olles hypotes är bekräftad: Mindre viktsving på M33 eliminerar subthreshold turnaround
+#   och ger avsevärt högre analog linjäritet och precision vid full ±80 LSB signal.
+# - Rapport: INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG160_COMP2_SWING80_REPORT.pdf (2 sidor).
+# ==============================================================================
+#
+# ==============================================================================
+# PLAN FÖR IDAG (2026-11-04):
+# ==============================================================================
+
 # - 10 konsekutiva körningar på det bästa 5.0 ms-läget i följd.
 # - Skapa en tydlig statistisk linje på sammanslagna körningar (medel, std dev, min/max).
 # ==============================================================================

@@ -443,6 +443,15 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
    - Weights $W_8$: $[9, -2, 0, 2, 6, -10]\text{ LSB}$ (0% clamping, max $10\text{ LSB}$).
    - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG160_SWING40_REPORT.pdf` (2 pages).
 
+8. **Run 8: Pure 5.0 ms, LLM Toeplitz ($\rho = 0.85$), M33 Compressed $2.0\text{x}$ ($[-18, +42]\text{ LSB}$), Full Input Swing $\pm 80\text{ LSB}$ (`d_line=1`), $\lambda = 160$**
+   - *Hypotesprövning (Olle):* Byt plats på svingbegränsningen – komprimera vikterna på Matris 33 med $2.0\text{x}$ runt nollan för att undvika cell-pinch-off, och skala upp insignalen DAC(2) till full $\pm 80\text{ LSB}$ sving.
+   - Phase 1 Baseline Mean: **$35\,240.3\text{ LSB}^2$ ($4.27\text{ b}$)** (vs $52\,925.3\text{ LSB}^2$ vid okomprimerad M33, **$-33.4\%$ felreduktion i öppen loop!**).
+   - Phase 2 Training Mean: **$30\,319.4\text{ LSB}^2$ ($4.36\text{ b}$)** (vs $43\,214.5\text{ LSB}^2$ vid okomprimerad M33, **$-29.8\%$ felreduktion!**).
+   - Peak Single-Epoch: **$14\,761.0\text{ LSB}^2$ ($4.87\text{ bits}$ ENOB vid Epok 409)** (vs $29\,849.0\text{ LSB}^2$ vid okomprimerad M33, **$-50.5\%$ halverat peakfel!**).
+   - Slutvikter $W_8$: $[8, 1, 3, 22, 14, -9]\text{ LSB}$ (0% clamping, max $22\text{ LSB}$).
+   - *Slutsats:* Olles hypotes bekräftad! Genom att halvera viktsvinget på M33 undviks pinch-off i de enskilda Dual-2T1C-cellerna, vilket ger markant förbättrad linearitet och $+0.51\text{ bitar}$ högre topp-ENOB vid full $\pm 80\text{ LSB}$ insignal!
+   - Report: `FPGA_code/docs/INVERTED_MAML_CARD2_5MS_PURE_TOEPLITZ_REG160_COMP2_SWING80_REPORT.pdf` (2 pages).
+
 ---
 
 ### B. Forskningsarkitektur: De Tre Huvudmilstolparna (Olle:s taxonomi)
