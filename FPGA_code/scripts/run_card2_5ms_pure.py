@@ -253,28 +253,14 @@ def main():
     client.set_regularization(0)
     time.sleep(0.05)
 
-    # 3. Pre-training Temporal Sweep (4.5 .. 5.5 ms)
-    delays_sweep = list(range(4500, 5501, 100))
-    print(f"\n[*] Kör förundersökning av tidsfönster: {len(delays_sweep)} punkter över [4500..5500] µs...")
-    pre_sweep = sweep_temporal_profile(client, delays_sweep, n_reps=3)
-    for d_k, d_v in pre_sweep.items():
-        print(f"    {d_k} µs: Loss = {d_v['mean_loss_lsb2']:>9.1f} LSB² | RMSE = {d_v['mean_rmse_lsb']:>6.2f} LSB | ENOB = {d_v['mean_enob_bits']:>5.2f} b")
-
-    # Återställ till 5.0 ms batchkonfiguration
-    client.set_config(
-        mode=0, jumper_mode=3, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
-        inner_loop_n=100, seed_pct=28, seed_mode=1, w_hid_mag=0, trim_hid_mag=0,
-        hadamard_delay_us=5000, lr_inner_q16=lr_inner_q16
-    )
-    time.sleep(0.03)
-    client.set_data_color(color_mode, args.rho if args.noise_color == "toeplitz" else 0.0)
-    time.sleep(0.02)
-
     # Epoch 0: Initial batch measurement with lr=0, reg=0
     print("\n" + "=" * 105)
-    print("STARTAR 500-EPOKERS HÅRDVARUTRÄNING (5.0 ms RENT):")
+    print(f"STARTAR {args.epochs}-EPOKERS HÅRDVARUTRÄNING (5.0 ms RENT):")
     print(f"Fas 1 (Ep   0.. 99): Öppen loop baslinje W = 0 LSB (LR=0, Reg=0, K={args.k_batch} @ 5.0ms)")
-    print(f"Fas 2 (Ep 100..500): Aktiv träning direkt från W = 0 (LR={args.lr:.2f}x, λ={args.reg_lambda}, W_null=0)")
+    print(f"Fas 2 (Ep 100..199): Nominell träning mot ostörd M33 (LR={args.lr:.2f}x, λ={args.reg_lambda}, W_null=0)")
+    print(f"Fas 3 (Ep 200..599): Aktiv Inverted MAML anpassning under Patent Fig 7 störning (±{args.w33_variance_lsb_range} LSB)")
+    if args.epochs >= 600:
+        print(f"Fas 4 (Ep 600..{args.epochs}): Ablation Control med störning (±{args.w33_variance_lsb_range} LSB) men Träning AV och W=0!")
     print("=" * 105)
 
     t0 = run_5ms_batch_epoch(client, args.k_batch, lr_q16=0, reg_q16=0)
@@ -308,17 +294,41 @@ def main():
             phase = "PHASE1_BASELINE_ZERO"
             cur_lr_q16 = 0
             cur_reg = 0
-        else:
-            phase = "PHASE2_TRAIN_FLAT_START"
+        elif ep < 200:
+            phase = "PHASE2_NOMINAL_CONVERGE"
             cur_lr_q16 = lr_inner_q16
             cur_reg = args.reg_lambda
+        elif ep < 600 or args.epochs <= 500:
+            phase = "PHASE3_DISTURBANCE_ADAPT"
+            cur_lr_q16 = lr_inner_q16
+            cur_reg = args.reg_lambda
+        else:
+            phase = "PHASE4_ABLATION_OPEN_LOOP"
+            cur_lr_q16 = 0
+            cur_reg = 0
 
         if ep == 100:
             print("\n" + "=" * 105)
-            print(f">>> [EPOK 100]: SLÅR PÅ AKTIV TRÄNING DIREKT FRÅN W = 0 VID 5.0 ms! (LR={args.lr:.2f}x, λ={args.reg_lambda}, W_null=0)")
+            print(f">>> [EPOK 100]: FAS 2 STARTAR: Slår PÅ aktiv träning mot nominell M33! (LR={args.lr:.2f}x, λ={args.reg_lambda}, W_null=0)")
             if args.w33_variance_lsb_range > 0:
                 print(f"    ORIGINAL NOMINELL M33: Tränar utan störning (Ep 100..199) för att etablera nominell jämvikt!")
             print("=" * 105)
+
+        if ep == 200 and args.w33_variance_lsb_range > 0:
+            print("\n" + "=" * 105)
+            print(f">>> [EPOK 200]: FAS 3 STARTAR: Kopplar in Patent Fig 7 Hårdvarustörning (±{args.w33_variance_lsb_range} LSB) med aktiv kompensation!")
+            print("=" * 105)
+
+        if ep == 600 and args.epochs >= 600:
+            print("\n" + "=" * 105)
+            print(f">>> [EPOK 600]: FAS 4 ABLATION CONTROL STARTAR!")
+            print(f"    Slår AV träning (LR=0, Reg=0) och nollställer kompensationsvikterna W(3,8) = 0 LSB!")
+            print(f"    Hårdvarustörningen (±{args.w33_variance_lsb_range} LSB) fortsätter för att demonstrera det öppna loop-felet på kisel!")
+            print("=" * 105 + "\n")
+            flat_payload = struct.pack("<B48b42b", 0, *([0] * 48), *([0] * 42))
+            client._send_binary(MAML_CMD_CENTER_WEIGHTS, flat_payload)
+            client.set_regularization(0)
+            time.sleep(0.05)
 
         # Patent Fig 7 Emulator: Inject hidden random offsets on M33 every 100 epochs starting at ep 200
         # (Ep 100..199 runs on 100% nominal unperturbed M33 as requested)
@@ -329,14 +339,19 @@ def main():
             ]
             client.set_w33_hidden_offset(current_hid_offsets)
             applied_disturbances[str(ep)] = current_hid_offsets
+            tag_phase = "FAS 4 ABLATION (W=0, LR=0)" if ep >= 600 else "FAS 3 AKTIV KOMPENSATION"
             print("\n" + "=" * 105)
-            print(f">>> [FIG 7 EMULATOR @ EPOK {ep}]: NY RANDOMISERAD HIDDEN OFFSET MATRIX PÅ M33 (±{args.w33_variance_lsb_range} LSB):")
+            print(f">>> [FIG 7 EMULATOR @ EPOK {ep} - {tag_phase}]: NY RANDOMISERAD HIDDEN OFFSET MATRIX PÅ M33 (±{args.w33_variance_lsb_range} LSB):")
             for r in range(6):
                 row_str = " ".join(f"{current_hid_offsets[r][c]:+3d}" for c in range(6))
                 print(f"    Rad {r}: [ {row_str} ] LSB")
             print(f"    FUSK-SKYDD VERIFIERAT: Digital supervisor Z_target är 100% oförändrad mot nominell M33!")
             print("=" * 105 + "\n")
             sys.stdout.flush()
+
+            if ep >= 600:
+                flat_payload = struct.pack("<B48b42b", 0, *([0] * 48), *([0] * 42))
+                client._send_binary(MAML_CMD_CENTER_WEIGHTS, flat_payload)
 
         t_cur = run_5ms_batch_epoch(client, args.k_batch, lr_q16=cur_lr_q16, reg_q16=cur_reg)
         eval_cur = t_cur["batch_eval"]
@@ -370,24 +385,15 @@ def main():
 
     total_dur = time.time() - t_start
     print("=" * 105)
-    print(f"[+] 500-epokers körning slutförd på {total_dur:.1f} sek ({total_dur/60:.1f} min)")
+    print(f"[+] {args.epochs}-epokers körning slutförd på {total_dur:.1f} sek ({total_dur/60:.1f} min)")
 
-    # 4. Post-training Temporal Sweep (4.5 .. 5.5 ms)
-    print(f"\n[*] Kör efterundersökning av tidsfönster med tränade vikter: {len(delays_sweep)} punkter...")
-    post_sweep = sweep_temporal_profile(client, delays_sweep, n_reps=3)
-    for d_k, d_v in post_sweep.items():
-        pre_l = pre_sweep[d_k]["mean_loss_lsb2"]
-        post_l = d_v["mean_loss_lsb2"]
-        delta_pct = (post_l - pre_l) / max(1.0, pre_l) * 100.0
-        print(f"    {d_k} µs: Pre={pre_l:>8.1f} L² -> Post={post_l:>8.1f} L² ({delta_pct:+.1f}%) | ENOB: {pre_sweep[d_k]['mean_enob_bits']:.2f}b -> {d_v['mean_enob_bits']:.2f}b")
-
-    # 5. Spara JSON
-    out_stem = f"mode_a_500ep_5ms_pure_{args.tag}"
+    # 4. Spara JSON
+    out_stem = f"mode_a_{args.epochs}ep_5ms_pure_{args.tag}"
     json_path = LOG_DIR / f"{out_stem}.json"
     fig_path = DOCS_DIR / f"fig_{out_stem}.png"
 
     p1_records = [r for r in records if r["phase"] == "PHASE1_BASELINE_ZERO"]
-    p2_records = [r for r in records if r["phase"] == "PHASE2_TRAIN_FLAT_START"]
+    p2_records = [r for r in records if r["phase"] != "PHASE1_BASELINE_ZERO"]
 
     p1_losses = [r["batch_eval"]["mean_loss_lsb2"] for r in p1_records]
     p2_losses = [r["batch_eval"]["mean_loss_lsb2"] for r in p2_records]
@@ -395,7 +401,7 @@ def main():
     p2_enobs = [r["batch_eval"]["mean_enob_bits"] for r in p2_records]
 
     meta = {
-        "title": f"500-Epoch Mode A Silicon Training: Pure 5.0ms ({color_desc}) on Card 2",
+        "title": f"{args.epochs}-Epoch Mode A Silicon Training: Pure 5.0ms ({color_desc}) on Card 2",
         "patent": "SE 2630397-4 (Open Science Hardware)",
         "hardware": "Card 2 (Rev 2.0 Silicon, 1k/5.1k attenuator, repaired CH3)",
         "date": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -422,8 +428,6 @@ def main():
         "best_loss": round(best_loss, 1),
         "best_loss_ep": best_ep,
         "best_enob": round(best_enob, 2),
-        "pre_sweep": pre_sweep,
-        "post_sweep": post_sweep,
     }
 
     payload_json = {
@@ -452,57 +456,80 @@ def generate_figure(records: list[dict], meta: dict, out_path: Path):
     losses = [r["batch_eval"]["mean_loss_lsb2"] for r in records]
     enobs = [r["batch_eval"]["mean_enob_bits"] for r in records]
 
-    fig, axes = plt.subplots(3, 1, figsize=(12, 11), sharex=True)
+    fig, axes = plt.subplots(3, 1, figsize=(13, 11), sharex=True)
+    ax1, ax2, ax3 = axes
+    var_range = meta.get("w33_variance_lsb_range", 0)
+    has_ablation = max(epochs) >= 600
 
     # Panel 1: Quadratic Loss
-    ax1 = axes[0]
-    ax1.plot(epochs, losses, color="#2563eb", linewidth=1.4, label=f"5.0 ms Batch Mean Loss (LSB²)")
-    ax1.axvspan(0, 100, color="#f1f5f9", alpha=0.7, label=f"Fas 1: Platt Baslinje W=0 (Snitt: {meta['phase1_mean_loss']:.1f} LSB²)")
-    ax1.axvspan(100, len(epochs) - 1, color="#dcfce7", alpha=0.6, label=f"Fas 2: Aktiv Träning direkt från W=0 (Snitt: {meta['phase2_mean_loss']:.1f} LSB²)")
+    ax1.plot(epochs, losses, color="#2563eb", linewidth=1.3, label="5.0 ms Batch Mean Loss (LSB²)")
+
+    if has_ablation:
+        p1_losses = [r["batch_eval"]["mean_loss_lsb2"] for r in records if r["epoch"] < 100]
+        p2_losses = [r["batch_eval"]["mean_loss_lsb2"] for r in records if 100 <= r["epoch"] < 200]
+        p3_losses = [r["batch_eval"]["mean_loss_lsb2"] for r in records if 200 <= r["epoch"] < 600]
+        p4_losses = [r["batch_eval"]["mean_loss_lsb2"] for r in records if r["epoch"] >= 600]
+
+        for ax in axes:
+            ax.axvspan(0, 100, color="#f1f5f9", alpha=0.7)
+            ax.axvspan(100, 200, color="#dcfce7", alpha=0.6)
+            ax.axvspan(200, 600, color="#fef3c7", alpha=0.6)
+            ax.axvspan(600, max(epochs), color="#fee2e2", alpha=0.6)
+
+        ax1.axvspan(0, 100, color="#f1f5f9", alpha=0.7, label=f"Phase 1: Baseline W=0 (Mean: {np.mean(p1_losses):.1f} L²)")
+        ax1.axvspan(100, 200, color="#dcfce7", alpha=0.6, label=f"Phase 2: Train ON, Dist=0 (Mean: {np.mean(p2_losses):.1f} L²)")
+        ax1.axvspan(200, 600, color="#fef3c7", alpha=0.6, label=f"Phase 3: Active Comp, Dist=±{var_range} (Mean: {np.mean(p3_losses):.1f} L²)")
+        ax1.axvspan(600, max(epochs), color="#fee2e2", alpha=0.6, label=f"Phase 4: Ablation W=0, Dist=±{var_range} (Mean: {np.mean(p4_losses):.1f} L²)")
+    else:
+        ax1.axvspan(0, 100, color="#f1f5f9", alpha=0.7, label=f"Phase 1: Flat Baseline W=0 (Mean: {meta['phase1_mean_loss']:.1f} LSB²)")
+        ax1.axvspan(100, len(epochs) - 1, color="#dcfce7", alpha=0.6, label=f"Phase 2: Active Train from W=0 (Mean: {meta['phase2_mean_loss']:.1f} LSB²)")
+        for ax in axes[1:]:
+            ax.axvspan(0, 100, color="#f1f5f9", alpha=0.7)
+            ax.axvspan(100, len(epochs) - 1, color="#dcfce7", alpha=0.6)
+
     ax1.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
-    comp_txt = f", M33 Kompr={meta.get('compress_m33_weight', 1.0):.1f}x" if meta.get("compress_m33_weight", 1.0) > 1.0 else ""
-    var_txt = f", Var=±{meta.get('w33_variance_lsb_range', 0)} LSB" if meta.get("w33_variance_lsb_range", 0) > 0 else ""
+    comp_txt = f", M33 Comp={meta.get('compress_m33_weight', 1.0):.1f}x" if meta.get("compress_m33_weight", 1.0) > 1.0 else ""
+    var_txt = f", Dist=±{meta.get('w33_variance_lsb_range', 0)} LSB" if meta.get("w33_variance_lsb_range", 0) > 0 else ""
     ax1.set_title(
-        f"Inverted MAML: 500 Epoker Rent 5.0 ms ({meta['metadata']['noise_color'].upper() if 'metadata' in meta else meta['noise_color'].upper()}) på Kort 2\n"
-        f"Platt Baslinje (W=0), LR={meta['lr']}x, λ={meta['reg_lambda']}, Insving +/-{80 if meta['d_line']==1 else 40} LSB{comp_txt}{var_txt}, 1k/5.1k Dämpare",
+        f"Inverted MAML: {meta.get('epochs', len(epochs))} Epochs Pure 5.0 ms ({meta.get('noise_color', 'toeplitz').upper()}) on Card 2\n"
+        f"LR={meta['lr']}x, λ={meta['reg_lambda']}, Input Swing +/-{80 if meta['d_line']==1 else 40} LSB{comp_txt}{var_txt}, 1k/5.1k Attenuator",
         fontsize=12, fontweight="bold"
     )
     ax1.grid(True, linestyle=":", alpha=0.6)
-    # Vertical lines for Fig 7 disturbance transitions
-    var_range = meta.get("w33_variance_lsb_range", 0)
+
+    # Vertical lines for transitions
     for i, ax in enumerate(axes):
-        # Epok 100: Träning påslagen (nominell ostörd M33)
-        lbl_100 = "Träning PÅ (Nom. M33)" if i == 0 else None
+        # Epoch 100: Training ON
+        lbl_100 = "Training ON (Nom. M33)" if i == 0 else None
         ax.axvline(x=100, color="#2563eb", linestyle=":", linewidth=1.5, alpha=0.9, label=lbl_100)
 
-        # Epok 200, 300, 400: Störningsbyten
+        # Disturbance changes
         if var_range > 0:
-            for d_ep in [200, 300, 400]:
-                lbl_dist = f"Fig 7 Störningsbyte (±{var_range} LSB)" if (d_ep == 200 and i == 0) else None
-                ax.axvline(x=d_ep, color="#ea580c", linestyle="--", linewidth=1.5, alpha=0.9, label=lbl_dist)
+            dist_keys = sorted([int(k) for k in meta.get("applied_disturbances", {}).keys()])
+            for d_ep in dist_keys:
+                if d_ep == 600:
+                    lbl_600 = "Phase 4 Ablation: Training OFF, W=0" if i == 0 else None
+                    ax.axvline(x=600, color="#dc2626", linestyle="-", linewidth=1.8, alpha=0.95, label=lbl_600)
+                else:
+                    lbl_dist = f"Disturbance Shift (±{var_range} LSB)" if (d_ep == 200 and i == 0) else None
+                    ax.axvline(x=d_ep, color="#ea580c", linestyle="--", linewidth=1.3, alpha=0.85, label=lbl_dist)
 
-    ax1.legend(loc="upper right", framealpha=0.9)
+    ax1.legend(loc="upper right", framealpha=0.9, fontsize=8)
 
     # Panel 2: ENOB
-    ax2 = axes[1]
-    ax2.plot(epochs, enobs, color="#059669", linewidth=1.4, label=f"ENOB (Fas 2 Snitt: {meta['phase2_mean_enob']:.2f} b, Topp: {meta['best_enob']:.2f} b)")
-    ax2.axvspan(0, 100, color="#f1f5f9", alpha=0.7)
-    ax2.axvspan(100, len(epochs) - 1, color="#dcfce7", alpha=0.6)
-    ax2.set_ylabel("ENOB (Bitar)", fontsize=11, fontweight="bold")
+    ax2.plot(epochs, enobs, color="#059669", linewidth=1.3, label=f"ENOB (Phase 2/3 Mean: {meta['phase2_mean_enob']:.2f} b, Peak: {meta['best_enob']:.2f} b)")
+    ax2.set_ylabel("ENOB (Bits)", fontsize=11, fontweight="bold")
     ax2.grid(True, linestyle=":", alpha=0.6)
     ax2.legend(loc="lower right", framealpha=0.9)
 
     # Panel 3: M8 Weights Trajectory
-    ax3 = axes[2]
-    w8_cols = np.array([r["w8_diag"] for r in records])  # (501, 6)
+    w8_cols = np.array([r["w8_diag"] for r in records])
     colors = ["#2563eb", "#d97706", "#059669", "#dc2626", "#7c3aed", "#0891b2"]
     for c in range(6):
-        ax3.plot(epochs, w8_cols[:, c], color=colors[c], linewidth=1.3, label=f"Ch {c} (Slut: {w8_cols[-1, c]:+d} LSB)")
-    ax3.axvspan(0, 100, color="#f1f5f9", alpha=0.7)
-    ax3.axvspan(100, len(epochs) - 1, color="#dcfce7", alpha=0.6)
+        ax3.plot(epochs, w8_cols[:, c], color=colors[c], linewidth=1.3, label=f"Ch {c} (End: {w8_cols[-1, c]:+d} LSB)")
     ax3.axhline(0, color="#64748b", linestyle="--", linewidth=0.8)
-    ax3.set_ylabel("M8 Vikt (LSB)", fontsize=11, fontweight="bold")
-    ax3.set_xlabel("Epok (K=20 Batch @ 5.0 ms)", fontsize=11, fontweight="bold")
+    ax3.set_ylabel("M8 Weight (LSB)", fontsize=11, fontweight="bold")
+    ax3.set_xlabel(f"Epoch (K={meta.get('k_batch', 20)} Batch @ 5.0 ms)", fontsize=11, fontweight="bold")
     ax3.grid(True, linestyle=":", alpha=0.6)
     ax3.legend(loc="upper left", ncol=3, framealpha=0.9, fontsize=9)
 

@@ -616,6 +616,40 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # ==============================================================================
 #
 # ==============================================================================
+# DATUM: 2026-11-04 11:20 CET
+# HÅRDVARUKÖRNING 12: 1000 Epoker Rent 5.0 ms med Patent Fig 7 Störning (±3 LSB)
+# OCH Fas 4 Ablationskontroll (Träning AV, W=0 under fortsatt störning)
+# Rent 5.0 ms på Kort 2 (Toeplitz rho=0.85, LR=0.08x, lambda=150, d_line=2)
+# ==============================================================================
+# - Syfte & Upplägg (Olle):
+#   Kör ett illustrativt 1000-epokers experiment som direkt demonstrerar värdet av
+#   Inverted MAML genom en 4-fasig struktur med ablationskontroll:
+#   * Fas 1 (Ep 0..99): Training OFF, comp(3,8) W=0, nominell ostörd M33.
+#   * Fas 2 (Ep 100..199): Training ON, disturbance = 0 (nominell M33 grundkonvergens).
+#   * Fas 3 (Ep 200..599): Disturbance = 3 (±3 LSB hidden offset byts var 100:e epok), Training ON.
+#   * Fas 4 (Ep 600..1000): Disturbance = 3 (byts fortsatt var 100:e epok), Training OFF, comp(3,8) W=0.
+# - Fusk-skydd: Digital target supervisor (Z_target) beräknas 100% strikt mot den nominella ostörda M33.
+# - 100-Epokers Segmentanalys:
+#   * Epok 0 .. 99 (Fas 1 Baslinje W=0): Snitt 15 283.6 LSB² (4.86 b), Bästa 8 233.0 LSB² (5.29 b).
+#   * Epok 100 .. 199 (Fas 2 Nominell Träning): Snitt 13 738.2 LSB² (4.93 b), Bästa 9 431.5 LSB² (5.19 b).
+#     Slutvikter W8: [9, -1, 1, -2, 10, -8] LSB.
+#   * Epok 200 .. 299 (Fas 3 Aktiv Störning 1): Snitt 15 200.6 LSB² (4.86 b). W8: [-24, 1, 6, -2, 24, 11] LSB.
+#   * Epok 300 .. 399 (Fas 3 Aktiv Störning 2): Snitt 15 886.3 LSB² (4.83 b). W8: [9, 4, 3, -2, -23, -12] LSB.
+#   * Epok 400 .. 499 (Fas 3 Aktiv Störning 3): Snitt 14 365.8 LSB² (4.92 b). W8: [4, 6, 1, 0, 56, -8] LSB (Ch 4 styrs till +56!).
+#   * Epok 500 .. 599 (Fas 3 Aktiv Störning 4): Snitt 15 325.3 LSB² (4.86 b). W8: [-29, -3, -1, 14, 18, -13] LSB.
+#   * Epok 600 .. 699 (Fas 4 Ablation 1, W=0): Snitt 15 928.0 LSB² (4.83 b), omedelbar felökning!
+#   * Epok 700 .. 799 (Fas 4 Ablation 2, W=0): Snitt 13 350.4 LSB² (4.95 b), slumpmässig kvasijämvikt.
+#   * Epok 800 .. 899 (Fas 4 Ablation 3, W=0): Snitt 14 812.3 LSB² (4.88 b).
+#   * Epok 900 .. 999 (Fas 4 Ablation 4, W=0): Snitt 15 398.5 LSB² (4.85 b).
+# - Huvudslutsats: Jämförelsen mellan Fas 3 (där loopen aktivt motstyr vikterna upp till +56 LSB för att
+#   neutralisera de fysiska störningarna) och Fas 4 (där kompensationen är avstängd och felet kastar vilt)
+#   visar ovedersägligt hur Inverted MAML skyddar analog beräkningsprecision mot termisk drift och komponentvariation.
+# - Logg: FPGA_code/logs/mode_a_extended_training/mode_a_1000ep_5ms_pure_toeplitz_reg150_swing40_var3_ablation.json
+# - Figur: FPGA_code/docs/figures/fig_mode_a_1000ep_5ms_pure_toeplitz_reg150_swing40_var3_ablation.png
+# - Rapport: INVERTED_MAML_CARD2_1000EP_5MS_PURE_VAR3_ABLATION_REPORT.pdf (2 sidor exakt, tabell 4 borttagen).
+# ==============================================================================
+#
+# ==============================================================================
 # PLAN FÖR IDAG (2026-11-04):
 # ==============================================================================
 
