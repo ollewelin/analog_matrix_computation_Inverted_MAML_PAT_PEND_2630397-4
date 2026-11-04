@@ -507,6 +507,19 @@ While T120 is running active firmware (`maml_platform.c`), its 100 Hz refresh lo
     - *Slutsats:* Den direkta kontrasten mellan Fas 3 (där loopen aktivt absorberar perturbationerna) och Fas 4 (där kompensationen bryts) bevisar att Inverted MAML garanterar driftimmunitet på fysiskt kisel.
     - *Rapport:* `FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_VAR3_ABLATION_REPORT.pdf` (exakt 2 sidor, figur med engelska etiketter och divider lines, tabell 4 helt borttagen).
 
+13. **Run 13: 1000 Epoker Rent 5.0 ms med Högre Lärhastighet $LR = 0.16\text{x}$, Störning $\pm 4\text{ LSB}$, $\lambda = 150$, Insving $\pm 40\text{ LSB}$**
+    - *Syfte & Hypotes (Olle):* Testa hur systemet svarar vid fördubblad steglängd ($LR=0.16\text{x}$) och ökad fysisk störning ($\pm 4\text{ LSB}$).
+    - *Empiriska Mätresultat:*
+      * **Fas 1 (Ep 0..99):** Medelfel **$15\,309.1\text{ LSB}^2$ ($4.85\text{ b}$)**.
+      * **Fas 2 (Ep 100..199, Nominell Träning):** Medelfel **$14\,124.7\text{ LSB}^2$ ($4.91\text{ b}$)**, Bästa $9\,434.5\text{ LSB}^2$ ($5.19\text{ b}$). Slutvikter $W_8 = [3, -5, 1, -7, 10, -9]\text{ LSB}$.
+      * **Fas 3 (Ep 200..599, Aktiv Kompensation under $\pm 4\text{ LSB}$):**
+        - Ep 200..299: Loopen parerar den första $\pm 4\text{ LSB}$ perturbationen perfekt: snitt $14\,920.7\text{ LSB}^2$ ($4.88\text{ b}$). Slutvikter $W_8 = [22, -5, -2, -14, -36, -6]\text{ LSB}$.
+        - Ep 300..399: En extrem asymmetrisk störningsmatris träffar kisel. Med $LR=0.16\text{x}$ reagerar loopen mycket kraftfullt: kanal 4 styrs till $+92\text{ LSB}$ och kanal 1 dras till $+114\text{ LSB}$ (nära hårdvarutaket på $120\text{ LSB}$).
+        - Ep 400..599: Loopen återhämtar sig successivt när störningen byts, sänker felet till $21\,478.8\text{ LSB}^2$ ($4.64\text{ b}$) med toppnotering $9\,698.5\text{ LSB}^2$ ($5.17\text{ b}$).
+      * **Fas 4 (Ep 600..1000, Ablation $W=0$ under $\pm 4\text{ LSB}$):** Medelfel $15\,780.5\text{ LSB}^2$ ($4.83\text{ b}$).
+    - *Slutsats:* $LR=0.16\text{x}$ ger blixtsnabb respons men kan vid kraftiga $\pm 4\text{ LSB}$ asymmetriska störningar driva enskilda kanaler nära klampningsgränsen ($+114\text{ LSB}$). $LR=0.08\text{x} - 0.10\text{x}$ erbjuder optimal kompromiss mellan snabbhet och dämpningsmarginal.
+    - *Rapport:* `FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG150_LR0P16_SWING40_VAR4_ABLATION_REPORT.pdf` (exakt 2 sidor).
+
 ---
 
 ### B. Forskningsarkitektur: De Tre Huvudmilstolparna (Olle:s taxonomi)

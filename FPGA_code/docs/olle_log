@@ -650,6 +650,34 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # ==============================================================================
 #
 # ==============================================================================
+# DATUM: 2026-11-04 11:38 CET
+# HÅRDVARUKÖRNING 13: 1000 Epoker Rent 5.0 ms med Högre Lärhastighet LR = 0.16x
+# och Ökad Störning ±4 LSB, Lambda = 150, Insving ±40 LSB
+# ==============================================================================
+# - Syfte & Upplägg (Olle):
+#   Utvärdera loopens respons vid fördubblad steglängd (LR=0.16x istället för 0.08x)
+#   samt ökad störningsamplitud (±4 LSB istället för ±3 LSB) under samma 4-fasiga protokoll.
+# - Fusk-skydd: Digital target supervisor (Z_target) beräknas 100% strikt mot nominell M33.
+# - 100-Epokers Segmentanalys:
+#   * Epok 0 .. 99 (Fas 1 Baslinje W=0): Snitt 15 309.1 LSB² (4.85 b), Bästa 9 546.5 LSB² (5.18 b).
+#   * Epok 100 .. 199 (Fas 2 Nominell Träning, LR=0.16x): Snitt 14 124.7 LSB² (4.91 b), Bästa 9 434.5 LSB² (5.19 b).
+#     Slutvikter W8: [3, -5, 1, -7, 10, -9] LSB.
+#   * Epok 200 .. 299 (Fas 3 Aktiv Störning 1, ±4 LSB): Snitt 14 920.7 LSB² (4.88 b), Bästa 9 984.5 LSB² (5.15 b).
+#     Slutvikter W8: [22, -5, -2, -14, -36, -6] LSB (Loopen parerar och bibehåller 4.88 b!).
+#   * Epok 300 .. 399 (Fas 3 Aktiv Störning 2, ±4 LSB): Extrem asymmetrisk slumpmatris träffar kisel.
+#     Med LR=0.16x driver inner loopen kanal 4 till +92 LSB och kanal 1 till +114 LSB (nära limit 120!).
+#     Snitt 71 421.8 LSB² (3.76 b).
+#   * Epok 400 .. 499 (Fas 3 Aktiv Störning 3, ±4 LSB): Loopen kämpar sig tillbaka: Snitt 34 778.1 LSB² (4.26 b).
+#   * Epok 500 .. 599 (Fas 3 Aktiv Störning 4, ±4 LSB): Snitt 21 478.8 LSB² (4.64 b), Bästa 9 698.5 LSB² (5.17 b).
+#     Slutvikter W8: [-61, 5, 49, 16, 88, -2] LSB.
+#   * Epok 600 .. 1000 (Fas 4 Ablation W=0, Träning AV): Snitt 15 780.5 LSB² (4.83 b), oreglerad fluktuation.
+# - Slutsats: LR=0.16x ger extremt snabb reaktion men kan vid kraftiga ±4 LSB asymmetriska störningar
+#   driva enskilda kanaler mot klampningstaket (+114 LSB). LR=0.08x–0.10x erbjuder mer dämpad stabilitet.
+# - Logg: FPGA_code/logs/mode_a_extended_training/mode_a_1000ep_5ms_pure_toeplitz_reg150_lr0p16_swing40_var4_ablation.json
+# - Rapport: INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG150_LR0P16_SWING40_VAR4_ABLATION_REPORT.pdf (2 sidor exakt).
+# ==============================================================================
+#
+# ==============================================================================
 # PLAN FÖR IDAG (2026-11-04):
 # ==============================================================================
 
