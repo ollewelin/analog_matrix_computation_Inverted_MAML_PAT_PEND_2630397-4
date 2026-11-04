@@ -235,11 +235,11 @@ def main():
     client.set_gain_experiment(d_line=args.d_line, w33=1, target_gain=1.0, clamp=120)
     time.sleep(0.03)
 
-    lr_inner_q16 = max(32, min(4096, int(round(1024 * args.lr))))
+    lr_inner_q16 = max(1, min(4096, int(round(1024 * args.lr))))
     client.set_config(
         mode=0, jumper_mode=3, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
         inner_loop_n=100, seed_pct=28, seed_mode=1, w_hid_mag=0, trim_hid_mag=0,
-        hadamard_delay_us=5000, lr_inner_q16=lr_inner_q16
+        hadamard_delay_us=5000, lr_inner_q16=max(32, lr_inner_q16)
     )
     time.sleep(0.03)
     client._send_binary(0x13, struct.pack("<BB", 1, 1))  # LEDs ON
