@@ -316,10 +316,13 @@ def main():
         if ep == 100:
             print("\n" + "=" * 105)
             print(f">>> [EPOK 100]: SLÅR PÅ AKTIV TRÄNING DIREKT FRÅN W = 0 VID 5.0 ms! (LR={args.lr:.2f}x, λ={args.reg_lambda}, W_null=0)")
+            if args.w33_variance_lsb_range > 0:
+                print(f"    ORIGINAL NOMINELL M33: Tränar utan störning (Ep 100..199) för att etablera nominell jämvikt!")
             print("=" * 105)
 
-        # Patent Fig 7 Emulator: Inject hidden random offsets on M33 every 100 epochs
-        if args.w33_variance_lsb_range > 0 and ep >= 100 and ep % 100 == 0:
+        # Patent Fig 7 Emulator: Inject hidden random offsets on M33 every 100 epochs starting at ep 200
+        # (Ep 100..199 runs on 100% nominal unperturbed M33 as requested)
+        if args.w33_variance_lsb_range > 0 and ep >= 200 and ep % 100 == 0:
             current_hid_offsets = [
                 [random.randint(-args.w33_variance_lsb_range, args.w33_variance_lsb_range) for _ in range(6)]
                 for _ in range(6)
@@ -465,13 +468,18 @@ def generate_figure(records: list[dict], meta: dict, out_path: Path):
         fontsize=12, fontweight="bold"
     )
     ax1.grid(True, linestyle=":", alpha=0.6)
-    # Vertical lines for Fig 7 disturbance transitions every 100 epochs
+    # Vertical lines for Fig 7 disturbance transitions
     var_range = meta.get("w33_variance_lsb_range", 0)
-    disturb_eps = [100, 200, 300, 400] if var_range > 0 else []
-    for d_ep in disturb_eps:
-        for i, ax in enumerate(axes):
-            lbl = f"Fig 7 Störningsbyte (±{var_range} LSB)" if (d_ep == 100 and i == 0) else None
-            ax.axvline(x=d_ep, color="#ea580c", linestyle="--", linewidth=1.5, alpha=0.85, label=lbl)
+    for i, ax in enumerate(axes):
+        # Epok 100: Träning påslagen (nominell ostörd M33)
+        lbl_100 = "Träning PÅ (Nom. M33)" if i == 0 else None
+        ax.axvline(x=100, color="#2563eb", linestyle=":", linewidth=1.5, alpha=0.9, label=lbl_100)
+
+        # Epok 200, 300, 400: Störningsbyten
+        if var_range > 0:
+            for d_ep in [200, 300, 400]:
+                lbl_dist = f"Fig 7 Störningsbyte (±{var_range} LSB)" if (d_ep == 200 and i == 0) else None
+                ax.axvline(x=d_ep, color="#ea580c", linestyle="--", linewidth=1.5, alpha=0.9, label=lbl_dist)
 
     ax1.legend(loc="upper right", framealpha=0.9)
 

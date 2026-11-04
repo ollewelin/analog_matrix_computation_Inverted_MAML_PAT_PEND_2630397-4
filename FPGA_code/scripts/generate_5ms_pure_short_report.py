@@ -84,6 +84,31 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
     comp_str = f"M33 Compressed {comp_factor:.1f}x" if comp_factor > 1.0 else "M33 Nominal 1.0x"
     var_str = f"Fig 7 Disturbance ±{var_range} LSB" if var_range > 0 else "100% Frozen M33"
 
+    # 100-Epoch Segment Breakdown Analysis
+    segs_def = [
+        ("0", "Epok 0 .. 99", "Platt Baslinje (W=0, Training OFF, Nom. M33)", 0, 100),
+        ("100", "Epok 100 .. 199", "Nominell Etablering (Training ON, Nom. M33)", 100, 200),
+        ("200", "Epok 200 .. 299", f"Fig 7 Aktiv Störning 1 (±{var_range} LSB)", 200, 300),
+        ("300", "Epok 300 .. 399", f"Fig 7 Aktiv Störning 2 (±{var_range} LSB)", 300, 400),
+        ("400", "Epok 400 .. 500", f"Fig 7 Aktiv Störning 3 (±{var_range} LSB)", 400, 501),
+    ]
+    seg_stats = []
+    for ep_key, label, desc, s_ep, e_ep in segs_def:
+        recs = [r for r in epochs if s_ep <= r["epoch"] < e_ep]
+        losses = [r["batch_eval"]["mean_loss_lsb2"] for r in recs]
+        enobs = [r["batch_eval"]["mean_enob_bits"] for r in recs]
+        w8_end = recs[-1]["w8_diag"] if recs else [0] * 6
+        seg_stats.append({
+            "key": ep_key,
+            "label": label,
+            "desc": desc,
+            "mean_loss": float(np.mean(losses)) if losses else 0.0,
+            "mean_enob": float(np.mean(enobs)) if enobs else 0.0,
+            "best_loss": float(np.min(losses)) if losses else 0.0,
+            "best_enob": float(np.max(enobs)) if enobs else 0.0,
+            "w8_end": w8_end,
+        })
+
     # 1. Skriv Markdown Rapport
     md_content = f"""# INVERTED MAML: Pure 5.0 ms Snapshot Experiment Report ({noise_type}, {swing_plain}, {comp_str})
 **Patent Pending:** SE 2630397-4 (Open Science Hardware)  
@@ -99,24 +124,21 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
 ## 1. Executive Summary & Key Results
 - **Pure 5.0 ms Snapshot Evaluation:** Evaluated strictly at single-point $t = 5000\\,\\mu\\text{{s}}$ ($K=20$ capacitor refreshes per epoch).
 - **Baseline Phase 1 ($W=0$, Ep 0..99):** Mean loss $= {p1_loss_m:.1f}\\text{{ LSB}}^2$ ({p1_enob_m:.2f} bits ENOB).
-- **Active Training Phase 2 (Ep 100..500):** Mean loss dropped to **{p2_loss_m:.1f} LSB²** ({p2_enob_m:.2f} bits ENOB), an improvement of **{delta_loss_pct:+.1f}%** ({delta_enob:+.2f} bits ENOB).
+- **Active Training Phase 2 (Ep 100..500):** Mean loss stabilized at **{p2_loss_m:.1f} LSB²** ({p2_enob_m:.2f} bits ENOB), an improvement of **{delta_loss_pct:+.1f}%** ({delta_enob:+.2f} bits ENOB).
 - **Peak Performance:** Epoch {best_ep} reached **{best_loss:.1f} LSB² ({best_enob:.2f} bits ENOB)**!
 - **Weight Drift Immunity:** Final M8 diagonal weights converged to `{final_w8}` LSB (0% clamping, 100% linear triode margin).
 
 ---
 
-## 2. Statistical Metrics Comparison Table
+## 2. 100-Epoch Segment Progression & Fig 7 Disturbance Response
 
-| Metric | Phase 1: Flat Baseline ($W=0$) | Phase 2: Active Training ($W\\to W^*$) | Delta / Improvement |
-| :--- | :---: | :---: | :---: |
-| **Duration (Epochs)** | Ep 0 .. 99 (100 ep) | Ep 100 .. 500 (401 ep) | +401 active training epochs |
-| **Mean Loss** | {p1_loss_m:.1f} LSB² | **{p2_loss_m:.1f} LSB²** | **{delta_loss_pct:+.1f}%** |
-| **Median Loss** | {p1_loss_med:.1f} LSB² | {p2_loss_med:.1f} LSB² | {((p2_loss_med - p1_loss_med)/p1_loss_med * 100):+.1f}% |
-| **Mean ENOB** | {p1_enob_m:.2f} bits | **{p2_enob_m:.2f} bits** | **{delta_enob:+.2f} bits** |
-| **Median ENOB** | {p1_enob_med:.2f} bits | {p2_enob_med:.2f} bits | {p2_enob_med - p1_enob_med:+.2f} bits |
-| **Peak Single-Epoch** | — | **{best_loss:.1f} LSB² ({best_enob:.2f} b @ Ep {best_ep})** | Record low error |
-| **Max Weight Drift ($W_8$)** | 0 LSB | **{max(abs(w) for w in final_w8)} LSB** | Zero clamping (limit: 120 LSB) |
+| Segment | Status / Störningsregim | Medelfel (LSB²) | Medel ENOB (b) | Topp-ENOB (b) | Slutvikter $W_8$ (LSB) |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+"""
+    for s in seg_stats:
+        md_content += f"| **{s['label']}** | {s['desc']} | {s['mean_loss']:.1f} | **{s['mean_enob']:.2f}** | {s['best_enob']:.2f} (@ {s['best_loss']:.1f} L²) | `{s['w8_end']}` |\n"
 
+    md_content += f"""
 ---
 
 ## 3. Pre- vs. Post-Training Temporal Transfer Function
@@ -136,13 +158,32 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
     md_content += f"""
 ---
 
-## 4. Patent SE 2630397-4 Fig 7 Emulator: Randomiserade Hidden Offsets (±{var_range} LSB)
+## 4. Patent SE 2630397-4 Fig 7 Emulator: 100-Epokers Avsnitt & Randomiserade Matriser
 *Fusk-Skydd:* Den digitala mål-supervisorn ($Z_\\text{{target}}$) i T120 SoC beräknas strikt mot den nominella frysta matrisen $W^{{(33)}}_\\text{{nominal}}$. De dolda stokastiska avvikelserna laddas enbart upp på de fysiska 2T1C-kondensatorerna på kiselmatrisen för att emulera hårdvarudrift.
+
+### Epok 0 .. 99: Platt Baslinje (W=0, Training OFF)
+- **Status:** Ingen störning (100% nominell fryst $W^{{(33)}}_\\text{{nominal}}$), öppen loop baslinjemätning ($W=0$, $\\text{{LR}}=0$).
+- **Prestanda:** Medelfel = {seg_stats[0]['mean_loss']:.1f} LSB² ({seg_stats[0]['mean_enob']:.2f} bitar ENOB), Bästa = {seg_stats[0]['best_loss']:.1f} LSB² ({seg_stats[0]['best_enob']:.2f} b).
+- **M8 Vikter:** `{seg_stats[0]['w8_end']}` LSB.
+
+---
+
+### Epok 100 .. 199: Nominell Etablering (Training ON, Noll Störning)
+- **Status:** Träning påslagen direkt från W=0 mot nominell ostörd matris ($\\text{{LR}}=0.08\\text{{x}}$, $\\lambda={meta['reg_lambda']}$).
+- **Syfte:** Etablera stabil analog jämvikt och grundkompensation innan hårdvarustörningar appliceras.
+- **Prestanda:** Medelfel = {seg_stats[1]['mean_loss']:.1f} LSB² ({seg_stats[1]['mean_enob']:.2f} bitar ENOB), Bästa = {seg_stats[1]['best_loss']:.1f} LSB² ({seg_stats[1]['best_enob']:.2f} b).
+- **M8 Vikter vid slutet av intervallet:** `{seg_stats[1]['w8_end']}` LSB.
 """
     if "applied_disturbances" in meta and meta["applied_disturbances"]:
         for ep_str, dist_m in sorted(meta["applied_disturbances"].items(), key=lambda x: int(x[0])):
             next_ep = int(ep_str) + 100
-            md_content += f"\n### Epok {ep_str} .. {next_ep-1} (Aktiv Störning):\n```text\n"
+            matching_s = [s for s in seg_stats if s["key"] == ep_str]
+            s_info = matching_s[0] if matching_s else None
+            md_content += f"\n---\n\n### Epok {ep_str} .. {min(500, next_ep-1)}: {s_info['desc'] if s_info else 'Aktiv Störning'}\n"
+            if s_info:
+                md_content += f"- **Prestanda:** Medelfel = {s_info['mean_loss']:.1f} LSB² ({s_info['mean_enob']:.2f} bitar ENOB), Bästa = {s_info['best_loss']:.1f} LSB² ({s_info['best_enob']:.2f} b)\n"
+                md_content += f"- **M8 Vikter vid slutet av intervallet:** `{s_info['w8_end']}` LSB\n"
+            md_content += f"- **Injicerad Hidden Offset Matris på M33 ($\\delta_{{r,c}} \\in [-{var_range}, +{var_range}]\\text{{ LSB}}$):**\n```text\n"
             for r in range(6):
                 row_str = " ".join(f"{dist_m[r][c]:+3d}" for c in range(6))
                 md_content += f"Rad {r}: [ {row_str} ] LSB\n"
@@ -335,15 +376,51 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
     ]))
     story.append(t_metrics)
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))
+
+    # 100-Epoch Segment Progression Table
+    if var_range > 0:
+        story.append(Paragraph("3. 100-Epoch Segment Progression & Fig 7 Disturbance Response", sec_style))
+        seg_table_data = [
+            [
+                Paragraph("Segment", th_style),
+                Paragraph("Regime / Disturbance", th_style),
+                Paragraph("Mean Loss", th_style),
+                Paragraph("Mean ENOB", th_style),
+                Paragraph("Peak ENOB", th_style),
+                Paragraph("End W8", th_style),
+            ]
+        ]
+        for s in seg_stats:
+            seg_table_data.append([
+                Paragraph(s["label"], tc_bold),
+                Paragraph(s["desc"], tc_style),
+                Paragraph(f"{s['mean_loss']:.1f}", tc_style),
+                Paragraph(f"<b>{s['mean_enob']:.2f} b</b>", tc_style),
+                Paragraph(f"{s['best_enob']:.2f} b", tc_style),
+                Paragraph(f"<font size='6'>{s['w8_end']}</font>", tc_style),
+            ])
+        t_seg = Table(seg_table_data, colWidths=[75, 175, 65, 70, 65, 90])
+        t_seg.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f766e")),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f0fdfa")]),
+            ("TOPPADDING", (0, 0), (-1, -1), 2.0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.0),
+        ]))
+        story.append(t_seg)
+        story.append(Spacer(1, 6))
 
     # Pre vs Post Temporal Sweep Table
+    sec_num_sweep = "4" if var_range > 0 else "3"
     if "pre_sweep" in meta and "post_sweep" in meta:
-        story.append(Paragraph("3. Pre- vs. Post-Training Temporal Window Transfer Function [4.5..5.5 ms]", sec_style))
+        story.append(Paragraph(f"{sec_num_sweep}. Pre- vs. Post-Training Temporal Window Transfer Function [4.5..5.5 ms]", sec_style))
         sw_data = [
             [
                 Paragraph("Delay (µs)", th_style),
@@ -393,13 +470,37 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
     story.append(Spacer(1, 6))
 
     if fig_file.exists():
-        rl_fig = get_proportional_image(fig_file, max_w_pt=540, max_h_pt=490)
+        rl_fig = get_proportional_image(fig_file, max_w_pt=540, max_h_pt=340)
         story.append(rl_fig)
     else:
         story.append(Paragraph("<i>Figure not found on disk.</i>", body_style))
 
-    story.append(Spacer(1, 10))
-    story.append(Paragraph("5. Technical Conclusions & Next Steps", sec_style))
+    story.append(Spacer(1, 6))
+
+    # Applied Disturbance Matrices Table on Silicon
+    if "applied_disturbances" in meta and meta["applied_disturbances"]:
+        story.append(Paragraph(f"5. Patent Fig 7 Emulator: Injected Hidden Offset Matrices (±{var_range} LSB)", sec_style))
+        dist_cols = []
+        for ep_str, dist_m in sorted(meta["applied_disturbances"].items(), key=lambda x: int(x[0])):
+            cell_txt = f"<b>Epok {ep_str}..{int(ep_str)+99} (±{var_range} LSB)</b><br/>"
+            for r in range(6):
+                row_str = " ".join(f"{dist_m[r][c]:+2d}" for c in range(6))
+                cell_txt += f"<font face='Courier' size='6.5'>R{r}: [{row_str}]</font><br/>"
+            dist_cols.append(Paragraph(cell_txt, tc_style))
+        t_dist = Table([dist_cols], colWidths=[540 // len(dist_cols)] * len(dist_cols))
+        t_dist.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(t_dist)
+        story.append(Spacer(1, 6))
+
+    sec_num_concl = "6" if ("applied_disturbances" in meta and meta["applied_disturbances"]) else "5"
+    story.append(Paragraph(f"{sec_num_concl}. Technical Conclusions & Next Steps", sec_style))
     dist_text = ""
     if var_range > 0:
         dist_text = f" 4. <b>Patent Fig 7 Emulator Active:</b> Hidden stochastic offsets (±{var_range} LSB) were injected onto M33 every 100 epochs (indicated by orange vertical dashed lines in the curves above), testing real-time analog compensation while digital supervisor Z_target strictly evaluated nominal performance."
