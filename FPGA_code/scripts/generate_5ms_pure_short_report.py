@@ -145,9 +145,11 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
         })
 
     # 1. Skriv Markdown Rapport
+    hw_label = meta.get("hardware", f"Card 2 (Rev 2.0 Silicon, {meta.get('attenuator', '1k/3.3k')} attenuator, repaired CH3)")
+    k_batch_val = meta.get("k_batch", 20)
     md_content = f"""# INVERTED MAML: Pure 5.0 ms Snapshot Experiment Report ({noise_type}, {swing_plain}, {comp_str})
 **Patent Pending:** SE 2630397-4 (Open Science Hardware)  
-**Target Hardware:** Card 2 (Rev 2.0 Silicon, 1k/5.1k attenuator, repaired CH3)  
+**Target Hardware:** {hw_label}  
 **Date:** {meta['date']}  
 **Stimulus Profile:** {noise_label}  
 **Architecture:** Flat Baseline Protocol ($W=0, W_\\text{{null}}=0, \\text{{LR}}={meta['lr']}\\text{{x}}, \\lambda={meta['reg_lambda']}$)  
@@ -157,7 +159,7 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
 ---
 
 ## 1. Executive Summary & Key Results
-- **Pure 5.0 ms Snapshot Evaluation:** Evaluated strictly at single-point $t = 5000\\,\\mu\\text{{s}}$ ($K=20$ capacitor refreshes per epoch).
+- **Pure 5.0 ms Snapshot Evaluation:** Evaluated strictly at single-point $t = 5000\\,\\mu\\text{{s}}$ ($K={k_batch_val}$ capacitor refreshes per epoch).
 - **Baseline Phase 1 ($W=0$, Ep 0..99):** Mean loss $= {p1_loss_m:.1f}\\text{{ LSB}}^2$ ({p1_enob_m:.2f} bits ENOB).
 - **Active Training Phase 2 (Ep 100..{num_eps}):** Whole-run active evaluation stabilized at **{p2_loss_m:.1f} LSB²** ({p2_enob_m:.2f} bits ENOB), an improvement of **{delta_loss_pct:+.1f}%** ({delta_enob:+.2f} bits ENOB).
 - **Peak Performance:** Epoch {best_ep} reached **{best_loss:.1f} LSB² ({best_enob:.2f} bits ENOB)**!
@@ -235,7 +237,8 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#64748b"))
         page_num = canvas._pageNumber
-        footer_text = "Open Science Hardware | Trion T120 Master + T20 Coprocessor | Card 2 (Rev 2.0 Silicon, 1k/5.1k)"
+        att_short = meta.get('attenuator', '1k/3.3k')
+        footer_text = f"Open Science Hardware | Trion T120 Master + T20 Coprocessor | Card 2 (Rev 2.0 Silicon, {att_short})"
         canvas.drawString(36, 20, footer_text)
         canvas.drawRightString(612 - 36, 20, f"Page {page_num}")
         canvas.line(36, 28, 612 - 36, 28)
@@ -320,7 +323,7 @@ def build_short_report(json_path: Path, pdf_out: Path, md_out: Path):
     # Title & Subtitle
     story.append(Paragraph(f"Inverted MAML: Pure 5.0 ms Snapshot Experiment Report ({noise_type}, {swing_plain}, {comp_str})", title_style))
     story.append(Paragraph(
-        f"<b>Stimulus:</b> {noise_label} | <b>Hardware:</b> Card 2 (Rev 2.0 Silicon, 1k/5.1k attenuator, repaired CH3)<br/>"
+        f"<b>Stimulus:</b> {noise_label} | <b>Hardware:</b> {hw_label}<br/>"
         f"<b>Architecture:</b> Flat Baseline Protocol (W=0, W_null=0, LR={meta['lr']}x, λ={meta['reg_lambda']}, Swing {swing_plain}) | <b>M33:</b> {comp_str} ({var_str}) | <b>Date:</b> {meta['date']}",
         subtitle_style
     ))

@@ -43,6 +43,7 @@ def main():
     parser.add_argument("--rho", type=float, default=0.85)
     parser.add_argument("--k-batch", type=int, default=20)
     parser.add_argument("--compress-m33-weight", type=float, default=1.0)
+    parser.add_argument("--attenuator", type=str, default="1k/3.3k", help="Passive attenuator (e.g. 1k/3.3k, 1k/5.1k)")
     parser.add_argument("--tag", type=str, default=None, help="Custom tag (if omitted, auto-generated from parameters)")
     parser.add_argument("--skip-run", action="store_true", help="Skip hardware run and only regenerate reports from existing JSON")
     args = parser.parse_args()
@@ -53,9 +54,11 @@ def main():
         swing_str = f"swing{80 if args.d_line == 1 else 40}"
         var_str = f"var{args.variance}"
         k_str = f"_k{args.k_batch}" if args.k_batch != 20 else ""
+        att_slug = args.attenuator.replace("/", "_").replace(".", "p")
+        att_str = f"_{att_slug}" if args.attenuator != "1k/5.1k" else ""
         comp_str = f"_comp{int(args.compress_m33_weight)}" if args.compress_m33_weight > 1.0 else ""
         abl_str = "_ablation" if args.epochs >= 600 else ""
-        tag = f"{args.noise_color}_reg{args.reg_lambda}_{lr_str}_{swing_str}_{var_str}{k_str}{comp_str}{abl_str}"
+        tag = f"{args.noise_color}_reg{args.reg_lambda}_{lr_str}_{swing_str}_{var_str}{k_str}{att_str}{comp_str}{abl_str}"
     else:
         tag = args.tag
 
@@ -84,6 +87,7 @@ def main():
             "--rho", str(args.rho),
             "--k-batch", str(args.k_batch),
             "--compress-m33-weight", str(args.compress_m33_weight),
+            "--attenuator", str(args.attenuator),
             "--tag", tag,
         ]
         print(f"\n[*] Startar hårdvarukörning på Kort 2...")

@@ -198,6 +198,7 @@ def main():
     parser.add_argument("--d-line", type=int, default=2, help="Data line divider (1=>+/-80, 2=>+/-40 LSB)")
     parser.add_argument("--compress-m33-weight", type=float, default=1.0, help="Compress factor for M33 weights (e.g. 2.0 halves swing)")
     parser.add_argument("--w33-variance-lsb-range", type=int, default=0, help="Hidden random offset range [LSB] injected on M33 every 100 epochs (Patent Fig 7 Emulator)")
+    parser.add_argument("--attenuator", type=str, default="1k/3.3k", help="Passive attenuator on Card 2 (e.g. 1k/3.3k, 1k/5.1k)")
     parser.add_argument("--tag", type=str, default="card2_5ms_pure")
     args = parser.parse_args()
 
@@ -403,7 +404,8 @@ def main():
     meta = {
         "title": f"{args.epochs}-Epoch Mode A Silicon Training: Pure 5.0ms ({color_desc}) on Card 2",
         "patent": "SE 2630397-4 (Open Science Hardware)",
-        "hardware": "Card 2 (Rev 2.0 Silicon, 1k/5.1k attenuator, repaired CH3)",
+        "hardware": f"Card 2 (Rev 2.0 Silicon, {args.attenuator} attenuator, repaired CH3)",
+        "attenuator": args.attenuator,
         "date": time.strftime("%Y-%m-%d %H:%M:%S"),
         "epochs": args.epochs,
         "k_batch": args.k_batch,
@@ -490,9 +492,10 @@ def generate_figure(records: list[dict], meta: dict, out_path: Path):
     ax1.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
     comp_txt = f", M33 Comp={meta.get('compress_m33_weight', 1.0):.1f}x" if meta.get("compress_m33_weight", 1.0) > 1.0 else ""
     var_txt = f", Dist=±{meta.get('w33_variance_lsb_range', 0)} LSB" if meta.get("w33_variance_lsb_range", 0) > 0 else ""
+    att_txt = meta.get('attenuator', '1k/3.3k')
     ax1.set_title(
         f"Inverted MAML: {meta.get('epochs', len(epochs))} Epochs Pure 5.0 ms ({meta.get('noise_color', 'toeplitz').upper()}) on Card 2\n"
-        f"LR={meta['lr']}x, λ={meta['reg_lambda']}, Input Swing +/-{80 if meta['d_line']==1 else 40} LSB{comp_txt}{var_txt}, 1k/5.1k Attenuator",
+        f"LR={meta['lr']}x, λ={meta['reg_lambda']}, Input Swing +/-{80 if meta['d_line']==1 else 40} LSB{comp_txt}{var_txt}, {att_txt} Attenuator",
         fontsize=12, fontweight="bold"
     )
     ax1.grid(True, linestyle=":", alpha=0.6)
