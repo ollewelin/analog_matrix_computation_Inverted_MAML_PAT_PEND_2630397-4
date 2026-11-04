@@ -79,291 +79,60 @@ Working with analog computing is an act of balancing physics and precision. Very
   - **Post-Upgrade Silicon Compensation Test:** Re-running the closed-loop neural compensation test on physical silicon with the new op-amps demonstrated an immediate uncompensated baseline of $777.1\text{ LSB}$ ($1.43\text{ bits}$), reducing to $431.8\text{ LSB}$ ($2.29\text{ bits}$) with trained compensation (-44.4% full-matrix error reduction). Peak transient inner-loop convergence reached **$64.4\text{ LSB}$ RMSE / $5.00\text{ bits}$ ENOB** at Epoch 87, with Column 1 error dropping by 71.5% ($711.1\text{ LSB} \to 202.8\text{ LSB}$).
   - **Updated Scientific Research Report Published:** Updated 5-page report available in [`FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.pdf`](FPGA_code/docs/MAML_ANALOG_SILICON_SCIENTIFIC_REPORT.pdf).
 
-- **2026-10-24 (Major Breakthrough: Milestone 1 Achieved — Mode A 6-Column Inner-Loop Verified at $t = 5.0\text{ ms}$):**
-  - **Milestone 1 Completed:** Patent Application **SE 2630397-4** has officially left the "paper product" phase and is verified running in physical silicon! Full closed-loop 2-layer neural network training ($M_3 \to \text{Sigmoid 4} \to M_8 \to \text{Sigmoid 10}$) operating synchronously at 100 Hz has successfully compensated the analog matrix across **all 6 columns simultaneously** with **zero column masking** (all 36 crosspoints active).
-  - **1. Raw Silicon Multiplier Characterization Across Time (Cell (0,0)):**
-    As documented in the comprehensive single-cell report [`FPGA_code/docs/CELL_0_0_COMPREHENSIVE_ANALYSIS_REPORT.pdf`](FPGA_code/docs/CELL_0_0_COMPREHENSIVE_ANALYSIS_REPORT.pdf), physical silicon transfer curves $Y(W)$ were characterized across 28 differential weight steps and 5 input data curves across 10 discrete time slices ($t = 0.5\text{ ms}$ to $9.2\text{ ms}$). At $t = 5.0\text{ ms}$, the uncompensated cell exhibits clean linear inversion between $W \in [-60, +60]\text{ LSB}$ with a measured electrical null offset of $W_{\text{null}} \approx -5\text{ LSB}$ and turnaround subthreshold pinch-off at extreme negative gate drive ($W < -80\text{ LSB}$).
-    
+- **2026-10-24 – 2026-11-01 (Intensiv hårdvaru- och mjukvarutrimning, S-kurvor & Transistordynamik):**
+  - **1. Transistorcell-dynamik (Dual-2T1C MOS Triode):**
+    Fysiska transferkurvor $Y(W)$ kartlades i kisel för att fastställa cellens dynamiska egenskaper över 10 kontinuerliga tidssnitt ($t = 0.5\text{ ms} \dots 9.2\text{ ms}$) och vid nominell snapshot-tid $t = 5.0\text{ ms}$. Mätningarna visade linjär inversion i området $W \in [-60, +60]\text{ LSB}$ med en elektrisk nollpunktsförskjutning $W_{\text{null}} \approx -5\text{ LSB}$ samt subthreshold pinch-off vid negativ gate-spänning ($W < -80\text{ LSB}$). Mappning av hela $6 \times 6$-matrisen (Matrix 33, 36 korspunkter) vid $t = 5.0\text{ ms}$ bekräftade att samtliga 36 korspunkter och 6 kolumner var fullt fungerande i hårdvaran.
+
     ![Cell 0,0 Transfer Characteristics at t = 5.0 ms](FPGA_code/docs/figures/fig_cell_0_0_5curves_nominal_5ms.png)
-    
-    *Figure: Physical multiplier transfer curves $\Delta V_{\text{out}}$ (mV) vs. Weight $W$ on Cell (0,0) at $t = 5.0\text{ ms}$ across 5 In-Data levels ($X = \pm 127, \pm 64, 0\text{ LSB}$).*
+    *Figur: Fysiska multiplikatorkurvor $\Delta V_{\text{out}}$ (mV) vs. Vikt $W$ på Cell (0,0) vid $t = 5.0\text{ ms}$ över 5 In-Data nivåer ($X = \pm 127, \pm 64, 0\text{ LSB}$).*
 
     ![Cell 0,0 Temporal Evolution Across 10 Time Slices](FPGA_code/docs/figures/fig_cell_0_0_10_time_slices.png)
+    *Figur: Temporal utveckling över 10 ms-cykeln i 10 kontinuerliga tidssnitt från $t = 0.5\text{ ms}$ till $9.2\text{ ms}$.*
 
-    *Figure: Temporal evolution across the 10 ms cycle in 10 continuous snapshot slices from $t = 0.5\text{ ms}$ (recharge clamp) through peak amplification at $3.5\text{ ms}$, settled linear regime at $5.0\text{ ms}$, to capacitive decay at $9.2\text{ ms}$.*
-
-  - **2. Full 6x6 Matrix 33 Gain Landscape at $t = 5.0\text{ ms}$ (36 Crosspoints):**
-    As documented in [`FPGA_code/docs/MATRIX_33_FULL_6X6_GAIN_LANDSCAPE_REPORT.pdf`](FPGA_code/docs/MATRIX_33_FULL_6X6_GAIN_LANDSCAPE_REPORT.pdf), the complete $6 \times 6$ array was mapped in Mode B on physical silicon, proving that **100% of all 36 crosspoint cells and all 6 columns are fully functional** without defective columns.
-    
     ![Full 6x6 Matrix 33 Gain Landscape at 5.0 ms](FPGA_code/docs/figures/fig_matrix33_all_36_cells_5curves.png)
+    *Figur: Synkroniserad 6x6-matris med transferkurvor för alla 36 celler vid $t = 5.0\text{ ms}$.*
 
-    *Figure: Synchronized 6x6 matrix of transfer curves $\Delta V_{\text{out}}(W)$ for all 36 cells at $t = 5.0\text{ ms}$, showing spatial uniformity, channel transimpedance variations, and subthreshold boundaries across physical silicon.*
-
-  - **3. Closed-Loop Mode A Inner-Loop Verification Reports Published:**
-    The verified bitstream was flashed to hardware and evaluated across multiple independent sweeps:
-    - **Report 3 (English, Fresh Outflow Bitstream Flash):** [`FPGA_code/docs/MODE_A_5MS_INNER_LOOP_VERIFICATION_REPORT_3.pdf`](FPGA_code/docs/MODE_A_5MS_INNER_LOOP_VERIFICATION_REPORT_3.pdf) (and markdown [`FPGA_code/docs/MODE_A_5MS_INNER_LOOP_VERIFICATION_REPORT_3.md`](FPGA_code/docs/MODE_A_5MS_INNER_LOOP_VERIFICATION_REPORT_3.md)).
-    - **Report 2 (Swedish, Flash Repeatability):** [`FPGA_code/docs/MODE_A_5MS_INNER_LOOP_VERIFICATION_REPORT_2.pdf`](FPGA_code/docs/MODE_A_5MS_INNER_LOOP_VERIFICATION_REPORT_2.pdf).
-    - **Report 1 (Swedish, Initial Proof):** [`FPGA_code/docs/MODE_A_5MS_INNER_LOOP_VERIFICATION_REPORT.pdf`](FPGA_code/docs/MODE_A_5MS_INNER_LOOP_VERIFICATION_REPORT.pdf).
-    - **Bitstream & Firmware Archive:** [`FPGA_code/bitstreams_archive/20261024_T120_MAML_ModeA_5ms_InnerLoop_Verified/`](FPGA_code/bitstreams_archive/20261024_T120_MAML_ModeA_5ms_InnerLoop_Verified/).
-
-    ![Mode A Inner-Loop Training Convergence at t = 5.0 ms](FPGA_code/docs/figures/fig_mode_a_5ms_inner_loop_convergence_run3.png)
-
-    *Figure: Mode A 6-column inner-loop training convergence at $t = 5.0\text{ ms}$ (Run 3 after clean bitstream flash). Total quadratic loss dropped by 89.9% (6,517 $\to$ 661 $\text{LSB}^2$), 6-column RMSE reduced from 46.61 LSB $\to$ 14.85 LSB ($3.1\times$), and effective precision improved from 5.46 bits to **7.11 bits** ENOB (+1.65 bits resolution gain).*
-
-    ![Mode A Error Cancellation and Vernier Weight Adaptation](FPGA_code/docs/figures/fig_mode_a_5ms_6col_error_trajectories_run3.png)
-
-    *Figure: Error cancellation trajectories across all 6 columns simultaneously (left) and autonomous bidirectional Vernier weight adaptation $W_8[c,c]$ (right). Columns with negative initial errors ($Er_0 = -44.2$, $Er_2 = -99.0\text{ LSB}$) adapt upward ($24 \to 31$), while columns with positive errors adapt downward ($24 \to 17\text{--}21$), bringing all 6 column errors cleanly into the $\pm 25\text{ LSB}$ band.*
-
-  - **Key Mathematical & Architectural Confirmations:**
-    1. **Strict Non-Backprop Hadamard Extraction (Equations 1–7):** Confirmed live on hardware. Input multiplication is performed physically by the 2T1C FET transconductance ($g_m \cdot V_{gs} \cdot V_{ds}$) during Hadamard perturbation; firmware strictly avoids digital multiplication by $x_i$, eliminating input squaring ($x_i^2$).
-    2. **Sylvester-$H_8$ Simplex Hadamard Sequence (28 µs):** 14 interleaved pulses of 2.00 µs eliminate 100% of inter-row crosstalk and cancel 100% of capacitor discharge DC drift.
-    3. **1 kΩ / 3.9 kΩ Passive Summing Junction Verified:** Primary matrix $M_{33}$ delivers $\approx 79.6\%$ of dynamic swing, while $M_8 \to \text{Sigmoid 10}$ provides a stiff, finely resolved $20.4\%$ Vernier authority without saturating the single-supply SAR ADCs (`XC2361A`).
-    4. **Inventor Verification Statement:** These results provide high-confidence evidence that the Inverted MAML architecture holds on live silicon. While additional second-opinion peer review and manual instrument cross-verification continue as standard practice, the physical repeatability across multiple independent runs with different random white-noise inputs validates that the foundation is solid.
-
-  - **Next Step — Milestone 2 Exploration (Broadening the Dynamic Time Window):**
-    With Milestone 1 successfully established at the nominal settled snapshot slice of $t = 5.0\text{ ms}$, **Milestone 2** will expand the operating window across a broader temporal range (e.g. $t = 4.0\text{ ms}$ to $6.0\text{ ms}$, scaling toward full multi-stratum operation across the complete 10 ms cycle).
-    *Expected Dynamic Behavior:* Because the 100 nF 2T1C gate capacitors exhibit time-dependent charge leakage and transimpedance drift over the 10 ms period, broadening the evaluation window is anticipated to reduce raw uncompensated ENOB performance. The scientific objective of Milestone 2 is to investigate whether the integrated 2-layer neural network ($M_3 \to \text{Sigmoid 4} \to M_8 \to \text{Sigmoid 10}$) can straighten out these temporal memory leakage artifacts and maintain acceptable ENOB precision across dynamic time spans.
-
-- **2026-10-25 (Major Milestone: Atomic Triad 2-Layer Wakeup ($M_3$ & $M_8$), Equations 4 & 7 Resolved, Sequential Task Transfer & 3D Telemetry Studio):**
-  - **1. Atomic Triad 2-Layer Neural Wakeup ($M_3 \to \text{Sigmoid 4} \to M_8 \to \text{Sigmoid 10}$):**
-    Diagnosed why Layer 1 ($M_3$) had previously remained stationary at baseline ($\Delta W_3 = 0$): fixed-point right-shifting in Equations 4 & 7 (`>> 8` in Eq. 4 and `>> 7` in Eq. 7, dividing by $32\,768$) caused integer truncation to exact $0$ before the learning rate was applied. Resolved scaling to `>> 6` and `>> 3` and corrected the inverting cascade polarity (`+err49`) in [`maml_platform.c`](FPGA_code/sw/t120_master/src/maml_platform.c). Re-compiled and flashed to the T120 SoC via JTAG in 14.3 seconds using [`flash_soc.py`](FPGA_code/scripts/flash_soc.py).
-  - **2. Live Silicon Monotonic 2-Layer Convergence:**
-    Direct hardware execution on physical silicon verified smooth, simultaneous adaptation of both matrices: $M_3$ cells adapted dynamically by $-1\text{ to }-12\text{ LSB}$ with distinct spatial gradients, while $M_8$ adapted in parallel by $+18\text{ to }-12\text{ LSB}$. Measured 6-column RMSE dropped monotonically from $78.75\text{ LSB} \to 26.31\text{ LSB}$ ($4.70\text{ b} \to 6.28\text{ bits}$ ENOB) in just 6 steps.
-  - **3. Sequential Task Transfer & Catastrophic Forgetting Study (40 + 40 Epochs, [4.9 – 5.1 ms]):**
-    Conducted an 80-epoch continuous transfer experiment on physical hardware (Vector A for 40 epochs $\to$ Vector B for 40 epochs with strictly preserved weights).
-    - Proved that the 2-layer landscape **does NOT flip inside out**:
-      - Matrix 3 topographical correlation across active $6\times 6$ cells: **$r = +0.7401$** (strong positive correlation, shared silicon geometry!).
-      - Matrix 8 topographical correlation across active $6\times 6$ cells: **$r = +0.3967$** (positive correlation, soft transition!).
-    - Both tasks achieved high precision on silicon: Vector A reached **$20.75\text{ LSB}$ ($6.63\text{ bits}$ ENOB)**; Vector B inherited A's weights, smoothly adapted, and reached **$19.64\text{ LSB}$ ($6.70\text{ bits}$ ENOB)**.
-  - **4. 3D Telemetry Studio & Matrix 3 Pop-up Studio:**
-    Implemented a full interactive visualization suite in [`FPGA_code/scripts/maml_post_analysis_gui.py`](FPGA_code/scripts/maml_post_analysis_gui.py) with synchronized 80-epoch playback, vertical task-switch indicators, and a dedicated `Matrix3PopupWindow` displaying dual 3D topographies: $\Delta W_3$ learned adaptation landscape (starting flat at $0\text{ LSB}$) alongside absolute $W_3$.
-    
-    ![Inverted MAML Mode A Post-Data Analysis & 3D Telemetry Studio](FPGA_code/docs/figures/fig_mode_a_sequential_transfer_studio.png)
-    
-    *Figure: Inverted MAML Post-Data Analysis & 3D Telemetry Studio displaying 40+40 sequential task transfer. Left: Matrix 8 3D surface at Epoch 14. Top right: Quadratic loss descent for Vector A and continuous re-convergence for Vector B across the Epoch 40 transition boundary. Middle right: RMSE / ENOB curves. Bottom right: Smooth 6-column $W_8$ diagonal trajectory across the task boundary.*
-
-    ![Matrix 3 3D Topography Pop-up Studio](FPGA_code/docs/figures/fig_mode_a_matrix3_3d_topography.png)
-    
-    *Figure: Matrix 3 (Layer 1 Projection / Hidden Layer) 3D Topography Studio at Epoch 60. Left: Learned $\Delta W_3$ adaptation surface relative to baseline ($0\text{ LSB}$), revealing autonomous spatial feature hills and valleys. Right: Absolute $W_3$ surface showing the $+64\text{ LSB}$ diagonal pass-through ridges and row 6/7 bias pedestals.*
-
-  - **5. Future Roadmap & Strategic Action Items:**
-    - **Hardware:** Increase summing junction attenuation from $1\text{ k}\Omega / 3.9\text{ k}\Omega$ ($20.4\%$ authority) to $1\text{ k}\Omega / 10\text{--}20\text{ k}\Omega$ ($5\text{--}9\%$ authority). The physical compensation network has proven strong; higher attenuation will provide ultra-fine Vernier sub-LSB resolution and $\approx 8\text{ dB}$ noise floor reduction.
-    - **Software:** Replace single-vector locking with **Multi-Vector Mini-Batching** (averaging gradients over $K = 4\text{--}8$ diverse vectors per epoch). This will eliminate single-point DC overfitting ("catastrophic forgetting") and compel the 2-layer network ($M_3 \to \text{Sigmoid} \to M_8$) to extract a universal, input-invariant non-linear compensation surface.
-
-- **2026-10-26 (Physical Attenuator Hardware Mod ($1\text{ k}\Omega / 15\text{ k}\Omega$), Oscilloscope Verification of Hadamard Pulses, Decibel/Quantization Analysis, and Architectural Breakthrough: Dedicated Sparse $\text{ADC}_{149}$ Rack):**
-  - **1. Physical Hardware Modification Executed on Silicon:**
-    Olle Welin physically modified the summing junction attenuators on the PCB from $1\text{ k}\Omega / 3.9\text{ k}\Omega$ ($20.4\%$ authority) to $1\text{ k}\Omega / 15\text{ k}\Omega$ ($6.25\%$ authority) to evaluate whether higher attenuation provides ultra-fine Vernier sub-LSB weight adjustment in Mode B.
-  - **2. Silicon Training Results on $1\text{ k}\Omega / 15\text{ k}\Omega$:**
-    - True Multi-Vector Batch Training ($K=8$, $\text{LR}=1.5\times$) demonstrated an initial landmark physical silicon peak of **$6.71\text{ bits}$ ENOB ($19.63\text{ LSB}$ RMSE)** at Epoch 174.
-    - However, during long continuous 1000-epoch runs, weights exhibited unconstrained linear gradient drift on specific columns (e.g. Column 5 drifted up to $W_8=67$, Column 4 drifted down to $-6$), resulting in late-stage loss blow-ups and LED saturation observed by Olle on the bench.
-  - **3. Direct Oscilloscope Verification ("Jag ser Pulser"):**
-    Direct bench oscilloscope probing by Olle Welin confirmed that the FPGA hardware (Trion T120 Master SoC + Trion T20) is 100% physically alive and actively firing the 500 kHz (2.0 µs per chip) Hadamard Walsh carrier bursts onto the $C_{\text{PTU}}$ gate capacitors. The firmware, FWHT demodulator, and partial derivative state machines are completely intact.
-  - **4. Mathematical Decibel & Bit Alignment ($6.02\text{ dB/bit}$):**
-    Olle and the AI agent audited the exact mathematics of signal loss:
-    - **Linear decibel rule:** $1\text{ bit} \approx 6.02\text{ dB}$. A $30\text{ dB}$ collapse equals $\frac{30\text{ dB}}{6.02\text{ dB/bit}} \approx \mathbf{5\text{ bits}}$ of dynamic range ($10^{30/20} = 31.62\times \approx 32\times$ linear amplitude loss), not "one fifth"!
-    - **Resistor Divider Attenuation ($10.3\text{ dB} \approx 1.7\text{ bits}$):** The branch current division $\frac{1.0 / (1.0 + 3.9)}{1.0 / (1.0 + 15.0)} = \frac{16.0}{4.9} \approx 3.27\times$ accounts for $10.28\text{ dB}$ ($1.71\text{ bits}$).
-    - **SAR ADC Quantization & DNL Cliff ($\approx 20\text{ dB} \approx 3.3\text{ bits}$):** With the carrier amplitude attenuated by $3.27\times$, the raw Hadamard modulation at `ADC_49` dropped from $30\dots 80\text{ LSB}$ down to only **$1\dots 3\text{ LSB}$**. At this microscopic amplitude beneath the background node noise floor ($\sigma \approx 20\dots 35\text{ LSB}$), the SAR ADC comparator deadband disrupted coherent FWHT correlation, dropping effective SNR from $+15\text{ dB}$ to $-16\text{ dB}$ (a net collapse of $\sim 31\text{ dB}$ or 5 bits!).
-  - **5. Architectural Breakthrough: Dedicated Sparse $\text{ADC}_{149}$ Rack:**
-    - **The Dilemma ("Balansgång på slak lina"):** Mode B payload computation wants **large attenuation** ($15\text{ k}\Omega$ or $30\text{ k}\Omega$) for fine Vernier resolution without saturating op-amps, whereas Mode A Hadamard derivative extraction wants **minimal attenuation** ($1:1$, $0\text{ dB}$) so the carrier does not drown in ADC noise.
-    - **The Mathematical Solution — Decouple Sensing from Actuation:**
-      Because the passive summing junction is a **pure linear circuit**, its derivative in the calculus chain rule is an exact scalar constant:
-      $$\frac{\partial \mathcal{L}}{\partial W^{(8)}} = \frac{\partial \mathcal{L}}{\partial V_{\text{sum}}} \cdot \underbrace{\frac{\partial V_{\text{sum}}}{\partial V_{M8}}}_{\text{Linear Scalar Constant } A_{\text{comp}}} \cdot \underbrace{\frac{\partial V_{M8}}{\partial W^{(8)}}}_{\text{Odämpad Hadamard vid } \text{ADC}_{149}}$$
-      where $\frac{\partial V_{\text{sum}}}{\partial V_{M8}} \equiv \frac{R_{\text{main}}}{R_{\text{main}} + R_{\text{comp}}} = \frac{1\text{ k}}{1\text{ k} + 15\text{ k}} = \frac{1}{16}$ (or $\frac{1}{31}$ for $30\text{ k}\Omega$).
-      The summing resistor has **zero non-linearity**, meaning there is zero mathematical need to pass the Hadamard carrier through the attenuator at all! The linear attenuation scalar $\frac{1}{16}$ is simply multiplied digitally in firmware (or absorbed directly into the learning rate $\eta$).
-    - **Hardware Implementation:**
-      For the next PCB/silicon revision, Olle identified the key architectural upgrade: add a dedicated **Sparse ADC rack (`ADC_149`)** tapping Matrix 8 *before* the summing resistor, exactly mirroring how `ADC_45` taps Matrix 3 on Layer 1.
-      - **$5\times$ Stronger Carrier:** Odämpad avtappning ($0\text{ dB}$) makes the Hadamard carrier **$4.9\times$ stronger than it ever was with $3.9\text{ k}\Omega$**, delivering $150\dots 400\text{ LSB}$ peak-to-peak swings and monumental SNR ($>35\text{ dB}$).
-      - **Complete Architectural Freedom:** The summing resistor can be chosen as large as desired ($15\text{ k}\Omega$, $30\text{ k}\Omega$ or higher) for sub-LSB Vernier control in Mode B, while the Hadamard feedback loop operates with full, pristine analog dynamic range!
-  - **6. Recovery Strategies on Current Silicon:**
-    - **Hadamard Oversampling in Firmware:** Because the background node noise ($\sigma \approx 25\text{ LSB}$) acts as natural Gaussian dither across the SAR ADC transfer function, executing $M=16\times$ coherent burst averaging ($16 \times 28\text{ µs} = 448\text{ µs}$ within the $5.0\text{ ms}$ plateau) provides $\sqrt{16} = 4\times$ ($+12\text{ dB} = 2\text{ bits}$) processing gain to pull the carrier back out of the noise.
-    - **Hardware Piggyback:** Paralleling a $4.7\text{ k}\Omega$ resistor across the $15\text{ k}\Omega$ ($15\text{k} \parallel 4.7\text{k} = 3.58\text{ k}\Omega \approx 3.9\text{ k}\Omega$) immediately restores full hardware SNR with only 6 solder joints.
-
-- **2026-10-27 (Scientific Method Clarification: Dual Research Regimes & Discovery of Data/Weight Digital Clamping):**
-  - **1. Discovery of Digital Range Clamping in Firmware:**
-    Following an audit of why random input vectors never exceeded $\pm 99\text{ LSB}$ or displayed 3 digits (e.g. $+112$, $-121$), code inspection revealed that both the Data line and Weight ranges were digitally restricted in firmware [`maml_platform.c`](FPGA_code/sw/t120_master/src/maml_platform.c) starting in commit `237c9485` (Oct 24, 2026):
-    - **Data Line (`DAC_2` / `x_ref`):** Restricted to $[-45, +45]\text{ LSB}$ ($35\%$ of full scale $[-128, +127]$) via `rnd = (prng_next() % 91u) - 45` (line 440) to *"keep MOSFETs in linear triode region"*. This affects all three matrices ($M_{33}, M_3, M_8$) simultaneously via the shared `DAC2_D_ROW[0..5]` physical bus.
-    - **Weight Range ($W$):**
-      * Compensation matrices $M_3$ & $M_8$ are clamped to $[-80, +80]\text{ LSB}$ ($63\%$ of full scale) via `sat_w80_q14()` (lines 41, 1450, 1458) and initialized at $28\%$ ($\approx \pm 35\text{ LSB}$) via Xavier/Kaiming auto-gain (line 970).
-      * Primary payload matrix $M_{33}$ is locked to `k_default_m33` with values confined to $[-36, +84]\text{ LSB}$ (line 335).
-  - **2. Formal Definition of Two Distinct Research Regimes:**
-    To ensure absolute scientific clarity, future experiments and reports must explicitly categorize which regime is under evaluation:
-    - **Regime 1: High Absolute ENOB (Linear Triode Window):**
-      - *Configuration:* Stiffened/clamped range ($\text{Data} \in [-45, +45]$, $W \in [-80, +80]$).
-      - *Objective:* Maximize total system precision (e.g. achieving $> 7\text{ bits}$ ENOB) by staying inside the well-behaved linear triode region of the dual-2T1C cells.
-    - **Regime 2: Full-Swing Analog Stress Test (Relative ENOB Lift):**
-      - *Configuration:* Unclamped full analog swing ($\text{Data} \in [-120, +127]$, $W \in [-120, +127]$).
-      - *Objective:* Test the core invention against real, brutal transistor physics (subthreshold pinch-off, channel transconductance collapse, and saturation). Evaluate whether the Inverted MAML 2-layer neural compensation network ($M_3 \to \text{Sigmoid} \to M_8$) possesses the raw mathematical power to **relatively lift** a severely non-linear matrix out of distortion.
-  - **3. Protocol Requirement Going Forward:**
-    All future test runs, telemetry logs, and benchmark reports must explicitly declare whether they operate under **Regime 1 (Maximal Absolute ENOB)** or **Regime 2 (Full-Swing Relative Lift)**.
-  - **4. Hardware Action Plan & Immediate Roadmap:**
-    - **Physical Resolder to $1\text{ k}\Omega / 3.9\text{ k}\Omega$:**
-      To eliminate the $-16\text{ dB}$ SNR carrier collapse and restore robust Hadamard feedback on the current PCBA revision (where Layer 2 Hadamard shares the summing resistor path to `ADC_49`), Olle Welin will restore the summing junction resistors from $15\text{ k}\Omega$ back to $3.9\text{ k}\Omega$ (or piggyback $4.7\text{ k}\Omega$ across $15\text{ k}\Omega \implies 3.58\text{ k}\Omega$). This immediately restores the pristine $+15\dots +20\text{ dB}$ Hadamard SNR ($30\dots 80\text{ LSB}$ modulation).
-    - **Future Full-Swing (Regime 2) Stress Testing:**
-      Once the $1\text{ k}\Omega / 3.9\text{ k}\Omega$ baseline is restored on hardware, comprehensive **Regime 2 (Full-Swing Relative Lift)** investigations will be executed: unclamping Data lines to $[-120, +127]\text{ LSB}$ and Weights to full scale to benchmark how powerfully the Inverted MAML 2-layer network ($M_3 \to \text{Sigmoid} \to M_8$) can compensate for severe non-linear FET distortion.
-  - **5. Architectural Roadmap for Version 2.0 ("Lagom" Holistically Harmonized Analog Co-Design):**
-    With the physical empirical behavior of the standard `DOX3134A` MOSFET multiplier cells now thoroughly understood on silicon (linear triode boundary, transconductance sag, and subthreshold turnaround), the next-generation PCBA (Version 2.0) will be co-designed from the ground up:
-    - **A. Full Digital Bit Dynamic Range ($0\dots 255$ / $\pm 127\text{ LSB}$):**
-      Instead of digitally clamping input data to $\pm 45\text{ LSB}$ or weights to $\pm 80\text{ LSB}$, the analog resistor networks and bias levels will be tailored so that the complete 8-bit digital range naturally spans the full physical dynamic range of the cell without artificial software throttling.
-    - **B. Harmonized S-Curves (Non-Linear Activation Shaping):**
-      The analog Sigmoid/$\tanh$ op-amp feedback networks on Layer 1 ($M_3 \to \text{Sigmoid 4}$) and Layer 2 ($M_8 \to \text{Sigmoid 10}$) will be rescaled so their linear transition regions and non-linear saturation knees perfectly encompass the physical voltage swings of Matrix 3 and Matrix 8. Activations will operate in their expressive full-swing region without premature rail clipping or saturation.
-    - **C. Dedicated Sparse $\text{ADC}_{149}$ Rack:**
-      Integrate a dedicated sparse ADC rack tapping Matrix 8 *before* the summing resistor (identical to `ADC_45` on Matrix 3). This decouples Hadamard derivative extraction ($>35\text{ dB}$ SNR, $0\text{ dB}$ attenuation) from the passive payload summing junction, allowing the summing resistor to be as large as desired ($15\text{ k}\Omega$ or $30\text{ k}\Omega$) for ultra-fine Vernier authority in Mode B.
-    - **D. The "Lagom" Design Principle:**
-      The entire analog-digital compute triad will be tuned to a balanced ("Lagom") operating point: every digital bit utilized, full physical analog swing, zero op-amp saturation, and maximal proprioceptive compensation authority.
-
-- **2026-10-28 (Summing Junction Resolder ($1\text{ k}\Omega / 5.1\text{ k}\Omega$), 18,000-Epoch Statistical ON/OFF Campaign, and Landmark $9.42\text{ Bits}$ Peak ENOB):**
-  - **1. Summing Junction Attenuation Optimization ($1\text{ k}\Omega / 5.1\text{ k}\Omega$):**
-    Following the decibel and quantization audit of October 26, the passive attenuators at the column summing junctions were adjusted to $1\text{ k}\Omega / 5.1\text{ k}\Omega$ ($16.4\%$ compensation authority). Direct bench testing confirmed pristine Hadamard carrier signal-to-noise ratio ($+18\text{ dB}$, with $40\dots 60\text{ LSB}$ modulation depth at `ADC_49`), eliminating carrier noise starvation while preserving fine Vernier weight resolution. Documented in [`FPGA_code/docs/MODE_A_1K33K_HARDWARE_MOD_REPORT.pdf`](FPGA_code/docs/MODE_A_1K33K_HARDWARE_MOD_REPORT.pdf).
-  - **2. 18,000-Epoch Statistical ON/OFF Silicon Benchmark Campaign:**
-    To definitively evaluate the 2-layer autonomous compensation engine without confounding effects, a three-part empirical campaign was executed across 18,000 physical silicon epochs:
-    - **Part 1 — Fixed Vector Suite (10 Independent Runs, 400 Ep each):**
-      Evaluated 10 arbitrary fixed input vectors ($X_1 \dots X_{10}$) with Baseline Adaptation OFF for epochs 0..99, then switching 2-Layer Adaptation ON at Epoch 100 with learning rate $\eta = 0.25\times$. Across all 10 runs, mean RMSE dropped by **$-58.7\%$** ($102.5\text{ LSB} \to 42.3\text{ LSB}$), with quadratic loss dropping by **$-83.0\%$**.
-      * **Peak Silicon Performance (Run 05):** Measured hardware RMSE plummeted from $105.8\text{ LSB} \to \mathbf{2.11\text{ LSB}}$ (**$99.5\%$ error reduction!**), lifting effective resolution from $4.28\text{ bits} \to \mathbf{9.42\text{ bits}}$ ENOB (+5.14 bits precision lift). Documented in [`FPGA_code/docs/ON_OFF_10RUNS_FIXED_VECTORS_REPORT.pdf`](FPGA_code/docs/ON_OFF_10RUNS_FIXED_VECTORS_REPORT.pdf) and [`.md`](FPGA_code/docs/ON_OFF_10RUNS_FIXED_VECTORS_REPORT.md).
-    - **Part 2 — Variable Rotating Vector Suite (10 Independent Runs, 400 Ep each):**
-      A fresh, arbitrary random vector was drawn every epoch. Even under non-stationary input distributions, the 2-layer network reduced full-matrix loss by **$-48.5\%$** ($31\,716 \to 16\,348\text{ LSB}^2$), lifting mean ENOB from $4.33\text{ b} \to 4.88\text{ bits}$. Documented in [`FPGA_code/docs/ON_OFF_10RUNS_VARIABLE_VECTORS_REPORT.pdf`](FPGA_code/docs/ON_OFF_10RUNS_VARIABLE_VECTORS_REPORT.pdf) and [`.md`](FPGA_code/docs/ON_OFF_10RUNS_VARIABLE_VECTORS_REPORT.md).
-    - **Part 3 — 10,000-Epoch Continuous Endurance Stress Run:**
-      Operated continuously for 10,000 epochs with rotating arbitrary vectors. Proved zero weight saturation, zero thermal runaway, and flawless long-term stability with peak precision reaching **$7.83\text{ bits}$ ENOB** ($242.6\text{ LSB}^2$ loss). Documented in [`FPGA_code/docs/ON_OFF_10000EP_VARIABLE_ENDURANCE_REPORT.pdf`](FPGA_code/docs/ON_OFF_10000EP_VARIABLE_ENDURANCE_REPORT.pdf) and [`.md`](FPGA_code/docs/ON_OFF_10000EP_VARIABLE_ENDURANCE_REPORT.md).
-  - **3. Inverted MAML Silicon Studio & Real-Time 3D Telemetry GUI:**
-    Upgraded [`FPGA_code/scripts/maml_post_analysis_gui.py`](FPGA_code/scripts/maml_post_analysis_gui.py) to provide comprehensive synchronized 3D telemetry visualization:
-
-    ![Inverted MAML Silicon Studio & Real-Time 3D Telemetry](FPGA_code/docs/figures/fig_maml_silicon_studio_3d_telemetry_ep219.jpg)
-
-    *Figure: Inverted MAML Silicon Studio & 3D Telemetry during Epoch #219 of a physical silicon run. Top right: Quadratic loss plummeting across the Epoch 100 [OFF $\to$ ON] switchover boundary (blue). Middle right: Measured RMSE falling from $>100\text{ LSB}$ to $<20\text{ LSB}$ while ENOB climbs to $9.42\text{ bits}$ peak (green). Left: Real-time 3D weight topography of Matrix 8 ($M_8$ Vernier layer). Inset: Matrix 3 learned $\Delta W_3$ adaptation surface. Bottom: Real-time hardware ADC readouts for $X$, $Z_{\text{target}}$, $M_3 (\text{ADC}_{45})$, and Triad $(\text{ADC}_{49})$.*
-
-- **2026-10-29 (Matrix 3 Sigmoid Analog Activation Mapping (Ref 4) & Optimal Baseline Knee Vector):**
-  - **1. Objective & Physical Motivation:**
-    Standard machine learning algorithms initialize weights at zero or Gaussian distributions. In this physical analog substrate, however, $W=0$ is rarely optimal due to MOSFET threshold skews ($\Delta V_{th}$) and DC offsets in the op-amp transimpedance stages. To discover the optimal initial baseline weights and regularization attractors, a rigorous two-stage physical silicon characterization was conducted on Matrix 3 ($M_3$, $8\text{ rows} \times 6\text{ cols} = 48\text{ crosspoints}$) through the ColTIA transimpedance amplifiers and hardware sigmoid activation network (Ref 4) at nominal settled delay $t = 5.0\text{ ms}$:
-  - **2. Stage 1 — Full 48-Crosspoint Transfer Landscape Grid:**
-    Every cell $(r, c)$ in Matrix 3 was individually excited across 17 weight levels ($W \in [-127, \dots, +127]$) and 5 standardized input DAC_2 levels ($X \in \{-127, -64, 0, +64, +127\}$), with 6 synchronous recharges per point.
-    - **Active Dynamics Across All 6 Columns:** Unlike uncompensated Matrix 33 Mode B where Columns 2 and 3 were railed at $-2048\text{ LSB}$, the ColTIA and analog sigmoid activation in Matrix 3 are active and responsive across all 6 columns.
-    - **Positive Polarity Superiority:** Evaluated via an objective quality metric combining dynamic range with smoothness and monotonicity:
-      $$\text{Score} = \frac{\text{Dynamic Swing } \Delta Y}{1 + \text{Jerk} / 10} \times \text{Monotonicity}$$
-      **Positive polarity ($W \ge 0$) won across all 6 columns** (C0..C5) by $50\%\dots 124\%$ higher dynamic swing and significantly lower stochastic noise/jerk than negative weights.
-    - Full documentation: [`FPGA_code/docs/M3_SIGMOID_STEP1_48CELL_REPORT.pdf`](FPGA_code/docs/M3_SIGMOID_STEP1_48CELL_REPORT.pdf) and [`.md`](FPGA_code/docs/M3_SIGMOID_STEP1_48CELL_REPORT.md).
-  - **3. Stage 2 — Macroscopic Column S-Curves & Optimal Baseline Knees:**
-    All 8 rows on each column were driven collectively ($W_3[0..7][c] = W$ ramped simultaneously) across representative full-scale ($X = \pm 127$) and medium-scale ($X = \pm 64$) signals. This revealed the macroscopic sigmoid S-curves into $\text{ADC}_{45}$ across a $\sim 2850\text{ LSB}$ span (from lower saturation at $-1450\text{ LSB}$ to upper saturation at $+1400\text{ LSB}$).
+  - **2. Karakteristik på S-kurvor (Sigmoid 4 / Matrix 3 ickelinjär aktiveringsmappning):**
+    Full kartläggning genomfördes av Matrix 3 ($8 \times 6$) och hårdvarusigmoiderna (Sigmoid 4, Ref 4). Makroskopiska S-kurvor in i $\text{ADC}_{45}$ kartlades över ett dynamiskt omfång på $\sim 2850\text{ LSB}$ (från $-1450\text{ LSB}$ till $+1400\text{ LSB}$). Detta lokaliserade de optimala ickelinjära knäpunkterna ($W_{\text{base}} = [-16, -16, +16, +16, -16, +16]\text{ LSB}$) där gradientkänsligheten $|dY/dW|$ maximeras med balanserad polaritet för att motverka differentiala offsetfel.
 
     ![Matrix 3 Macroscopic Sigmoid S-Curves and Optimal Baseline Knees](FPGA_code/docs/figures/fig_m3_sigmoid_macroscopic_scurves_optimal_knees.jpg)
+    *Figur: Makroskopiska Sigmoid S-kurvor över alla 6 kolumner in i $\text{ADC}_{45}$ vid $t = 5.0\text{ ms}$ med optimala ickelinjära knän ($W_{\text{base}}$).*
 
-    *Figure: Macroscopic Sigmoid S-curves measured across all 6 columns under collective 8-row column excitation on physical silicon at $t = 5.0\text{ ms}$ for $X = \pm 127$ (Blue, Gold) and $X = \pm 64$ (Red, Orange). Vertical dash-dotted lines mark the optimal non-linear baseline knees ($W_{\text{base}}$) balancing high dynamic sensitivity with smooth, low-jerk response.*
+  - **3. Sammanfattning av felsöknings- och skruvningsperioden (2026-10-24 – 2026-11-01):**
+    *Under denna period pågick intensiv felsökning och omfattande iterationer av både hårdvara och mjukvara på bänken, där tidiga felaktiga antaganden successivt sorterades bort:*
+    - **Dämpsatser och Hadamard-SNR:** Flera passiva dämpsteg testades på kompensationsgrenen ($1\text{ k}\Omega / 3.9\text{ k}\Omega \to 15\text{ k}\Omega \to 5.1\text{ k}\Omega$). Vid $15\text{ k}\Omega$ föll Hadamard-bärvågen under SAR ADC:ns kvantiseringsbrus (-16 dB SNR), vilket klargjorde balansen mellan finkornig Vernier-styrning och tillräcklig signalnivå för analog gradientextraktion.
+    - **Drivsteg och radspänningsfall:** Byte av In-Data op-ampar till högdrivande `MCP664-E/SL` ($\pm 70\text{ mA}$) eliminerade $188\text{ mV}$ dynamiskt spänningsfall på datalinjerna.
+    - **Mjukvaruskydd mot op-amp-bottning:** Firmware (`v2.2-MAML`) uppdaterades med ColTIA Saturation Guard och nollcentrerad LayerNorm för att skydda mot bottning vid korrelerade insignaler (LLM Toeplitz $\rho=0.85$).
+    - **Breddat tidsfönster:** De första 500-epokers experimenten över $4.5\dots 5.5\text{ ms}$ visade att nätverket har förmågan att kompensera för kondensatorläckage, men att balansen mellan dämpsats, inlärningstakt och $L_2$-regularisering krävde ytterligare finjustering.
 
-  - **4. Calibrated Baseline Weight Vector ($\mathbf{W}_{3,\text{baseline}}$):**
-    By locating the maximum non-linear curvature knee $|d^2Y / dW^2|$ where sensitivity $|dY/dW|$ is maximized for arbitrary medium signals ($X = \pm 64$), the optimal baseline weight vector was established:
+- **2026-11-04 (Stort Genombrott: Rätt avvägd dämpsats 1k/3.3k, K=1 ren online-SGD, vitt brus, robusthet mot dolda hårdvarustörningar och hantering av 1 ms temporalt minnesläckage):**
+  - **1. Rätt avvägd dämpsats (1k/3.3k attenuator):**
+    Efter de tidigare försöken med 3.9k, 15k och 5.1k hittades den optimala hårdvarubalansen på Card 2: passiva summeringsmotstånden löddes om till **$1\text{ k}\Omega / 3.3\text{ k}\Omega$ ($-12.7\text{ dB}$)**. Detta gav $+42\%$ högre korrektionsström in i ColTIA virtuella jord, vilket gav exakt rätt analog auktoritet för att släcka ut stora fel utan att vikterna drev mot mättnad. Vikterna rör sig lugnt och stabilt inom $|W_8| \le 25\text{ LSB}$, med **$>95\text{ LSB}$ linjär marginal** till skenorna ($\pm 120\text{ LSB}$).
+  - **2. Rätt inställda hyperparametrar & "Naked" Batch $K=1$ Online-SGD:**
+    I stället för att medelvärdesbilda gradienter över batcher kördes ren **online single-sample SGD ($K=1$)**, där kiselns analoga vikter uppdateras direkt efter varje enskild vektor (**11 000 fysiska uppdateringar på kisel** över 1 000 epoker).
+    - **Optimal kalibrering:** $\text{LR} = 0.02\text{x}$, $L_2\text{-regularisering } \lambda = 2048$, insignalsving $\pm 40\text{ LSB}$.
+    - **Ingen "Catastrophic Forgetting":** Den paraboliska $L_2$-potentialbrunnen eliminerar destruktiv interferens och binder vikterna stabilt till den gemensamma temporala jämvikten.
+  - **3. Hantering av minnescellers läckage över ett 1 ms brett tidsfönster [4.5 – 5.5 ms] (11 strata):**
+    Trots att 2T1C-cellernas minneskondensatorer ($C_W = 100\text{ nF}$) laddas ur kontinuerligt över 10 ms-cykeln lär sig nätverket autonomt en tidsberoende mot-lutning via klockcellerna (rad 6 & 7 i Matrix 3). Hela den temporala vågfronten lyfts synkront: fönstermedelfelet sänks med **$-63.5\%$**, och vid 5.0 ms uppnås en peak precision på **$+1.47\text{ bitar}$ nettoförbättring** över baslinjen.
+  - **4. Test med okorrelerat vitt brus (White Noise Input Stream):**
+    Utvärdering med helt okorrelerat vitt brus (`--noise-color white`) bekräftade att Inverted MAML inte kräver temporalt korrelerade data. Systemet konvergerade omedelbart och nådde en exceptionell absolut topp-precision vid 5.0 ms: **$6.26\text{ bitar}$ ENOB ($2\,143.5\text{ LSB}^2$)** vid Epok 130!
+  - **5. Robusthet mot dolda hårdvarustörningar (Patent SE 2630397-4 Fig 7 Emulator):**
+    Var 100:e epok injicerades slumpade störningsmatriser $\Delta W_{33} \in [-5, +5]\text{ LSB}$ oberoende över alla 36 korspunkter i Matrix 33 (vilket emulerar termisk drift, åldring och matningsspänningsvariationer). Målet $Z_\text{target}$ förblev strikt låst till nominell matris (fuskskydd). Nätverket absorberade felchockerna och återetablerade hög precision inom ~10–20 epoker.
+  - **6. Ablation Control (Fas 4):**
+    När vikterna låstes till $0\text{ LSB}$ vid Epok 600 hoppade felet omedelbart upp med **$8.1\times$ (från $13\,638\text{ LSB}^2 \to 110\,035\text{ LSB}^2$)**, vilket utgör ett definitivt bevis på att precisionslyftet helt styrs av den aktiva 2-lagerskretsen.
+  - **7. Referenser till den senaste 10-sidiga publikationsrapporten & figurer:**
+    - **Fullständig 10-sidig publikationsrapport (PDF):** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.pdf)
+    - **Markdown-rapport:** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.md`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.md)
+    - **Tidigare 5.0 ms rapport:** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG2048_LR0P02_SWING40_VAR5_K1_1K_3P3K_ABLATION_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG2048_LR0P02_SWING40_VAR5_K1_1K_3P3K_ABLATION_REPORT.pdf)
 
-    | Column | Optimal Knee $W_{\text{base}}$ | Polarity | Sensitivity @ $X = \pm 64$ | Dynamic Swing | Physical Interpretation |
-    | :---: | :---: | :---: | :---: | :---: | :--- |
-    | **Col 0** | **$-16\text{ LSB}$** | **NEG** | $47.35\text{ LSB/W}$ | $2861\text{ LSB}$ | Smooth negative sigmoid knee |
-    | **Col 1** | **$-16\text{ LSB}$** | **NEG** | $43.45\text{ LSB/W}$ | $2859\text{ LSB}$ | $52\%$ higher sensitivity than $+16$ |
-    | **Col 2** | **$+16\text{ LSB}$** | **POS** | $51.31\text{ LSB/W}$ | $2856\text{ LSB}$ | $24\%$ higher sensitivity than $-16$ |
-    | **Col 3** | **$+16\text{ LSB}$** | **POS** | $48.99\text{ LSB/W}$ | $2861\text{ LSB}$ | $154\%$ higher sensitivity than $-16$ |
-    | **Col 4** | **$-16\text{ LSB}$** | **NEG** | $56.47\text{ LSB/W}$ | $2849\text{ LSB}$ | $162\%$ higher sensitivity than $+16$ |
-    | **Col 5** | **$+16\text{ LSB}$** | **POS** | $57.75\text{ LSB/W}$ | $2833\text{ LSB}$ | $124\%$ higher sensitivity than $-16$ |
+    ![2D Temporal Spectrogram of Precision under White Noise Stream](FPGA_code/docs/figures/fig_broadened_white_temporal_heatmap_spectrogram.png)
+    *Figur 1: 2D Temporal Spectrogram över precision (ENOB) över fördröjning [4.5..5.5 ms] och 1 000 epoker under vitt brus. Visar omedelbart lyft vid Epok 100 och full släckning vid ablation Epok 600 utan "catastrophic forgetting".*
 
-    ```python
-    # Calibrated Initial Baseline Weight Vector for Matrix 3:
-    W3_BASELINE = [-16, -16, +16, +16, -16, +16]
-    ```
+    ![Generalization Profile Across Temporal Strata [4.5 - 5.5 ms]](FPGA_code/docs/figures/fig_broadened_white_temporal_profile_4phases.png)
+    *Figur 2: Generaliseringsprofil över alla 11 strata under vitt brus. Nominell konvergens (blå kurva) ger ett jämnt precisionslyft över hela det 1 ms breda fönstret med toppökning på +1.47 bitar vid 5.0 ms.*
 
-    *Engineering Impact:* The alternating polarity pattern reflects the physical differential pairing of the dual-2T1C cells and ColTIA op-amps on PCB v1.3.2. Initializing Matrix 3 at this calibrated baseline vector places every column directly at its point of maximum gradient responsiveness, eliminating dead-band stagnation and providing the exact attractor target for L2 regularization.
-    - Full documentation: [`FPGA_code/docs/M3_SIGMOID_STEP2_COLUMN_SCURVE_REPORT.pdf`](FPGA_code/docs/M3_SIGMOID_STEP2_COLUMN_SCURVE_REPORT.pdf) and [`.md`](FPGA_code/docs/M3_SIGMOID_STEP2_COLUMN_SCURVE_REPORT.md).
-    - Characterization Skill: [`.agents/skills/m3-sigmoid-activation-mapping/SKILL.md`](.agents/skills/m3-sigmoid-activation-mapping/SKILL.md).
-
-  - **5. Breakthrough: Controlled 3-Stage 500-Epoch Experiment (Peak 7.90 Bits ENOB Without Digital Seed):**
-    To isolate operating point biasing from active learning, a 3-stage, 500-epoch continuous benchmark was executed directly on physical silicon at $t = 5.0\text{ ms}$:
-    - **Stage 1 (Epochs 0..99): Baseline 0 (OFF, $\text{LR}=0$):** Both $M_3$ and $M_8$ locked at strict physical zero ($W = 0\text{ LSB}$).
-    - **Stage 2 (Epochs 100..199): Baseline Knee (OFF, $\text{LR}=0$):** S-curve knee baseline $\mathbf{W} = [-16, -16, +16, +16, -16, +16]\text{ LSB}$ engaged on both $M_3$ and $M_8$, revealing the quiescent response shift without active learning.
-    - **Stage 3 (Epochs 200..500): Active Adaptation ON ($\text{LR}=0.25\times$):** Continuous 2-layer gradient adaptation across 300 arbitrary random white-noise vectors.
-    - **No Digital Pseudo-Random Seeding (`seed_pct = 0`):** Proved that the physical silicon's intrinsic thermal noise and transistor asymmetry naturally seed the inner loop, completely eliminating the need for artificial digital noise injection!
-    - **Physical Silicon Milestone:** Quadratic loss dropped by **$36.0\%$**, and at Epoch 427 the network achieved a new record peak precision of **$7.90\text{ bits}$ ENOB** (RMSE $8.59\text{ LSB}$, Loss $221.1\text{ LSB}^2$), demonstrating true near-8-bit analog computational resolution!
-
-    ![3-Stage 500-Epoch Silicon Benchmark Telemetry](FPGA_code/docs/figures/fig_m3_m8_3stage_500ep_stats.png)
-
-    *Figure: 3-Stage 500-Epoch physical silicon benchmark on PCB v1.3.2 @ 5.0 ms. Top: Quadratic loss showing baseline 0, baseline knee, and dramatic descent in Stage 3. Middle: Measured ENOB (green) and RMSE (orange) with peak performance reaching 7.90 bits at Epoch 427. Bottom: Matrix 8 Vernier weight trajectories migrating smoothly without rail saturation.*
-
-    - Full documentation: [`FPGA_code/docs/M3_M8_3STAGE_500EP_EXPERIMENT_REPORT.pdf`](FPGA_code/docs/M3_M8_3STAGE_500EP_EXPERIMENT_REPORT.pdf) and [`.md`](FPGA_code/docs/M3_M8_3STAGE_500EP_EXPERIMENT_REPORT.md).
-    - Previous 400-epoch knee baseline benchmark: [`FPGA_code/docs/M3_M8_OPTIMAL_BASELINE_ARBITRARY_400EP_REPORT.pdf`](FPGA_code/docs/M3_M8_OPTIMAL_BASELINE_ARBITRARY_400EP_REPORT.pdf).
-
-- **2026-10-30 (Mode A Training Under LLM-Correlated In-Data Vectors, ColTIA Saturation Guard, and Sustained 6.23 Bits Resolution):**
-  - **1. Objective & Physical Challenge:**
-    Previous experiments evaluated independent white noise. However, realistic neural activations in Large Language Models (LLMs / Transformers) exhibit strong spatial token correlations across input channels. When high spatial correlation ($\rho = 0.85$, Kac-Murdock-Szegö AR(1) Toeplitz covariance) was initially applied, all 6 input channels took simultaneous negative or positive values. Multiplying these correlated inputs through Matrix 33's positive column pedestals created huge common-mode DC currents, driving single-supply ColTIA transimpedance amplifiers into saturation rails ("bottning"). This clipped the $243\text{ LSB}$ Hadamard carrier perturbation, breaking Sylvester $H_8$ orthogonality and generating phantom gradient bursts.
-  - **2. Dual Hardware Countermeasures in T120 RISC-V Firmware (`v2.2-MAML`):**
-    - **Zero-Mean Centering (LayerNorm):** Automatically enforces $\sum_{i=0}^5 x_i \equiv 0$ on all colored In-Data modes, eliminating DC common-mode current surges through $M_{33}$.
-    - **ColTIA Saturation Guard:** Enforces a physical headroom margin based on the measured physical Hadamard swing ($250\text{ LSB}$). If $|ADC_{45}|$ or $|ADC_{49}| \ge 1797\text{ LSB}$, weight updates are completely suppressed ($\Delta W \equiv 0$) and clipping events are logged via telemetry.
-  - **3. 500-Epoch 3-Phase Silicon Benchmark Results:**
-    A 500-epoch benchmark was executed on physical silicon under continuous rotating LLM Toeplitz vectors ($\rho = 0.85$, $L_2$ regularization $\lambda = 512$, learning rate $0.25\times$):
-    - **Phase 1 (Epochs 0..99):** `BASELINE_ZERO` ($M_3=0, M_8=0$, Training OFF) $\implies \text{Mean Loss } 8\,805\text{ LSB}^2$, Mean ENOB $5.28\text{ b}$.
-    - **Phase 2 (Epochs 100..199):** `BASELINE_KNEE` ($M_8 = \pm 16\text{ LSB}$, Training OFF) $\implies \text{Mean Loss } 21\,853\text{ LSB}^2$, Mean ENOB $4.60\text{ b}$.
-    - **Phase 3 (Epochs 200..500):** `TRAIN_REG_ON` (Active Mode A Training ON) $\implies \text{Mean Loss dropped by } \mathbf{77.5\%}$ to $4\,910\text{ LSB}^2$ (Min Loss: **$637.9\text{ LSB}^2$** at Ep 424, Peak ENOB: **$7.13\text{ bits}$**).
-    - **0 Clipped Epochs:** Zero saturation events occurred across all 500 epochs.
-  - **4. Silicon Studio 3D Visualization & Conclusion:**
-    Across active training, the network maintained a **sustained mean physical resolution of 6.23 bits ENOB** with smooth multi-dimensional Vernier weight compensation.
-
-  ![Inverted MAML: 500-Epoch Mode A Training under LLM Correlated In-Data](FPGA_code/docs/figures/fig_mode_a_500ep_llm_training_trajectory.jpg)
-
-  *Figure: 500-Epoch training trajectory on physical silicon under LLM Toeplitz In-Data ($\rho=0.85, \lambda=512$). Top: Quadratic output loss showing baseline 0 (Ep 0..99), baseline knee step (Ep 100..199), and rapid convergence upon triggering training at Epok 200. Bottom: Sustained ENOB resolution achieving 7.13 bits peak.*
-
-  ![Injected FORWARD Propagation Silicon Studio at Epoch 353](FPGA_code/docs/figures/fig_mode_a_500ep_llm_ep353_studio.jpg)
-
-  *Figure: Real-time Injected FORWARD Propagation Silicon Studio monitoring the active training phase at Epoch 353. Matrix 8 3D topography shows an organic, multi-dimensional compensation surface actively countering analog non-linearities, sustaining a physical resolution of 6.23 bits ENOB with low residual error (RMSE: 27.32 LSB, Loss: 2239.4 LSB²).*
-
-  - **Scientific Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.pdf)
-  - **Markdown Analysis:** [`FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.md`](FPGA_code/docs/INVERTED_MAML_500EP_LLM_TOEPLITZ_REPORT.md)
-  - **Log Dataset:** [`FPGA_code/logs/llm_noise_campaign/mode_a_500ep_llm_toeplitz_rho85_reg512.json`](FPGA_code/logs/llm_noise_campaign/mode_a_500ep_llm_toeplitz_rho85_reg512.json)
-
-- **2026-11-01 (Major Breakthrough: Milestone 3 Achieved — 500-Epoch Broadened Temporal Window [4.5 – 5.5 ms] & Temporal Leakage Compensation):**
-  - **1. Objective & Physical Motivation (Neural Network Improving ENOB Over Time with Leaky Cells):**
-    In analog computing and capacitive in-memory computing (CIM), the retention time and leakage rate of gain cells (such as 2T1C or 3T1C) naturally vary depending on the chosen material technology and semiconductor process. While hardware designers generally strive to fabricate gain cells with minimal leakage, physical memory capacitors will inevitably exhibit some rate of temporal charge decay over time.
-    
-    The fundamental breakthrough of the **Inverted MAML architecture** is that **the neural network itself actively learns to compensate for leaky cells and improves effective resolution (ENOB) over time across the operational cycle**.
-    
-    The physical proof-of-concept PCBA was deliberately engineered with realistic leaky cell dynamics to benchmark this capability directly on hardware. **Milestone 3** evaluates whether the Proprioceptive Inverted MAML triad ($M_3 \to \text{Sigmoid 4} \to M_8$) and its dynamic clock reference rows (Rows 6 & 7 in $M_3$) can autonomously learn a time-dependent counter-slope that suppresses error and boosts ENOB across an extended **1000 µs temporal discharge window ($4500\text{ µs}$ to $5500\text{ µs}$)** under continuous LLM Toeplitz In-Data ($\rho = 0.85$). This demonstrates that analog AI precision does not require exotic, non-leaking hardware physics—the neural network actively closes the loop to restore and enhance ENOB over time (Patent Claim 8, Fig 6 & Claim 10, Fig 5).
-  - **2. 100% Identical 200-Sample Hadamard Measurement Cadence:**
-    To ensure rigorous scientific comparability, every single epoch (0..500) executed the exact same 200-sample Hadamard-active batch across all 10 temporal strata ($10\text{ strata} \times K=20\text{ vectors} = 200\text{ samples/epoch}$):
-    - **Phase 1 (Epochs 0..99):** Baseline Zero ($W=0\text{ LSB}$, $\text{LR}=0, \lambda=0$, Full Hadamard ON) $\implies \text{Mean Window Loss } 69\,800.4\text{ LSB}^2$, Window ENOB $3.75\text{ bits}$.
-    - **Phase 2 (Epochs 100..199):** Calibrated Smart S-Bend Baseline ($\text{LR}=0, \lambda=0$, Full Hadamard ON) $\implies \text{Mean Window Loss } 74\,896.7\text{ LSB}^2$, Window ENOB $3.70\text{ bits}$.
-    - **Phase 3 (Epochs 200..500):** Active Mode A Training ON ($\text{LR}=0.25\times, \lambda=1024$, Full Hadamard ON) $\implies$ Window quadratic error dropped immediately by **$-20.9\%$ (sustained mean: $59\,233.1\text{ LSB}^2$)** and **$-25.2\%$ (minimum: $56\,013.5\text{ LSB}^2$ at Epoch 212)**, lifting full-window resolution to **$3.87\text{ bits}$ mean ($3.91\text{ bits}$ peak)** with $>10\sigma$ statistical significance!
-  - **3. Resolving the Single-Point (5.0 ms) vs. Full Window Trade-Off (Patent Fig 5 & 6):**
-    While the uncompensated $W=0$ baseline excels at the single $5.0\text{ ms}$ midpoint where it was calibrated ($6.02\text{ b}$ mean), it suffers severe error at earlier ($4.5\text{ ms}$) and later ($5.5\text{ ms}$) times due to RC discharge. Active closed-loop training learns a dynamic counter-slope across all 10 temporal strata simultaneously, suppressing temporal leakage across the entire millisecond while preserving a peak resolution of **$7.78\text{ bits}$ ENOB ($259.0\text{ LSB}^2$)** at $5.0\text{ ms}$ (Epoch 245).
-  - **4. Comprehensive 11-Page Publication Report:**
-    - **Full Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.pdf`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.pdf)
-    - **Markdown Analysis:** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.md`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_BROADENED_WINDOW_REPORT_EN.md)
-    - **Zenodo DOI:** [🔗 `10.5281/zenodo.23859108`](https://zenodo.org/records/23859108)
-  - **5. Parameter Sensitivity & Regularization Scaling ($\text{LR}=0.08\times, \lambda=341$):**
-    To verify dynamics when scaling both driving and restoring forces down by $3\times$, a second 500-epoch silicon run was executed with $\text{LR}=0.08$ and $\lambda=341$. Because the ratio $\eta/\lambda \approx 0.00024$ was preserved, full-window error reduction was virtually identical (**$-20.1\%$** sustained window loss drop, $3.84\text{ bits}$ mean, $7.65\text{ bits}$ peak at $5.0\text{ ms}$). However, the $3\times$ weaker restoring force allowed Column 3 to saturate at $+120\text{ LSB}$, proving that $\lambda \ge 1024$ is essential on physical silicon to prevent rail-clamping under persistent directional gradient bias.
-    - **Comparative Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG341_LR0P08_REPORT_EN.pdf`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG341_LR0P08_REPORT_EN.pdf)
-    - **Comparative Markdown:** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG341_LR0P08_REPORT_EN.md`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG341_LR0P08_REPORT_EN.md)
-  - **6. Fine-Grained Rate with Stiff Spring ($\text{LR}=0.08\times, \lambda=1024$):**
-    Combining the fine-grained learning rate ($\text{LR}=0.08\times$) with the stiff restoring spring ($\lambda=1024$) successfully prevented Column 3 from hitting the $+120\text{ LSB}$ clamp (peaking at $+101\text{ LSB}$ and actively pulled back to $+93\text{ LSB}$, with zero columns saturated). This configuration delivered an extraordinary single-point peak at $5.0\text{ ms}$ of **$8.33\text{ bits}$ ENOB ($122.0\text{ LSB}^2$ at Epoch 273)**, while cutting full-window loss by **$-19.5\%$** (sustained mean: $61\,835\text{ LSB}^2$, min: $57\,909\text{ LSB}^2$) and maintaining full-window resolution at **$3.83\text{ bits}$ mean ($3.88\text{ bits}$ peak)**.
-    - **Fine-Grained Stiff-Spring Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG1024_LR0P08_REPORT_EN.pdf`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG1024_LR0P08_REPORT_EN.pdf)
-    - **Fine-Grained Stiff-Spring Markdown:** [`FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG1024_LR0P08_REPORT_EN.md`](FPGA_code/docs/INVERTED_MAML_MILESTONE3_REG1024_LR0P08_REPORT_EN.md)
-
-  ![Inverted MAML Milestone 3: Full Temporal Window [4.5..5.5 ms] Aggregated Trajectory (LR=0.25, λ=1024)](FPGA_code/docs/figures/fig_mode_a_500ep_window_4p5to5p5ms_only_reg1024.png)
-
-  *Figure A: Full temporal window [4.5 ms to 5.5 ms] aggregated trajectory on physical silicon with higher learning rate (LR=0.25x, λ=1024, 10 strata × K=20 = 200 Hadamard measurements/epoch). Activating closed-loop Mode A compensation at Epoch 200 immediately drops window quadratic loss by -20.9% to -25.2% and lifts full-window ENOB by +0.17 bits (>10σ significance).*
-
-  ![Inverted MAML Milestone 3: Full Temporal Window [4.5..5.5 ms] Aggregated Trajectory (LR=0.08, λ=1024)](FPGA_code/docs/figures/fig_mode_a_500ep_window_4p5to5p5ms_only_reg1024_lr0p08.png)
-
-  *Figure B: Full temporal window [4.5 ms to 5.5 ms] trajectory with fine-grained learning rate and stiff spring (LR=0.08x, λ=1024). Demonstrates exceptionally smooth gradient steps, -19.5% to -24.6% window loss reduction, an ultra-sharp 8.33 bits ENOB peak at 5.0 ms, and complete prevention of weight rail saturation.*
-
-- **2026-11-04 (Major Breakthrough: 1k/3.3k Attenuator Hardware Mod, Naked Batch $K=1$ Online Stochastic Adaptation, 7.72x Ablation Contrast & 7.17-Bit Peak Precision under Heavy $\pm 5\text{ LSB}$ Fig 7 Disturbance):**
-  - **1. Physical Hardware Modification (1k/3.3k Passive Summing Attenuator):**
-    On Card 2, the passive summing attenuator on the analog compensation branch was physically resoldered from $1\text{ k}\Omega / 5.1\text{ k}\Omega$ ($-15.7\text{ dB}$) to **$1\text{ k}\Omega / 3.3\text{ k}\Omega$ ($-12.7\text{ dB}$)**. This hardware upgrade boosted injected correction current into the ColTIA virtual-ground summing junction by **$+42\%$**, providing the necessary analog authority to cancel large physical errors without driving compensation weights toward rail saturation.
-  - **2. The "Naked" Batch $K=1$ Protocol (Revealing True Physical Baseline ENOB):**
-    Prior runs accumulated gradients over batches of $K=20$ vectors, which statistically smoothed variance ($\sigma / \sqrt{20}$). Running in pure **"Naked" Batch $K=1$ mode** exposes the unvarnished physical reality of the analog silicon: each epoch executes a single stochastic forward pass on an arbitrary LLM Toeplitz vector ($\rho = 0.85$, input swing $\pm 40\text{ LSB}$). This unmasks the true open-loop physical baseline resolution of the uncompensated hardware—approximately **$3.33\text{ bits}$ ENOB** ($133\,318\text{ LSB}^2$ quadratic error).
-  - **3. Compensating Distributed 2D Perturbations Across the Full $6\times 6$ Matrix (Patent Fig 7):**
-    To rigorously stress-test the architecture, the **Patent Pending SE 2630397-4 Fig 7 Emulator** injected severe, randomized hidden offsets of **$\pm 5\text{ LSB}$** independently across all 36 crosspoints of primary Matrix $M_{33}$ every 100 epochs. Crucially, the digital supervisory target $Z_\text{target}$ remained 100% anchored to the unperturbed nominal matrix (strict cheat protection / Fusk-Skydd). This provides conclusive physical proof that arbitrary non-linear perturbations distributed across the entire 2D analog matrix can be autonomously identified and cancelled in real-time by the 2-layer neural compensation network ($M_3 \to \text{Sigmoid 4} \to M_8 \to \text{Sigmoid 10}$).
-  - **4. Breakthrough Quantitative Results (The $\text{LR}=0.02\text{x}, \lambda=2048$ Sweet Spot):**
-    - **7.72x Ablation Contrast (672% Error Surge Without Compensation):** During active Inverted MAML compensation under continuous $\pm 5\text{ LSB}$ disturbance (Phase 3, Epochs 200..599), the neural network maintained a mean loss of **$19\,028.5\text{ LSB}^2$ ($4.95\text{ bits}$ ENOB)**. When compensation was intentionally disabled in Phase 4 (Epochs 600..1000, $W=0$), quadratic error instantly rocketed to **$146\,986.4\text{ LSB}^2$ ($3.26\text{ bits}$ ENOB)**—a **7.72x higher error** without compensation!
-    - **7.17 Bits Peak Resolution ($605.5\text{ LSB}^2$):** Single-epoch precision shattered the 7-bit ceiling on physical silicon, reaching a record minimum loss of $605.5\text{ LSB}^2$ ($7.17\text{ bits}$ ENOB).
-    - **Massive Linear Headroom ($|W_8| \le 25\text{ LSB}$):** Benefiting from the 1k/3.3k attenuator gain, the weights required only $25\text{ LSB}$ excursion, leaving **$95\text{ LSB}$ margin** to the $\pm 120\text{ LSB}$ rail limits and guaranteeing quiet, non-saturating triode operation.
-    - **Real-Time Throughput:** All 1000 epochs executed on live silicon in **$37.0\text{ seconds}$** ($27.0\text{ epochs/second}$).
-  - **5. Detailed Publication Reports & Telemetry:**
-    - **Full 1000-Epoch Benchmark Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG2048_LR0P02_SWING40_VAR5_K1_1K_3P3K_ABLATION_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG2048_LR0P02_SWING40_VAR5_K1_1K_3P3K_ABLATION_REPORT.pdf)
-    - **Cross-Run Synthesis & Analysis (Markdown):** [`FPGA_code/docs/INVERTED_MAML_CARD2_1K3P3K_ATTENUATOR_BREAKTHROUGH_SYNTHESIS.md`](FPGA_code/docs/INVERTED_MAML_CARD2_1K3P3K_ATTENUATOR_BREAKTHROUGH_SYNTHESIS.md)
-
-  ![Inverted MAML Breakthrough: 1000-Epoch Pure 5.0ms Run with 1k/3.3k Attenuator (K=1, LR=0.02x, λ=2048, Fig 7 Disturbance ±5 LSB)](FPGA_code/docs/figures/fig_mode_a_1000ep_5ms_pure_toeplitz_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_ablation.png)
-
-  *Figure: Live silicon telemetry on Card 2 (1k/3.3k attenuator, pure 5.0 ms snapshot, Naked Batch K=1, LR=0.02x, λ=2048). Top: Quadratic loss showing dramatic drop in Phase 2 (-77.8%), stable tracking at 19 028 LSB² under continuous ±5 LSB disturbance in Phase 3, and immediate 7.72x error surge upon ablation in Phase 4 (W=0). Middle: Effective resolution peaking at 7.17 bits ENOB. Bottom: Matrix 8 diagonal weights showing smooth, relaxed convergence bounded within [-10, +25] LSB with >95 LSB linear headroom.*
+    ![3D Disturbance Topographies on Matrix 33](FPGA_code/docs/figures/fig_3d_broadened_white_disturbances_m33_4panel.png)
+    *Figur 3: 3D-stolptopografier över de dolda hårdvarustörningar (±5 LSB) som injicerades på Matrix 33 (Patent Fig 7 Emulator).*
 
 
 
