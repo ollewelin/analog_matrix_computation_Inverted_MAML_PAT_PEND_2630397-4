@@ -528,7 +528,7 @@ This daisy-chained architecture covers all sequential, pipelined, staggered, and
 
 ## 📚 Citation & Zenodo Record
 
-* **Zenodo Record URL:** [https://zenodo.org/records/23859108](https://zenodo.org/records/23859108)  
+* **Zenodo Record URL:** [https://zenodo.org/records/23954797](https://zenodo.org/records/23954797)  
 * **Digital Object Identifier (DOI):** [10.5281/zenodo.23859108](https://doi.org/10.5281/zenodo.23859108)
 
 If you use this work, hardware designs, FPGA firmware, or silicon telemetry datasets in your research, please cite the Zenodo release:
