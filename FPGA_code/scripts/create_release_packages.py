@@ -272,3 +272,4 @@ if __name__ == "__main__":
     create_release_1()
     create_release_2()
     print("[SUCCESS] Both release packages created cleanly!")
+
