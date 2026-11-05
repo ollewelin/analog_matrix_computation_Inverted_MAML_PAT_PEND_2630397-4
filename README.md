@@ -137,14 +137,11 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Full 10-Page Publication Report (PDF):** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.pdf)
     - **Comprehensive Markdown Report:** [`FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.md`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_BROADENED_WINDOW_WHITE_NOISE_COMPREHENSIVE_REPORT.md)
 
-    ![2D Temporal Spectrogram of Precision under White Noise Stream](FPGA_code/docs/figures/fig_broadened_white_temporal_heatmap_spectrogram.png)
-    *Figure 1: 2D Temporal Spectrogram of precision (ENOB) across delay [4.5..5.5 ms] and 1,000 epochs under white noise. Demonstrates immediate wavefront illumination at Epoch 100, robust disturbance tracking in Phase 3, and complete extinguishing upon ablation at Epoch 600 without catastrophic forgetting.*
-
     ![Generalization Profile Across Temporal Strata [4.5 - 5.5 ms]](FPGA_code/docs/figures/fig_broadened_white_temporal_profile_4phases.png)
-    *Figure 2: Generalization profile across all 11 strata under white noise stream. Nominal convergence (blue curve) uniformly lifts precision across the entire 1 ms capacitor discharge ramp, delivering +1.47 bits peak gain at 5.0 ms.*
+    *Figure 1: Generalization profile across all 11 strata under white noise stream. Nominal convergence (blue curve) uniformly lifts precision across the entire 1 ms capacitor discharge ramp, delivering +1.47 bits peak gain at 5.0 ms.*
 
     ![3D Disturbance Topographies on Matrix 33](FPGA_code/docs/figures/fig_3d_broadened_white_disturbances_m33_4panel.png)
-    *Figure 3: 3D discrete bar topographies of the non-stationary hardware perturbation matrices (±5 LSB) applied to Matrix 33 across Phase 3 (Patent Fig 7 Emulator).*
+    *Figure 2: 3D discrete bar topographies of the non-stationary hardware perturbation matrices (±5 LSB) applied to Matrix 33 across Phase 3 (Patent Fig 7 Emulator).*
 
 - **2026-11-05 (Definitive Physical Proof on Silicon: Mode A vs. Mode B Cross-Check with Compensation Jumpers Disconnected):**
   - **1. The Fundamental Scientific Question:**  
@@ -168,7 +165,7 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Comprehensive Markdown Report:** [`FPGA_code/docs/INVERTED_MAML_CARD2_MODE_A_VS_MODE_B_CROSSCHECK_REPORT.md`](FPGA_code/docs/INVERTED_MAML_CARD2_MODE_A_VS_MODE_B_CROSSCHECK_REPORT.md)
 
   ![Direct Live Silicon Telemetry Overlay: Mode A vs. Mode B](FPGA_code/docs/figures/fig_mode_a_vs_mode_b_crosscheck_overlay.png)
-  *Figure 4: Direct live silicon telemetry comparison between Mode A (Blue/Green, Jumpers IN) and Mode B (Red/Orange, Jumpers OUT). Top Panel: Logarithmic quadratic loss at 5.0 ms center. Middle Panel: ENOB precision at 5.0 ms center. Bottom Panel: Mean ENOB across all 11 strata [4.5..5.5 ms].*
+  *Figure 3: Direct live silicon telemetry comparison between Mode A (Blue/Green, Jumpers IN) and Mode B (Red/Orange, Jumpers OUT). Top Panel: Logarithmic quadratic loss at 5.0 ms center. Middle Panel: ENOB precision at 5.0 ms center. Bottom Panel: Mean ENOB across all 11 strata [4.5..5.5 ms].*
 
 - **2026-11-05 (Attenuator Circuit Discovery on Physical Silicon: $1\text{ k}\Omega / 3.3\text{ k}\Omega$ on Card 2 is Vastly Superior to $1\text{ k}\Omega / 5.1\text{ k}\Omega$ on Card 1):**
   - **1. Controlled Silicon Experiment:**  
@@ -189,10 +186,10 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Comprehensive Markdown Report:** [`FPGA_code/docs/INVERTED_MAML_CARD1_1000EP_BROADENED_WINDOW_1K_5P1K_COMPREHENSIVE_REPORT.md`](FPGA_code/docs/INVERTED_MAML_CARD1_1000EP_BROADENED_WINDOW_1K_5P1K_COMPREHENSIVE_REPORT.md)
 
   ![Direct Live Silicon Telemetry Overlay: Card 1 (1k/5.1k) vs. Card 2 (1k/3.3k)](FPGA_code/docs/figures/fig_card1_vs_card2_comparative_overlay.png)
-  *Figure 5: Direct live silicon telemetry comparison between Card 1 (Amber, 1k/5.1k attenuator) and Card 2 (Blue/Green, 1k/3.3k attenuator) across 1,000 epochs of online single-sample SGD under uncorrelated White Noise. Top: Logarithmic quadratic loss. Middle: 5.0 ms center ENOB. Bottom: Window mean ENOB across all 11 strata [4.5..5.5 ms].*
+  *Figure 4: Direct live silicon telemetry comparison between Card 1 (Amber, 1k/5.1k attenuator) and Card 2 (Blue/Green, 1k/3.3k attenuator) across 1,000 epochs of online single-sample SGD under uncorrelated White Noise. Top: Logarithmic quadratic loss. Middle: 5.0 ms center ENOB. Bottom: Window mean ENOB across all 11 strata [4.5..5.5 ms].*
 
   ![Matrix 8 Row 0 Weight Excursions: Card 1 vs. Card 2](FPGA_code/docs/figures/fig_card1_weight_excursions.png)
-  *Figure 6: Weight dynamics comparison. Top: Card 1 weights strain up to 110 LSB near the ±120 LSB rail clamping threshold. Bottom: Card 2 weights converge quietly below 56 LSB with >64 LSB linear margin.*
+  *Figure 5: Weight dynamics comparison. Top: Card 1 weights strain up to 110 LSB near the ±120 LSB rail clamping threshold. Bottom: Card 2 weights converge quietly below 56 LSB with >64 LSB linear margin.*
 
 ---
 
