@@ -6,6 +6,12 @@
 **Evaluation Protocol:** Flat Baseline Protocol ($W=0, W_\text{null}=0$) strictly at single-point $t = 5000\,\mu\text{s}$ (Pure 5.0 ms Snapshot)  
 **Stimulus Profile:** LLM Toeplitz Correlated Noise ($\rho = 0.85$, Input Swing $\pm 40\text{ LSB}$)  
 
+> [!WARNING]
+> **FORMAL RETRACTION / EXPERIMENTAL ARTIFACT NOTICE (2026-11-05)**  
+> **The performance claims, "7.72x ablation contrast", and depressed 3.33-bit baseline in this document have been formally retracted.**  
+> Detailed bare-metal profiling revealed that blocking UART prints (`[IP] Proto=...`) in T120 C-firmware caused refresh timer slipping (10 ms vs 20 ms refresh jitter). The degraded baseline was an artifact of 20 ms capacitor discharge droop, not true silicon baseline performance. When timing was phase-locked strictly to 10.0 ms crystal cycles, raw physical silicon achieved ~5.6 bits uncompensated, and the apparent contrast vanished ($\Delta\text{ENOB} = +0.04\text{ bits}$).  
+> **See the definitive post-mortem report:** [`INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md`](INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
+
 ---
 
 ## 1. Executive Summary & Breakthrough Milestones

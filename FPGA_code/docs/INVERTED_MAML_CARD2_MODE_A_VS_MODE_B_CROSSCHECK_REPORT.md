@@ -6,6 +6,12 @@
 **Target Hardware:** Card 2 (PCB v1.3.2, 1k/3.3k Attenuator) | Trion T120 Master SoC @ `192.168.1.50:5000`  
 **Publication PDF Report:** [`FPGA_code/docs/INVERTED_MAML_CARD2_MODE_A_VS_MODE_B_CROSSCHECK_REPORT.pdf`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/INVERTED_MAML_CARD2_MODE_A_VS_MODE_B_CROSSCHECK_REPORT.pdf)  
 
+> [!WARNING]
+> **FORMAL RETRACTION / EXPERIMENTAL ARTIFACT NOTICE (2026-11-05)**  
+> **The conclusions in this document regarding a "6.0x Mode B error ratio" and proof of high-order non-linear compensation have been formally retracted.**  
+> Detailed bare-metal profiling revealed that Mode B was sampled under a software loop suffering from 10 ms vs 20 ms refresh jitter caused by blocking UART prints. Because compensation jumpers were removed in Mode B, the network could not inject DC current to mask the 20 ms discharge droop, leaving Mode B trapped at the depressed droop error (~116k LSB²). When refresh timing is crystal-locked to 10.0 ms, the uncompensated silicon achieves ~5.6 bits baseline naturally, and the contrast vanishes.  
+> **See the definitive post-mortem report:** [`INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md`](INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
+
 ---
 
 ## 1. Scientific Objective & The Physical Hypothesis

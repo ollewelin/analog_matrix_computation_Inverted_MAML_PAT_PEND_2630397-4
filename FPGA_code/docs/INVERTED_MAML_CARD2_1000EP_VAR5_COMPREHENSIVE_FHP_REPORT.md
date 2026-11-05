@@ -6,6 +6,12 @@
 **Target Hardware:** Card 2 (PCB v1.3.2, Repaired CH3, 1k/3.3k Attenuator) | Trion T120 Master SoC @ `192.168.1.50:5000`  
 **Silicon Run Artifact:** [`mode_a_1000ep_5ms_pure_toeplitz_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_ablation.json`](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/mode_a_1000ep_5ms_pure_toeplitz_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_ablation.json)
 
+> [!WARNING]
+> **FORMAL RETRACTION / EXPERIMENTAL ARTIFACT NOTICE (2026-11-05)**  
+> **The performance claims, "7.72x ablation contrast", and depressed 3.33-bit baseline in this document have been formally retracted.**  
+> Detailed bare-metal profiling revealed that blocking UART prints (`[IP] Proto=...`) in T120 C-firmware caused refresh timer slipping (10 ms vs 20 ms refresh jitter). The degraded baseline was an artifact of 20 ms capacitor discharge droop, not true silicon baseline performance. When timing was phase-locked strictly to 10.0 ms crystal cycles, raw physical silicon achieved ~5.6 bits uncompensated, and the apparent contrast vanished ($\Delta\text{ENOB} = +0.04\text{ bits}$).  
+> **See the definitive post-mortem report:** [`INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md`](INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
+
 ---
 
 ## Executive Summary & Scientific Breakthrough Scope

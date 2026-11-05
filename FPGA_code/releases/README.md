@@ -2,6 +2,12 @@
 **Patent Pending SE 2630397-4 | Open Science Hardware**  
 **Repository Path:** `FPGA_code/releases/`
 
+> [!WARNING]
+> **FORMAL RETRACTION / EXPERIMENTAL ARTIFACT NOTICE (2026-11-05)**  
+> **The benchmark metrics recorded for releases `Release_20261104...` and `Release_20261105...` were confounded by firmware refresh timing jitter (10 ms vs 20 ms refresh skipping caused by blocking UART prints).**  
+> The 3.3-bit baseline and resulting 7x–9x ablation contrasts were artifacts of 20 ms capacitor discharge droop rather than true analog baseline behavior. On crystal-locked 10.0 ms refresh timing, the uncompensated physical silicon baseline is ~5.6 bits, and the large contrast collapses.  
+> **See the definitive post-mortem report:** [`FPGA_code/docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md`](../docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
+
 This directory serves as the immutable release archive for verified hardware bitstreams, firmware, host drivers, and experimental benchmark datasets on physical Inverted MAML silicon (Card 2, Trion T120 Master SoC + Trion T20 Coprocessor).
 
 ---

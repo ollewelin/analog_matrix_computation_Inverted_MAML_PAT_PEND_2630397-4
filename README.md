@@ -105,7 +105,13 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Firmware Protection Against Saturation:** RISC-V firmware (`v2.2-MAML`) integrated ColTIA Saturation Guard and zero-mean LayerNorm to protect against transimpedance amplifier rail-clipping under spatially correlated inputs (LLM Toeplitz $\rho=0.85$).
     - **Temporal Window Exploration:** Initial 500-epoch runs across $4.5\dots 5.5\text{ ms}$ proved that the closed loop can compensate for physical capacitor discharge, though full stabilization across non-stationary disturbances required further hyperparameter and attenuator co-design.
 
-- **2026-11-04 (Major Breakthrough: 1k/3.3k Attenuator Hardware Mod, Naked Batch $K=1$ Online Stochastic Adaptation, 7.72x Ablation Contrast & 7.17-Bit Peak Precision under Heavy $\pm 5\text{ LSB}$ Fig 7 Disturbance):**
+> [!WARNING]
+> **CRITICAL RETRACTION & INVESTIGATION NOTICE (November 5, 2026):**  
+> **The performance claims, 7.7x to 9.5x ablation contrasts, and depressed 3.3-bit baseline reported below for November 4 and November 5 were experimental artifacts caused by a firmware refresh timing jitter bug.**  
+> A blocking UART print (`[IP] Proto=...`) and uncalibrated busy-waits in the T120 C-firmware caused the 10 ms refresh loop to slip to 20 ms during high-rate UDP benchmarks. The resulting 20 ms capacitor discharge droop artificially degraded the baseline error. When timing was phase-locked strictly to 10.0 ms crystal cycles, raw uncompensated physical silicon showed an inherent precision of **~5.6 bits ENOB**, and the apparent contrast completely collapsed ($\Delta\text{ENOB} = +0.04\text{ bits}$).  
+> **Read the complete post-mortem investigation report:** [`FPGA_code/docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md`](FPGA_code/docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
+
+- **2026-11-04 (Major Breakthrough [RETRACTED - SEE NOTICE ABOVE]: 1k/3.3k Attenuator Hardware Mod, Naked Batch $K=1$ Online Stochastic Adaptation, 7.72x Ablation Contrast & 7.17-Bit Peak Precision under Heavy $\pm 5\text{ LSB}$ Fig 7 Disturbance):**
   - **1. Physical Hardware Modification (1k/3.3k Passive Summing Attenuator):**
     On Card 2, the passive summing attenuator on the analog compensation branch was physically resoldered from $1\text{ k}\Omega / 5.1\text{ k}\Omega$ ($-15.7\text{ dB}$) to **$1\text{ k}\Omega / 3.3\text{ k}\Omega$ ($-12.7\text{ dB}$)**. This hardware upgrade boosted injected correction current into the ColTIA virtual-ground summing junction by **$+42\%$**, providing the necessary analog authority to cancel large physical errors without driving compensation weights toward rail saturation.
   - **2. The "Naked" Batch $K=1$ Protocol (Revealing True Physical Baseline ENOB):**
@@ -209,6 +215,23 @@ Working with analog computing is an act of balancing physics and precision. Very
 
   ![Direct Live Silicon Telemetry Three-Way Overlay: Card 1 (1k/5.1k vs 1k/2.2k) vs Card 2 (1k/3.3k)](FPGA_code/docs/figures/fig_card1_1k_2p2k_threeway_comparison_overlay.png)
   *Figure 6: Three-way direct live silicon telemetry comparison: Card 1 Original (Amber, 1k/5.1k attenuator), Card 2 (Blue, 1k/3.3k attenuator), and Card 1 Upgraded (Green, 1k/2.2k attenuator) across 1,000 epochs of online single-sample SGD under uncorrelated White Noise. Top: Logarithmic quadratic loss. Middle: 5.0 ms center ENOB. Bottom: Window mean ENOB across all 11 strata [4.5..5.5 ms].*
+
+- **2026-11-05 (Evening Post-Mortem & Rigorous Scientific Truth: Unmasking the 10/20 ms Refresh Jitter Bug & True Silicon Precision):**
+  - **1. The Root Cause Discovery:**  
+    Bare-metal firmware profiling revealed a critical timing flaw: a blocking UART debug print (`print_s("[IP] Proto=...")`) in `main.c` and a redundant $5\text{ ms}$ delay in `maml_platform.c` caused the RISC-V SoC polling loop to take $\sim 14.5\text{ ms}$. This caused the $10\text{ ms}$ refresh timer to slip and alternate with $20\text{ ms}$ intervals.
+  - **2. The Physical Mechanism:**  
+    At $20\text{ ms}$, the 2T1C analog gate storage capacitors ($100\text{ nF}$) discharged twice as long before snapshot sampling, depressing uncompensated baseline precision to $\sim 3.3\text{ – }4.2\text{ bits}$ ($38\text{k} – 146\text{k}\text{ LSB}^2$). The apparent $7\times\text{ – }9\times$ "ablation contrast" was largely an artifact of the network acting as a crude DC charge replacement against 20 ms droop.
+  - **3. Empirical Side-by-Side Proof on Physical Silicon:**  
+    When the firmware was patched to phase-lock memory refreshes strictly to crystal-timed $10.0\text{ ms}$ CLINT tick boundaries, Card 2 was re-tested under the identical benchmark:
+    - **Old Firmware (Jitter Bug):** Phase 1 Baseline = $38\,224.9\text{ LSB}^2$ ($4.25\text{ b}$) $\to$ Phase 2 MAML = $6\,778.5\text{ LSB}^2$ ($5.64\text{ b}$) $\to$ Phase 4 Ablation = $55\,213.7\text{ LSB}^2$ ($3.97\text{ b}$) ($8.14\times$ apparent contrast).
+    - **New Firmware (Crystal-Locked 10.0 ms):** Phase 1 Baseline = $7\,392.3\text{ LSB}^2$ ($5.58\text{ b}$) $\to$ Phase 2 MAML = $6\,901.4\text{ LSB}^2$ ($5.62\text{ b}$) $\to$ Phase 4 Ablation = $7\,565.2\text{ LSB}^2$ ($5.54\text{ b}$).
+    - **Empirical Verdict:** The raw uncompensated silicon inherently delivers **$\sim 5.6\text{ bits}$ precision** at $5.0\text{ ms}$ snapshot delay. The apparent contrast completely collapsed ($\Delta\text{ENOB} = +0.04\text{ bits}$).
+  - **4. Comprehensive Post-Mortem Documentation:**  
+    Full technical post-mortem report and side-by-side empirical telemetry available in:  
+    [`FPGA_code/docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md`](FPGA_code/docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
+
+  ![Inverted MAML Timing Jitter Post-Mortem Side-by-Side Comparison](FPGA_code/docs/figures/fig_timing_jitter_post_mortem_side_by_side.png)
+  *Figure 7: Live silicon empirical proof of the timing bug on Card 2. Left/Red: Old firmware with 10/20 ms jitter creating an artificial 8.1x contrast against capacitor droop. Right/Green: Corrected firmware with crystal-locked 10.0 ms refresh revealing the true, flat ~5.6-bit physical silicon baseline across all phases.*
 
 ---
 

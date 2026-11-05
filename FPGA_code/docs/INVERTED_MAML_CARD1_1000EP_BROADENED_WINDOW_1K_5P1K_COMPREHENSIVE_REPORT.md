@@ -6,6 +6,12 @@
 **Target Hardware:** Card 1 (PCB v1.3.2, 1k/5.1k Attenuator) vs. Card 2 (PCB v1.3.2, 1k/3.3k Attenuator)  
 **Publication PDF Report:** [`FPGA_code/docs/INVERTED_MAML_CARD1_1000EP_BROADENED_WINDOW_1K_5P1K_COMPREHENSIVE_REPORT.pdf`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/INVERTED_MAML_CARD1_1000EP_BROADENED_WINDOW_1K_5P1K_COMPREHENSIVE_REPORT.pdf)  
 
+> [!WARNING]
+> **FORMAL RETRACTION / EXPERIMENTAL ARTIFACT NOTICE (2026-11-05)**  
+> **The conclusions in this document regarding attenuator comparisons and precision ceilings have been formally retracted.**  
+> The observed behavior was heavily confounded by firmware refresh timing jitter (10 ms vs 20 ms refresh skipping caused by blocking UART prints). Injected current differences were largely interacting with capacitor discharge droop rather than fine non-linearities. When timing is phase-locked to 10.0 ms crystal cycles, both cards exhibit clean ~5.6-bit uncompensated baselines.  
+> **See the definitive post-mortem report:** [`INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md`](INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
+
 ---
 
 ## 1. Executive Summary & Hardware Context

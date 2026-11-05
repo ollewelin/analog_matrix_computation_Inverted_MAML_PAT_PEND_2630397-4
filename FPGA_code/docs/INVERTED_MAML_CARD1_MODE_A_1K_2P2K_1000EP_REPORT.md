@@ -7,6 +7,11 @@
 **Firmware Version:** T120 Master SoC C-Firmware `v2.2-MAML` (Build Nov 5 2026, 10.000 ms Phase-Locked Timer)  
 **Publication PDF Report:** [`FPGA_code/docs/INVERTED_MAML_CARD1_MODE_A_1K_2P2K_1000EP_REPORT.pdf`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/INVERTED_MAML_CARD1_MODE_A_1K_2P2K_1000EP_REPORT.pdf)  
 
+> [!WARNING]
+> **COMPANION DOCUMENT / POST-MORTEM CONTEXT (2026-11-05)**  
+> This report reflects the first run following the phase-locking of the 10.0 ms timer engine. Note that across all phases (Phase 1 Baseline: 5.15 b, Phase 2 SGD: 5.30 b, Phase 4 Ablation: 5.25 b), the apparent 7x–9x contrast observed in earlier runs completely disappeared ($\Delta\text{ENOB} = +0.14\text{ bits}$), confirming that previous large contrasts were artifacts of 10/20 ms refresh jitter.  
+> **See the definitive post-mortem report:** [`INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md`](INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
+
 ---
 
 ## 1. Executive Summary

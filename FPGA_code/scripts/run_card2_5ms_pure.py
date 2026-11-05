@@ -198,7 +198,10 @@ def main():
     parser.add_argument("--d-line", type=int, default=2, help="Data line divider (1=>+/-80, 2=>+/-40 LSB)")
     parser.add_argument("--compress-m33-weight", type=float, default=1.0, help="Compress factor for M33 weights (e.g. 2.0 halves swing)")
     parser.add_argument("--w33-variance-lsb-range", type=int, default=0, help="Hidden random offset range [LSB] injected on M33 every 100 epochs (Patent Fig 7 Emulator)")
-    parser.add_argument("--attenuator", type=str, default="1k/3.3k", help="Passive attenuator on Card 2 (e.g. 1k/3.3k, 1k/5.1k)")
+    parser.add_argument("--attenuator", type=str, default="1k/3.3k", help="Passive attenuator on Card (e.g. 1k/3.3k, 1k/2.2k, 1k/5.1k)")
+    parser.add_argument("--card", type=str, default="Card 2", help="Card name (e.g. Card 1 or Card 2)")
+    parser.add_argument("--jumper-mode", type=int, default=3, help="Jumper mode: 1=OFF (Mode B), 3=Mode A")
+    parser.add_argument("--prefix", type=str, default="mode_a", help="Prefix for out_stem: mode_a, mode_b, card1_mode_a, card1_mode_b")
     parser.add_argument("--tag", type=str, default="card2_5ms_pure")
     args = parser.parse_args()
 
@@ -237,7 +240,7 @@ def main():
 
     lr_inner_q16 = max(1, min(4096, int(round(1024 * args.lr))))
     client.set_config(
-        mode=0, jumper_mode=3, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
+        mode=0, jumper_mode=args.jumper_mode, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
         inner_loop_n=100, seed_pct=28, seed_mode=1, w_hid_mag=0, trim_hid_mag=0,
         hadamard_delay_us=5000, lr_inner_q16=max(32, lr_inner_q16)
     )
@@ -389,7 +392,7 @@ def main():
     print(f"[+] {args.epochs}-epokers körning slutförd på {total_dur:.1f} sek ({total_dur/60:.1f} min)")
 
     # 4. Spara JSON
-    out_stem = f"mode_a_{args.epochs}ep_5ms_pure_{args.tag}"
+    out_stem = f"{args.prefix}_{args.epochs}ep_5ms_pure_{args.tag}"
     json_path = LOG_DIR / f"{out_stem}.json"
     fig_path = DOCS_DIR / f"fig_{out_stem}.png"
 
@@ -402,10 +405,11 @@ def main():
     p2_enobs = [r["batch_eval"]["mean_enob_bits"] for r in p2_records]
 
     meta = {
-        "title": f"{args.epochs}-Epoch Mode A Silicon Training: Pure 5.0ms ({color_desc}) on Card 2",
+        "title": f"{args.epochs}-Epoch {args.prefix.upper()} Silicon Training: Pure 5.0ms ({color_desc}) on {args.card}",
         "patent": "SE 2630397-4 (Open Science Hardware)",
-        "hardware": f"Card 2 (Rev 2.0 Silicon, {args.attenuator} attenuator, repaired CH3)",
+        "hardware": f"{args.card} ({args.attenuator} attenuator)",
         "attenuator": args.attenuator,
+        "jumper_mode": args.jumper_mode,
         "date": time.strftime("%Y-%m-%d %H:%M:%S"),
         "epochs": args.epochs,
         "k_batch": args.k_batch,
