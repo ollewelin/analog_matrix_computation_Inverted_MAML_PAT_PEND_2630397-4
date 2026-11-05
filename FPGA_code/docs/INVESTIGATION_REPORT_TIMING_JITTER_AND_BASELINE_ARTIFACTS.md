@@ -228,3 +228,4 @@ In analog and mixed-signal computing, software timing jitter masquerades easily 
 When that latency variation correlates with benchmark phases or network communication rates, it produces extraordinarily convincing convergence curves, plausible ablation surges, and apparent "learning" that are purely synthetic.
 
 Rigor in hardware AI requires constant vigilance against software-induced artifacts. By confronting this anomaly head-on, proving the exact causality through side-by-side silicon measurements, and openly documenting the truth, we restore full scientific integrity to the project and establish a solid, verified baseline for future research.
+
