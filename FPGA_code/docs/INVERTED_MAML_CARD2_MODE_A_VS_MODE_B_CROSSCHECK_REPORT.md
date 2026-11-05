@@ -13,14 +13,22 @@
 The purpose of this critical cross-check experiment is to answer a fundamental question regarding the operating mechanism of **Inverted MAML (Patent Pending SE 2630397-4)** on physical silicon:
 
 > **The Question:**  
-> *Did the remarkable precision surge to 4.91 bits sustained / 6.29 bits peak in Mode A result from genuine analog current injection canceling physical silicon transfer distortion at the ColTIA virtual-ground summing junction? Or could the 1k/3.3k attenuator have artificially damped the primary signal, or the network merely learned digital math?*
+> *Did the remarkable precision surge to 4.91 bits sustained / 6.29 bits peak in Mode A result from genuine analog anti-phase current injection canceling physical silicon transfer distortion at the ColTIA virtual-ground summing junction? Or could the 1k/3.3k attenuator have artificially damped the primary signal, or the network merely learned digital math?*
 
-### The Control Test (Mode B):
-To physically isolate and test this hypothesis:
-1. **The physical compensation jumpers on Card 2 were completely removed** (Mode B hardware state). Matrix 33 runs completely standalone into the ColTIAs with zero physical compensation current possible ($I_{\text{comp}} = 0$).
-2. **The exact identical software and firmware test was executed** on live silicon (1,000 epochs, 11 temporal strata across $[4.5\dots 5.5\text{ ms}]$, pure online single-sample SGD with $K=1$, learning rate $\text{LR}=0.02$, $L_2$ regularization $\lambda=2048$, and uncorrelated White Noise input stream).
-3. If the precision elevation was an artifact, ENOB would still climb in Mode B.  
-   If the precision elevation was genuine analog cancellation, **ENOB would remain trapped at the open-loop silicon floor ($\sim 3.2\dots 3.4\text{ bits}$)**.
+### Direct Comparison Against the "Tougher" Temporal Benchmark (4.5 – 5.5 ms):
+Crucially, this cross-check was not evaluated on a static single-point 5.0 ms spatial snapshot, but was directly tested against the **much tougher dynamic temporal benchmark across 4.5 – 5.5 ms** (spanning 11 discrete strata across a full 1,000 µs dynamic capacitor discharge slope under uncorrelated White Noise excitation).
+
+**It was the EXACT SAME test execution in every single algorithmic, mathematical, and scheduling detail:**
+- **Identical Epoch Count & Updates:** 1,000 epochs, 11,000 physical single-sample online SGD steps on live silicon.
+- **Identical Excitation:** Exact same uncorrelated White Noise pseudorandom sequence.
+- **Identical Hyperparameters:** Learning rate $\text{LR}=0.02$, $L_2$ weight regularization $\lambda=2048$, batch size $K=1$.
+- **Identical Dynamic Disturbance Schedule:** Patent SE 2630397-4 Figure 7 emulation with $\pm 5\text{ LSB}$ non-stationary hardware shifts every 100 epochs.
+
+**The SOLE AND ONLY difference between the two runs was physical hardware configuration:**
+- **Mode A:** Physical jumpers **INSTALLED** on `H1$CBB8` (Active compensation branch connected).
+- **Mode B:** Physical jumpers **COMPLETELY REMOVED** from `H1$CBB8` (Matrix 33 running standalone into ColTIAs; compensation branch physically open-circuit).
+
+If passive attenuator damping ($1\text{ k}\Omega / 3.3\text{ k}\Omega$) or digital math-only learning had caused the ENOB surge, Mode B would display equal or higher precision. If active physical anti-phase analog cancellation caused it, **ENOB would remain trapped at the open-loop silicon baseline ($\sim 3.2\dots 3.4\text{ bits}$)**.
 
 ---
 

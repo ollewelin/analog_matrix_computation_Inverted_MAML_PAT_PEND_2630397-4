@@ -171,11 +171,15 @@ def build_pdf():
         "<i>Did the dramatic precision surge to 4.91 bits sustained / 6.29 bits peak in Mode A stem from genuine analog anti-phase "
         "current injection canceling physical silicon transfer distortion at the ColTIA virtual-ground summing junction? Or could "
         "the 1k/3.3k attenuator have artificially damped the primary signal, or the network merely learned digital math?</i><br/><br/>"
-        "To establish an unassailable negative control: <b>the physical compensation jumpers were completely disconnected on Card 2 "
-        "(Mode B)</b> while executing the exact identical 1,000-epoch benchmark (11,000 single-sample SGD updates under uncorrelated "
-        "White Noise). When the jumper is removed, the compensation branch is disconnected, and the primary signal from $M_{33}$ "
-        "becomes <b>100% physically un-damped</b> into the high-impedance buffer follower. If damping or math-only learning caused "
-        "the high ENOB, Mode B would show equal or higher precision. If active cancellation caused it, Mode B would fail completely."
+        "<b>Rigorous Benchmark Formulation:</b> Crucially, this cross-check was not evaluated on a trivial static point, but was "
+        "directly tested against the <b>much tougher temporal benchmark across 4.5 – 5.5 ms</b> (spanning a full 1,000 µs capacitor "
+        "discharge window across 11 discrete strata under uncorrelated White Noise excitation). <b>It was the EXACT SAME test "
+        "execution</b> (1,000 epochs, 11,000 physical single-sample SGD updates, identical PRNG sequences, identical LR=0.02, "
+        "L2 reg λ=2048, and identical Patent Fig 7 ±5 LSB disturbance schedule). The <b>ONLY single physical difference</b> between "
+        "the two runs was <b>Mode A (Jumpers IN) versus Mode B (Jumpers OUT)</b>.<br/><br/>"
+        "In Mode B, with jumpers removed, the primary signal from $M_{33}$ becomes <b>100% physically un-damped</b> into the high-impedance "
+        "buffer. If damping or math-only learning caused the high ENOB, Mode B would show equal or higher precision. If active analog "
+        "cancellation caused it, Mode B would fail completely."
     )
     story.append(Paragraph(exec_text, body_style))
     story.append(Spacer(1, 3))
@@ -272,41 +276,44 @@ def build_pdf():
     story.append(Paragraph(phys_desc, body_style))
     story.append(Spacer(1, 2))
 
-    # Schematics Table (Side by Side)
+    # Schematics Table (Side by Side with EXACT Native Aspect Ratios)
+    # fig_schematic_sigmoid10_jumper_header.jpg: 1024x665 -> aspect 1.540. Width 231 pt, Height 150 pt (231/150 = 1.540)
+    # fig_schematic_summing_attenuator_1k_3k3.png: 304x731 -> aspect 0.416. Width 62.4 pt, Height 150 pt (62.4/150 = 0.416)
     sch_sig = str(FIGURES_DIR / "fig_schematic_sigmoid10_jumper_header.jpg")
     sch_sum = str(FIGURES_DIR / "fig_schematic_summing_attenuator_1k_3k3.png")
 
     sch_table_data = [
         [
-            Image(sch_sig, width=265, height=140),
-            Image(sch_sum, width=265, height=140),
+            Image(sch_sig, width=231, height=150),
+            Image(sch_sum, width=62.4, height=150),
         ],
         [
-            Paragraph("<b>Figure 1: Sigmoid 10 Op-Amp Driver & Jumper Header H1$CBB8.</b> Pin 1 (SIGM) connects to Pin 2 (SIG_OUT_Y) in Mode A. In Mode B, the jumper is removed, isolating COMP_IN1.", caption_style),
-            Paragraph("<b>Figure 2: Summing Stage & Passive Attenuator (R1=1kΩ, R2=3.3kΩ).</b> In Mode A, R2 lowers summing impedance. In Mode B, COMP_IN1 floats, leaving COLTIA1 100% un-damped.", caption_style),
+            Paragraph("<b>Figure 1: Sigmoid 10 Driver & Jumper Header H1$CBB8.</b> Pin 1 (SIGM) connects to Pin 2 (SIG_OUT_Y) in Mode A. In Mode B, the jumper is removed, isolating COMP_IN1.", caption_style),
+            Paragraph("<b>Figure 2: Summing Stage & Attenuator (R1=1kΩ, R2=3.3kΩ).</b> In Mode A, R2 lowers summing impedance by 1/3.3. In Mode B, COMP_IN1 floats, leaving COLTIA1 100% un-damped.", caption_style),
         ]
     ]
-    t_sch = Table(sch_table_data, colWidths=[270, 270])
+    t_sch = Table(sch_table_data, colWidths=[330, 210])
     t_sch.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]))
     story.append(t_sch)
-    story.append(Spacer(1, 2))
+    story.append(Spacer(1, 4))
 
     story.append(Paragraph("4. Physical Bench Hardware Verification (Card 2 Silicon)", h1_style))
     story.append(Spacer(1, 1))
 
-    # Hardware Photos Table (Side by Side)
+    # Hardware Photos Table (Side by Side with EXACT Native Aspect Ratio 3:4 / 0.750)
+    # MODE_A.jpeg & MODE_B.jpeg: 1536x2048 -> aspect 0.750. Width 120 pt, Height 160 pt (120/160 = 0.750)
     photo_a = str(FIGURES_DIR / "MODE_A.jpeg")
     photo_b = str(FIGURES_DIR / "MODE_B.jpeg")
 
     photo_table_data = [
         [
-            Image(photo_a, width=265, height=155),
-            Image(photo_b, width=265, height=155),
+            Image(photo_a, width=120, height=160),
+            Image(photo_b, width=120, height=160),
         ],
         [
             Paragraph("<b>Figure 3: Card 2 Hardware in MODE A (Jumper Installed).</b> Active compensation enabled via 1k/3.3k attenuator network into ColTIA summing junction.", caption_style),
@@ -318,7 +325,7 @@ def build_pdf():
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]))
     story.append(t_photo)
 
@@ -426,3 +433,4 @@ def build_pdf():
 
 if __name__ == "__main__":
     build_pdf()
+
