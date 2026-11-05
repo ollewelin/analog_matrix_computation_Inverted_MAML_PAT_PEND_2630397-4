@@ -473,12 +473,6 @@ static void handle_ethernet_packet(uint8_t *frame, uint16_t len) {
         uint8_t ihl = (ip_ver_ihl & 0x0F) * 4;
         uint8_t proto = frame[23];
 
-        // Debug print for any incoming IPv4 packet
-        print_s("[IP] Proto="); print_hex8_s(proto);
-        print_s(" Dst="); 
-        for (int i=0; i<4; i++) { print_hex8_s(frame[30+i]); if(i<3) print_s("."); }
-        println_s("");
-
         // Check if packet destination is MY_IP
         if (memcmp(&frame[30], MY_IP, 4) != 0) return;
 

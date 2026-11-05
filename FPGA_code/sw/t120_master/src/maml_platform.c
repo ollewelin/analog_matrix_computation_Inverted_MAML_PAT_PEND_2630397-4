@@ -411,6 +411,7 @@ static uint16_t g_col_settle_us     = 100u;   /* 100 us per column (50 us G_N + 
 static uint32_t g_refresh_period_us = 10000u; /* 10.0 ms (100 Hz) autonomous refresh cycle */
 static uint32_t g_hadamard_delay_us = 5000u;  /* Default 5.0 ms (5000 us) nominal plateau */
 static uint32_t g_last_refresh_ticks = 0u;
+static uint32_t g_last_udp_cmd_ticks = 0u;
 static uint8_t  g_focus_col          = 0u;
 static uint8_t  g_dac_row7_code      = 128u;  /* DAC2_D_ROW7 (w34[6], TRIM_B1) */
 static uint8_t  g_dac_row8_code      = 128u;  /* DAC2_D_ROW8 (w34[7], TRIM_REF) */
@@ -1660,11 +1661,16 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
                 (uint16_t)(t_min_us + ((uint32_t)si * (uint32_t)(t_max_us - t_min_us)) / (uint32_t)(num_strata - 1)) :
                 t_min_us;
 
-            /* Wait for 10.0 ms capacitor refresh boundary */
+            /* Phase-locked wait for exact 10.0 ms capacitor refresh boundary */
             while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks) {
                 /* spin */
             }
-            g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
+            uint32_t now_ticks = clint_getTimeLow(BSP_CLINT);
+            if ((uint32_t)(now_ticks - g_last_refresh_ticks) < (period_ticks * 2u)) {
+                g_last_refresh_ticks += period_ticks;
+            } else {
+                g_last_refresh_ticks = now_ticks;
+            }
 
             /* Re-charge 2T1C capacitors with current weights */
             maml_refresh_all_columns();
@@ -1720,13 +1726,6 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
 
     /* Record average batch training loss */
     g_tel.loss_total_milli = (uint32_t)(loss_accum / (uint64_t)total_samples);
-
-    /* Apply the updated weights to physical 2T1C cells and read settled telemetry */
-    g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
-    maml_refresh_all_columns();
-    bsp_uDelay((t_min_us + t_max_us) >> 1);
-    aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
-    g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
     g_tel.outer_loop_epoch++;
     maml_sync_shadow_bytes();
 }
@@ -1845,10 +1844,21 @@ void maml_platform_tick(void) {
     uint32_t now_ticks    = clint_getTimeLow(BSP_CLINT);
     uint32_t period_ticks = g_refresh_period_us * 50u;
     if ((uint32_t)(now_ticks - g_last_refresh_ticks) >= period_ticks) {
-        g_last_refresh_ticks = now_ticks;
+        if ((uint32_t)(now_ticks - g_last_refresh_ticks) < (period_ticks * 2u)) {
+            g_last_refresh_ticks += period_ticks;
+        } else {
+            g_last_refresh_ticks = now_ticks;
+        }
 
-        /* Always run the 100 Hz (10.0 ms) column refresh + Hadamard carrier burst at the programmable delay */
-        if (g_tel.run_mode != MAML_MODE_BASE_TRAIN && g_tel.run_mode != MAML_MODE_OPERATIONAL) {
+        /* Check if host PC is actively sending UDP commands (within last 200 ms).
+         * If UDP is active, do NOT block the CPU with a 5 ms bsp_uDelay and Hadamard sweeps!
+         * Only refresh the 2T1C gate capacitors (~50 us) so weights stay refreshed synchronously,
+         * keeping the CPU 100% responsive to incoming UDP strata packets without missing deadlines! */
+        int udp_active = ((uint32_t)(now_ticks - g_last_udp_cmd_ticks) < (50000u * 200u));
+
+        if (udp_active) {
+            maml_refresh_all_columns();
+        } else if (g_tel.run_mode != MAML_MODE_BASE_TRAIN && g_tel.run_mode != MAML_MODE_OPERATIONAL) {
             if (g_auto_random_data) {
                 maml_generate_new_white_noise_ref();
             }
@@ -2242,6 +2252,8 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                      ((uint32_t)req[2] << 16) |
                      ((uint32_t)req[3] << 24);
     if (magic != MAML_MAGIC) return 0;
+
+    g_last_udp_cmd_ticks = clint_getTimeLow(BSP_CLINT);
 
     uint8_t cmd = req[4];
 
