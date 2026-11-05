@@ -541,7 +541,7 @@ If you use this work, hardware designs, FPGA firmware, or silicon telemetry data
   year         = 2026,
   publisher    = {Zenodo},
   doi          = {10.5281/zenodo.23859108},
-  url          = {https://zenodo.org/records/23859108}
+  url          = {https://zenodo.org/records/23954797}
 }
 ```
 
