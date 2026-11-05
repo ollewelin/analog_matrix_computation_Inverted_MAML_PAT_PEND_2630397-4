@@ -191,6 +191,25 @@ Working with analog computing is an act of balancing physics and precision. Very
   ![Matrix 8 Row 0 Weight Excursions: Card 1 vs. Card 2](FPGA_code/docs/figures/fig_card1_weight_excursions.png)
   *Figure 5: Weight dynamics comparison. Top: Card 1 weights strain up to 110 LSB near the ±120 LSB rail clamping threshold. Bottom: Card 2 weights converge quietly below 56 LSB with >64 LSB linear margin.*
 
+- **2026-11-05 (Attenuator Optimization Breakthrough: Resoldering Card 1 to $1\text{ k}\Omega / 2.2\text{ k}\Omega$ Establishes New Silicon Record: 6.63 Bits Peak Precision, 9.53x Ablation Contrast & Halved Disturbance Error):**
+  - **1. Physical Hardware Modification ($1\text{ k}\Omega / 2.2\text{ k}\Omega$):**  
+    Following the discovery that $1\text{ k}\Omega / 5.1\text{ k}\Omega$ current-starved the ColTIA summing node, **Card 1** was physically resoldered with a new low-impedance passive attenuator ratio: **$1\text{ k}\Omega / 2.2\text{ k}\Omega$ ($-10.1\text{ dB}$)**. This modification increased injected compensation current to $I_{\text{comp}} = 0.455\text{ mA/V}$ (**$+132\%$ vs. $5.1\text{ k}\Omega$**, and **$+50\%$ vs. $3.3\text{ k}\Omega$**).
+  - **2. Live Silicon Verification (1,000 Epochs, 11,000 Physical Online SGD Steps):**  
+    Card 1 was tested under the identical 1,000-epoch broadened temporal window benchmark ($[4.5\dots 5.5\text{ ms}]$, 11 strata, uncorrelated White Noise, $\text{LR}=0.02$, $\lambda=2048$, Patent Fig 7 $\pm 5\text{ LSB}$ disturbance).
+  - **3. Empirical Confirmation: 1k/2.2k is the Definitive Silicon Champion:**  
+    The empirical results surpassed all previous benchmarks across every evaluation axis:
+    - **Record Peak Resolution (5.0 ms):** Reached **$6.63\text{ bits}$ ENOB** ($1\,390.5\text{ LSB}^2$ minimum loss) and sustained **$6.52\text{ bits}$** in nominal training (vs. $6.29\text{ b}$ on Card 2 with $3.3\text{ k}\Omega$, and $3.57\text{ b}$ on Card 1 with $5.1\text{ k}\Omega$).
+    - **Record Temporal Window Peak [4.5..5.5 ms across 11 Strata]:** Reached **$4.33\text{ bits}$** ($31\,115.4\text{ LSB}^2$ at Epoch 309).
+    - **Halved Non-Stationary Disturbance Error (Phase 3):** Under continuous Patent Fig 7 $\pm 5\text{ LSB}$ randomized perturbations across all 36 crosspoints, Card 1 ($2.2\text{ k}\Omega$) suppressed center loss to **$20\,835.9\text{ LSB}^2$ ($4.75\text{ bits}$)**—cutting disturbance error nearly in half compared to Card 2 ($39\,431.2\text{ LSB}^2$, $4.33\text{ b}$), and **$6.2\times$ lower** than the $5.1\text{ k}\Omega$ baseline ($129\,454.0\text{ LSB}^2$).
+    - **Highest Control Authority on Record (9.53x Ablation Contrast):** When compensation was intentionally disabled in Phase 4 ($W=0$), quadratic error surged by **$9.53\times$ (953%)**, from $18\,238.9\text{ LSB}^2 \to 173\,852.2\text{ LSB}^2$. This demonstrates an unprecedented level of causal closed-loop authority.
+    - **Relaxed Linear Weight Headroom:** Matrix 8 row 0 weights converged comfortably $\le 41\text{ LSB}$, preserving $>79\text{ LSB}$ linear margin to the $\pm 120\text{ LSB}$ rail limits.
+  - **4. Publication Reports & Comparative Telemetry:**
+    - **Dedicated Publication PDF Report:** [`FPGA_code/docs/INVERTED_MAML_CARD1_1000EP_BROADENED_WINDOW_1K_2P2K_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD1_1000EP_BROADENED_WINDOW_1K_2P2K_COMPREHENSIVE_REPORT.pdf)
+    - **Comprehensive Markdown Report:** [`FPGA_code/docs/INVERTED_MAML_CARD1_1000EP_BROADENED_WINDOW_1K_2P2K_COMPREHENSIVE_REPORT.md`](FPGA_code/docs/INVERTED_MAML_CARD1_1000EP_BROADENED_WINDOW_1K_2P2K_COMPREHENSIVE_REPORT.md)
+
+  ![Direct Live Silicon Telemetry Three-Way Overlay: Card 1 (1k/5.1k vs 1k/2.2k) vs Card 2 (1k/3.3k)](FPGA_code/docs/figures/fig_card1_1k_2p2k_threeway_comparison_overlay.png)
+  *Figure 6: Three-way direct live silicon telemetry comparison: Card 1 Original (Amber, 1k/5.1k attenuator), Card 2 (Blue, 1k/3.3k attenuator), and Card 1 Upgraded (Green, 1k/2.2k attenuator) across 1,000 epochs of online single-sample SGD under uncorrelated White Noise. Top: Logarithmic quadratic loss. Middle: 5.0 ms center ENOB. Bottom: Window mean ENOB across all 11 strata [4.5..5.5 ms].*
+
 ---
 
 ### 📦 Verified Release Archives & Reproducibility Packages
