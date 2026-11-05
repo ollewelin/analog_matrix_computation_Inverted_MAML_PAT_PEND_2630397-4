@@ -135,6 +135,8 @@ def main():
     parser.add_argument("--t-min", type=int, default=4500)
     parser.add_argument("--t-max", type=int, default=5500)
     parser.add_argument("--t-step", type=int, default=100)
+    parser.add_argument("--prefix", type=str, default="mode_a", help="Prefix for log/figures: mode_a or mode_b")
+    parser.add_argument("--jumper-mode", type=int, default=3, help="Jumper mode for set_config: 1=OFF (Mode B), 3=Mode A")
     parser.add_argument("--tag", type=str, default=None)
     args = parser.parse_args()
 
@@ -148,7 +150,7 @@ def main():
     abl_str = "_ablation" if args.epochs >= 600 else ""
     tag = args.tag or f"broadened_{args.t_min}to{args.t_max}us_{args.noise_color}_reg{args.reg_lambda}_{lr_str}_{swing_str}_{var_str}_k1_{att_slug}{abl_str}"
 
-    out_stem = f"mode_a_{args.epochs}ep_{tag}"
+    out_stem = f"{args.prefix}_{args.epochs}ep_{tag}"
     json_path = LOG_DIR / f"{out_stem}.json"
     fig_path = DOCS_DIR / f"fig_{out_stem}.png"
     fig_profile_path = DOCS_DIR / f"fig_{out_stem}_temporal_profile.png"
@@ -175,7 +177,7 @@ def main():
 
     lr_inner_q16 = max(1, min(4096, int(round(1024 * args.lr))))
     client.set_config(
-        mode=0, jumper_mode=3, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
+        mode=0, jumper_mode=args.jumper_mode, led_switches=3, max_meas_win_pct=100, hadamard_khz=500,
         inner_loop_n=100, seed_pct=28, seed_mode=1, w_hid_mag=0, trim_hid_mag=0,
         hadamard_delay_us=5000, lr_inner_q16=max(32, lr_inner_q16)
     )
@@ -381,7 +383,9 @@ def main():
     # 5. Spara JSON
     payload_json = {
         "metadata": {
-            "experiment": "Inverted MAML Broadened Window [4.5..5.5 ms] Pure Online Single-Sample SGD",
+            "experiment": f"Inverted MAML {'Mode B (Uncompensated, Jumpers Disconnected)' if args.prefix=='mode_b' else 'Mode A (Compensated)'} Broadened Window [4.5..5.5 ms] Pure Online Single-Sample SGD",
+            "mode": args.prefix,
+            "jumper_mode": args.jumper_mode,
             "patent": "SE 2630397-4 (Open Science Hardware)",
             "hardware": "Card 2 (Rev 2.0 Silicon, 1k/3.3k attenuator, repaired CH3)",
             "date": time.strftime("%Y-%m-%d %H:%M:%S"),
