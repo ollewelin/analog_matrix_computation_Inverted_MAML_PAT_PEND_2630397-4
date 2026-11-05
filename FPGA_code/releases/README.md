@@ -61,3 +61,4 @@ To restore and re-run any archived release on physical hardware:
 In accordance with open-science hardware guidelines and licensing restrictions:
 - All proprietary Efinix IP blocks (e.g. `ip/`, encrypted IP cores, temporary synthesis artifacts `work_pnr/`, `work_syn/`) are excluded from release archives.
 - All user-authored SystemVerilog HDL, pin constraints (`const.sdc`), XML project definitions, pre-compiled bitstreams (`*.bit`), flash hex files (`*.hex`), and C-firmware are fully preserved.
+

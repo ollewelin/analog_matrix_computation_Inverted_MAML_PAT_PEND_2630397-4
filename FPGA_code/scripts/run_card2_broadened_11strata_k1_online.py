@@ -135,7 +135,8 @@ def main():
     parser.add_argument("--t-min", type=int, default=4500)
     parser.add_argument("--t-max", type=int, default=5500)
     parser.add_argument("--t-step", type=int, default=100)
-    parser.add_argument("--prefix", type=str, default="mode_a", help="Prefix for log/figures: mode_a or mode_b")
+    parser.add_argument("--card", type=str, default="Card 2", help="Card name (e.g. Card 1 or Card 2)")
+    parser.add_argument("--prefix", type=str, default="mode_a", help="Prefix for log/figures: mode_a, mode_b, or card1_mode_a")
     parser.add_argument("--jumper-mode", type=int, default=3, help="Jumper mode for set_config: 1=OFF (Mode B), 3=Mode A")
     parser.add_argument("--tag", type=str, default=None)
     args = parser.parse_args()
@@ -156,7 +157,7 @@ def main():
     fig_profile_path = DOCS_DIR / f"fig_{out_stem}_temporal_profile.png"
 
     print("=" * 105)
-    print("INVERTED MAML: 1000-EPOCH BROADENED WINDOW [4.5 - 5.5 ms] PURE ONLINE SGD ON CARD 2")
+    print(f"INVERTED MAML: 1000-EPOCH BROADENED WINDOW [4.5 - 5.5 ms] PURE ONLINE SGD ON {args.card.upper()}")
     print(f"Sampling Protocol: {num_strata} Strata [{args.t_min} .. {args.t_max} µs, step {args.t_step} µs]")
     print(f"Weight Update: PURE ONLINE SINGLE-SAMPLE (k_batch=1, num_strata=1) - UPDATED EVERY SAMPLE!")
     print(f"Target: {args.host}:{args.port} | Epochs: {args.epochs} | Updates per Epoch: {num_strata} (Total: {args.epochs * num_strata})")
@@ -383,11 +384,12 @@ def main():
     # 5. Spara JSON
     payload_json = {
         "metadata": {
-            "experiment": f"Inverted MAML {'Mode B (Uncompensated, Jumpers Disconnected)' if args.prefix=='mode_b' else 'Mode A (Compensated)'} Broadened Window [4.5..5.5 ms] Pure Online Single-Sample SGD",
+            "experiment": f"Inverted MAML {'Mode B (Uncompensated, Jumpers Disconnected)' if args.prefix=='mode_b' else 'Mode A (Compensated)'} Broadened Window [4.5..5.5 ms] Pure Online Single-Sample SGD on {args.card}",
             "mode": args.prefix,
+            "card": args.card,
             "jumper_mode": args.jumper_mode,
             "patent": "SE 2630397-4 (Open Science Hardware)",
-            "hardware": "Card 2 (Rev 2.0 Silicon, 1k/3.3k attenuator, repaired CH3)",
+            "hardware": f"{args.card} (Rev 2.0 Silicon, {args.attenuator} attenuator)",
             "date": time.strftime("%Y-%m-%d %H:%M:%S"),
             "epochs": args.epochs,
             "strata_delays_us": strata_delays,
@@ -463,7 +465,7 @@ def generate_timeline_figure(records: list[dict], meta: dict, out_path: Path):
 
     ax1.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
     ax1.set_title(
-        f"Inverted MAML: 1000 Epochs Broadened Window [4.5..5.5 ms] Online Single-Sample SGD on Card 2\n"
+        f"Inverted MAML: 1000 Epochs Broadened Window [4.5..5.5 ms] Online Single-Sample SGD on {meta.get('card', 'Card 2')}\n"
         f"LR={meta['lr']}x, λ={meta['reg_lambda']}, Swing ±{40} LSB, Dist=±{var_range} LSB, {meta['attenuator']} Attenuator (K=1, 11 Updates/Epoch)",
         fontsize=12, fontweight="bold"
     )
@@ -522,7 +524,7 @@ def generate_temporal_profile_figure(records: list[dict], strata_delays: list[in
 
     ax.set_title(
         "Inverted MAML: Generalization Profile across Broadened Temporal Window [4.5 – 5.5 ms]\n"
-        f"Card 2 Silicon | Pure Online Single-Sample SGD (K=1) | Attenuator: {meta.get('attenuator', '1k/3.3k')}",
+        f"{meta.get('card', 'Card 2')} Silicon | Pure Online Single-Sample SGD (K=1) | Attenuator: {meta.get('attenuator', '1k/3.3k')}",
         fontsize=12, fontweight="bold", pad=12
     )
     ax.set_xlabel("Snapshot Sampling Delay (ms)", fontsize=11, fontweight="bold")
