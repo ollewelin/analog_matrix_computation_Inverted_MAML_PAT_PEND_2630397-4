@@ -141,7 +141,7 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Ablation Control under Identical Disturbance (Phase 4, $W_8=0$):** Mean Window Loss = $154\,613.5\text{ LSB}^2$ ($3.48\text{ b}$ ENOB); Nominal 5.0 ms snapshot precision collapses to **$3.41\text{ b}$ ENOB** ($36\,329\text{ LSB}^2$).
     - **Empirical Proof of Active Cancellation:** Disabling active compensation causes an immediate **$+109\%$ surge in quadratic error** ($2.09\times$ error increase), proving active, hardware-level error reduction of $>52\%$ on real silicon with crystal-locked 10.0 ms timing.
     - **Mini-Batch $K=4$ Scaling:** Averaging 4 stochastic forward passes per update suppresses gradient variance, achieving a best window loss of **$52\,405.5\text{ LSB}^2$ ($3.95\text{ b}$)** and nominal 5.0 ms precision of **$5.11\text{ b}$ ENOB** ($10\,494\text{ LSB}^2$), with ablation error surging to $142\,530\text{ LSB}^2$ ($2.72\times$ contrast).
-  - **5. Visual Telemetry (Empirical Silicon Figures):**
+  - **5. Visual Telemetry (Empirical Silicon Figures - K=1 Online SGD & K=4 Mini-Batch):**
 
   ![Inverted MAML Silicon: 2D Temporal Spectrogram of Precision](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_heatmap_spectrogram.png)
   *Figure: 2D Temporal Spectrogram of Precision (Delay × Epoch) across the 1,000 µs window on Card 2 live silicon (K=1 Online SGD). The transition at Epoch 100 demonstrates instant illumination of the window from dark blue (2.5–3.2 b) to bright green/yellow (4.5–5.5 b). At Epoch 600, clamping $W_8=0$ in Phase 4 under the exact same disturbances instantly plunges the precision back to dark blue.*
@@ -149,9 +149,18 @@ Working with analog computing is an act of balancing physics and precision. Very
   ![Inverted MAML Silicon: Generalization Profile Across Broadened Temporal Window](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_profile_4phases.png)
   *Figure: Generalization profile across the broadened temporal window [4.5–5.5 ms]. Peak gain of +1.10 b at 5.0 ms nominal delay. Phase 3 active compensation maintains 4.05 b mean under ±5 LSB disturbance, while Phase 4 ablation collapses to 3.48 b under the identical disturbances (loss jumps from $73\,911\text{ LSB}^2 \to 154\,613\text{ LSB}^2$, a $>2.09\times$ error surge).*
 
+  ![Joint ENOB Trajectories: Entire Temporal Wavefront Lifts Synchronously (K=4)](FPGA_code/docs/figures/fig_card2_w3_staircase_joint_loss_and_enob_all_stratas_k4.png)
+  *Figure: Joint ENOB trajectories across all 11 strata under K=4 mini-batch SGD. The entire temporal wavefront lifts synchronously under W(3) staircase initialization, holding stable 3.74 b mean precision under continuous disturbances, with center 5.0 ms precision peaking at 5.55 b ENOB.*
+
+  ![Matrix 8 Dynamic Trajectories (K=4)](FPGA_code/docs/figures/fig_2d_m8_trajectory_card2_w3_staircase_k4.png)
+  *Figure: Dynamic trajectories of all 42 Matrix 8 weights under K=4 mini-batch SGD. Weights adapt smoothly to each non-stationary disturbance shift at Epochs 200, 300, 400, and 500 without rail-saturation ($|W_8| < 25\text{ LSB}$). At Epoch 600, weights are ablated ($W_8=0$) under the identical paired disturbances.*
+
   - **6. Official Comprehensive Reports:**  
     - [📄 `INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf) (Complete 10-page publication report for $K=1$, with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.md))
     - [📄 `INVERTED_MAML_CARD2_1000EP_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf) (Complete 10-page publication report for $K=4$, with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.md))
+
+  - **7. Note on Upcoming Physical Oscilloscope Verification:**  
+    The metrics reported above were captured via high-speed bare-metal differential SAR ADC telemetry (`XC2361A`, $\text{ADC}_{45}$) over Ethernet with crystal-locked $10.0\text{ ms}$ refresh timing. Direct physical oscilloscope verification of the analog circuit nodes (probing ColTIA virtual ground summing junctions `CH1`–`CH6`, the 24 µs Hadamard carrier burst modulation on 2T1C capacitor gates, and Sigmoid 4 analog activation outputs) will be conducted separately in an upcoming bench session to provide direct visual correlation between digital telemetry and physical analog waveforms.
 
 ---
 

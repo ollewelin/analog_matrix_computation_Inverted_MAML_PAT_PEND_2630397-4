@@ -87,3 +87,4 @@ Connect Card 2 via Ethernet to host PC (`192.168.1.50:5000`):
 ```bash
 /home/olle/anaconda3/bin/python pc_python/generate_card2_w3_staircase_comprehensive_report.py --k-batch 1
 ```
+
