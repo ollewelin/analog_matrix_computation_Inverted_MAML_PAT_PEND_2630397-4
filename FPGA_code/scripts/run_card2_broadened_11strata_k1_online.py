@@ -309,16 +309,27 @@ def main():
             time.sleep(0.05)
 
         # Fig 7 Emulator: Inject hidden random offsets on M33 every 100 epochs starting at ep 200
+        # Fas 3 (ep 200..599): 4 unika paket genereras (ep 200, 300, 400, 500)
+        # Fas 4 (ep 600..1000): Exakt samma 4 paket återanvänds (200->600, 300->700, 400->800, 500->900)
         if args.w33_variance_lsb_range > 0 and ep >= 200 and ep % 100 == 0:
-            current_hid_offsets = [
-                [random.randint(-args.w33_variance_lsb_range, args.w33_variance_lsb_range) for _ in range(6)]
-                for _ in range(6)
-            ]
+            if ep in [200, 300, 400, 500]:
+                current_hid_offsets = [
+                    [random.randint(-args.w33_variance_lsb_range, args.w33_variance_lsb_range) for _ in range(6)]
+                    for _ in range(6)
+                ]
+                applied_disturbances[str(ep)] = current_hid_offsets
+                tag_phase = "FAS 3 AKTIV ONLINE KOMPENSATION"
+                print("\n" + "=" * 105)
+                print(f">>> [FIG 7 EMULATOR @ EPOK {ep} - {tag_phase}]: NY RANDOMISERAD HIDDEN OFFSET MATRIX PÅ M33 (±{args.w33_variance_lsb_range} LSB):")
+            else:
+                mirror_ep = 500 if ep == 1000 else (200 + ((ep - 600) % 400))
+                current_hid_offsets = [row[:] for row in applied_disturbances[str(mirror_ep)]]
+                applied_disturbances[str(ep)] = current_hid_offsets
+                tag_phase = f"FAS 4 ABLATION (W=0, LR=0) [SPEGLAR EPOK {mirror_ep}]"
+                print("\n" + "=" * 105)
+                print(f">>> [FIG 7 EMULATOR @ EPOK {ep} - {tag_phase}]: ÅTERANVÄNDER PARAD OFFSET MATRIX FRÅN EPOK {mirror_ep} (±{args.w33_variance_lsb_range} LSB):")
+
             client.set_w33_hidden_offset(current_hid_offsets)
-            applied_disturbances[str(ep)] = current_hid_offsets
-            tag_phase = "FAS 4 ABLATION (W=0, LR=0)" if ep >= 600 else "FAS 3 AKTIV ONLINE KOMPENSATION"
-            print("\n" + "=" * 105)
-            print(f">>> [FIG 7 EMULATOR @ EPOK {ep} - {tag_phase}]: NY RANDOMISERAD HIDDEN OFFSET MATRIX PÅ M33 (±{args.w33_variance_lsb_range} LSB):")
             for r in range(6):
                 row_str = " ".join(f"{current_hid_offsets[r][c]:+3d}" for c in range(6))
                 print(f"    Rad {r}: [ {row_str} ] LSB")

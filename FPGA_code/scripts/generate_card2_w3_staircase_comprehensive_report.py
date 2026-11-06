@@ -493,10 +493,10 @@ def generate_3d_disturbance_landscapes(data: dict, out_dist: Path):
     dist_dict = meta.get("applied_disturbances", {})
 
     dist_list = [
-        ("200", "Disturbance 1 (Active Epochs 200..299)"),
-        ("300", "Disturbance 2 (Active Epochs 300..399)"),
-        ("400", "Disturbance 3 (Active Epochs 400..499)"),
-        ("500", "Disturbance 4 (Active Epochs 500..599)")
+        ("200", "Disturbance 1 (Ep 200..299 & Paired Ablation 600..699)"),
+        ("300", "Disturbance 2 (Ep 300..399 & Paired Ablation 700..799)"),
+        ("400", "Disturbance 3 (Ep 400..499 & Paired Ablation 800..899)"),
+        ("500", "Disturbance 4 (Ep 500..599 & Paired Ablation 900..1000)")
     ]
 
     fig = plt.figure(figsize=(15.5, 12.0), dpi=180)
