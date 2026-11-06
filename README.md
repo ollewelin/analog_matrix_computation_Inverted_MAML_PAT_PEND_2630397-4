@@ -123,16 +123,48 @@ Working with analog computing is an act of balancing physics and precision. Very
   ![Inverted MAML Timing Jitter Post-Mortem Side-by-Side Comparison](FPGA_code/docs/figures/fig_timing_jitter_post_mortem_side_by_side.png)
   *Figure: Live silicon empirical side-by-side comparison on Card 2. Left: Old firmware with 10/20 ms jitter creating an artificial 8.1x contrast against capacitor droop. Right: Corrected firmware with crystal-locked 10.0 ms refresh revealing the true, flat ~5.6-bit physical silicon baseline across all phases.*
 
+- **2026-11-06 (Card 2 Silicon Benchmark: W(3) Staircase Calibration & Definitive Paired-Ablation Control):**
+  - **1. Addressing the Physical 100 nF Capacitor Droop Across the Broadened Temporal Window [4.5..5.5 ms]:**  
+    Following the timing jitter post-mortem, which established that uncompensated physical silicon naturally achieves $\sim 5.6\text{ bits}$ precision at a static $5.0\text{ ms}$ snapshot, research focused on the core physical challenge of In-Memory Computing: compensating for the dynamic discharge slope of 100 nF gate capacitors across the continuous $1\,000\text{ \mu s}$ temporal execution window, combined with severe non-stationary hardware shifts on Matrix 33 (Patent SE 2630397-4 Fig 7 Emulator, $\pm 5\text{ LSB}$).
+  - **2. The W(3) Staircase Calibration Innovation:**  
+    To enable the analog compensation network ($M_3 \to \text{Sigmoid} \to M_8$) to actively synthesize a counter-slope against temporal capacitor droop, Matrix 3 reference clock cells (Rows 7 & 8) were initialized with a dynamic staircase distribution:
+    $$W_3 \in [-40, -24, -8, +8, +24, +40]\text{ LSB}$$
+    across Columns 0 through 5. Probing confirmed that this distributes column operating points across the linear, high-sensitivity inflection knees of Sigmoid 4 throughout the entire $4.5\dots 5.5\text{ ms}$ window.
+  - **3. 1:1 Paired Ablation Control Protocol (Strict Scientific Pairing):**  
+    To eliminate all disturbance drift or stochastic noise between active compensation and uncompensated control, Phase 3 (Active Compensation, Epochs 200..599) and Phase 4 (Ablation $W_8=0$, Epochs 600..1000) evaluate against the **exact identical 4 disturbance packets** injected into Matrix 33:
+    - Epochs 200..299 $\longleftrightarrow$ Epochs 600..699 (Disturbance Packet 1)
+    - Epochs 300..399 $\longleftrightarrow$ Epochs 700..799 (Disturbance Packet 2)
+    - Epochs 400..499 $\longleftrightarrow$ Epochs 800..899 (Disturbance Packet 3)
+    - Epochs 500..599 $\longleftrightarrow$ Epochs 900..1000 (Disturbance Packet 4)
+  - **4. Empirical Results on Live Silicon:**  
+    - **Active Compensation under Disturbance (Phase 3):** Mean Window Loss = $73\,911.2\text{ LSB}^2$ ($4.05\text{ b}$ ENOB); Nominal 5.0 ms snapshot precision = **$5.00\text{ b}$ ENOB** ($12\,455\text{ LSB}^2$).
+    - **Ablation Control under Identical Disturbance (Phase 4, $W_8=0$):** Mean Window Loss = $154\,613.5\text{ LSB}^2$ ($3.48\text{ b}$ ENOB); Nominal 5.0 ms snapshot precision collapses to **$3.41\text{ b}$ ENOB** ($36\,329\text{ LSB}^2$).
+    - **Empirical Proof of Active Cancellation:** Disabling active compensation causes an immediate **$+109\%$ surge in quadratic error** ($2.09\times$ error increase), proving active, hardware-level error reduction of $>52\%$ on real silicon with crystal-locked 10.0 ms timing.
+    - **Mini-Batch $K=4$ Scaling:** Averaging 4 stochastic forward passes per update suppresses gradient variance, achieving a best window loss of **$52\,405.5\text{ LSB}^2$ ($3.95\text{ b}$)** and nominal 5.0 ms precision of **$5.11\text{ b}$ ENOB** ($10\,494\text{ LSB}^2$), with ablation error surging to $142\,530\text{ LSB}^2$ ($2.72\times$ contrast).
+  - **5. Visual Telemetry (Empirical Silicon Figures):**
+
+  ![Inverted MAML Silicon: 2D Temporal Spectrogram of Precision](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_heatmap_spectrogram.png)
+  *Figure: 2D Temporal Spectrogram of Precision (Delay × Epoch) across the 1,000 µs window on Card 2 live silicon (K=1 Online SGD). The transition at Epoch 100 demonstrates instant illumination of the window from dark blue (2.5–3.2 b) to bright green/yellow (4.5–5.5 b). At Epoch 600, clamping $W_8=0$ in Phase 4 under the exact same disturbances instantly plunges the precision back to dark blue.*
+
+  ![Inverted MAML Silicon: Generalization Profile Across Broadened Temporal Window](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_profile_4phases.png)
+  *Figure: Generalization profile across the broadened temporal window [4.5–5.5 ms]. Peak gain of +1.10 b at 5.0 ms nominal delay. Phase 3 active compensation maintains 4.05 b mean under ±5 LSB disturbance, while Phase 4 ablation collapses to 3.48 b under the identical disturbances (loss jumps from $73\,911\text{ LSB}^2 \to 154\,613\text{ LSB}^2$, a $>2.09\times$ error surge).*
+
+  - **6. Official Comprehensive Reports:**  
+    - [📄 `INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf) (Complete 10-page publication report for $K=1$, with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.md))
+    - [📄 `INVERTED_MAML_CARD2_1000EP_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf) (Complete 10-page publication report for $K=4$, with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.md))
+
 ---
 
 ### 📦 Verified Release Archives & Reproducibility Packages
 
 Release packages containing synthesized bitstreams (`*.bit`), flash hex (`*.hex`), open-source SystemVerilog HDL, RISC-V C-firmware, and test scripts are archived in [`FPGA_code/releases/`](FPGA_code/releases/):
 
-- [**`Milestone_1_ModeA_5ms_Verified`**](FPGA_code/releases/Milestone_1_ModeA_5ms_Verified/): Initial Mode A baseline bringup bitstreams and verification logs.
+- [**`Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K1_PairedAblation`**](FPGA_code/releases/Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K1_PairedAblation/): Verified 1000-epoch benchmark on Card 2 live silicon with crystal-locked 10.0 ms timing, W(3) staircase dynamic calibration, and 1:1 paired-ablation control ($K=1$ Online SGD). Contains clean RISC-V firmware, T120/T20 bitstreams, HDL, Python runner, and 10-page report.
+- [**`Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K4_Addon`**](FPGA_code/releases/Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K4_Addon/): Mini-batch $K=4$ variant add-on package (same bitstream & firmware, host batch averaging parameter `--k-batch 4`) with full 1000-epoch dataset, 10-page report, and figures.
+- [**`Milestone_1_ModeA_5ms_Verified`**](FPGA_code/releases/Milestone_1_ModeA_5ms_Verified/): Initial Mode A baseline bringup bitstreams and verification logs (1k/5.1k attenuator, $K=20$).
 - [**`T20_Custom_Verified`**](FPGA_code/releases/T20_Custom_Verified/): T20 Coprocessor verified configuration and synchronous bus bridge.
 - [**`v1.2_bridge_udp_version`**](FPGA_code/releases/v1.2_bridge_udp_version/): Base UDP communication and Master SoC baseline bridge.
-- **Note on Nov 4–5 Runs:** Datasets from the November 4–5 benchmark sessions are archived in `FPGA_code/logs/` and documented in the [Timing Jitter Investigation Report](FPGA_code/docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
+- **Note on Nov 4–5 Runs:** Datasets from the November 4–5 benchmark sessions were permanently removed from release archives due to the timing jitter bug and are documented in the [Timing Jitter Investigation Report](FPGA_code/docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
 - **Releases Index & Documentation:** [`FPGA_code/releases/README.md`](FPGA_code/releases/README.md)
 
 ---
