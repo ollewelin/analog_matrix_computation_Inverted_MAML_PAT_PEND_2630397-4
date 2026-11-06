@@ -138,6 +138,7 @@ def main():
     parser.add_argument("--card", type=str, default="Card 2", help="Card name (e.g. Card 1 or Card 2)")
     parser.add_argument("--prefix", type=str, default="mode_a", help="Prefix for log/figures: mode_a, mode_b, or card1_mode_a")
     parser.add_argument("--jumper-mode", type=int, default=3, help="Jumper mode for set_config: 1=OFF (Mode B), 3=Mode A")
+    parser.add_argument("--staircase-w3", action="store_true", help="Apply staircase pattern [-40..+40] LSB to M3 reference and bias rows")
     parser.add_argument("--tag", type=str, default=None)
     args = parser.parse_args()
 
@@ -148,8 +149,9 @@ def main():
     swing_str = f"swing{80 if args.d_line == 1 else 40}"
     var_str = f"var{args.w33_variance_lsb_range}"
     att_slug = args.attenuator.replace("/", "_").replace(".", "p")
+    stair_str = "_w3staircase" if args.staircase_w3 else ""
     abl_str = "_ablation" if args.epochs >= 600 else ""
-    tag = args.tag or f"broadened_{args.t_min}to{args.t_max}us_{args.noise_color}_reg{args.reg_lambda}_{lr_str}_{swing_str}_{var_str}_k1_{att_slug}{abl_str}"
+    tag = args.tag or f"broadened_{args.t_min}to{args.t_max}us_{args.noise_color}_reg{args.reg_lambda}_{lr_str}_{swing_str}_{var_str}_k1_{att_slug}{stair_str}{abl_str}"
 
     out_stem = f"{args.prefix}_{args.epochs}ep_{tag}"
     json_path = LOG_DIR / f"{out_stem}.json"
@@ -191,10 +193,18 @@ def main():
         client.set_data_color(COLOR_LLM_TOEPLITZ, args.rho)
     time.sleep(0.03)
 
-    # 2. Sätt PLATT baslinje och W_null = 0 i T120 RAM (90-byte all-zero payload)
-    print("[*] Sätter platt baslinje: M3_null = 0, M8_null = 0, W = 0 LSB...")
-    flat_payload = struct.pack("<B48b42b", 0, *([0] * 48), *([0] * 42))
-    client._send_binary(MAML_CMD_CENTER_WEIGHTS, flat_payload)
+    # 2. Sätt baslinje i T120 RAM
+    if args.staircase_w3:
+        from FPGA_code.config.w3_staircase_pattern import build_center_weights_payload, get_staircase_config
+        staircase_cfg = get_staircase_config()
+        baseline_payload = build_center_weights_payload(1)
+        print("[*] Sätter W(3) trappmönster ([-40..+40] LSB) på referens- och biasrader...")
+    else:
+        staircase_cfg = None
+        baseline_payload = struct.pack("<B48b42b", 0, *([0] * 48), *([0] * 42))
+        print("[*] Sätter platt baslinje: M3_null = 0, M8_null = 0, W = 0 LSB...")
+
+    client._send_binary(MAML_CMD_CENTER_WEIGHTS, baseline_payload)
     client.set_regularization(0)
     time.sleep(0.05)
 
@@ -292,8 +302,7 @@ def main():
             print(f"    Slår AV träning (LR=0, Reg=0) och nollställer kompensationsvikterna W(3,8) = 0 LSB!")
             print(f"    Hårdvarustörningen (±{args.w33_variance_lsb_range} LSB) fortsätter över alla 11 strata!")
             print("=" * 105 + "\n")
-            flat_payload = struct.pack("<B48b42b", 0, *([0] * 48), *([0] * 42))
-            client._send_binary(MAML_CMD_CENTER_WEIGHTS, flat_payload)
+            client._send_binary(MAML_CMD_CENTER_WEIGHTS, baseline_payload)
             client.set_regularization(0)
             time.sleep(0.05)
 
@@ -315,8 +324,7 @@ def main():
             sys.stdout.flush()
 
             if ep >= 600:
-                flat_payload = struct.pack("<B48b42b", 0, *([0] * 48), *([0] * 42))
-                client._send_binary(MAML_CMD_CENTER_WEIGHTS, flat_payload)
+                client._send_binary(MAML_CMD_CENTER_WEIGHTS, baseline_payload)
 
         # Execute 11 single-sample stratum steps sequentially, updating weights IMMEDIATELY after each sample!
         ep_strata = []
@@ -403,6 +411,8 @@ def main():
             "rho": args.rho,
             "w33_variance_lsb_range": args.w33_variance_lsb_range,
             "attenuator": args.attenuator,
+            "staircase_w3": args.staircase_w3,
+            "staircase_config": staircase_cfg,
             "best_loss": best_loss,
             "best_enob": best_enob,
             "best_loss_ep": best_ep,
@@ -452,16 +462,23 @@ def generate_timeline_figure(records: list[dict], meta: dict, out_path: Path):
     p3_losses = [r["window_eval"]["mean_loss_lsb2"] for r in records if 200 <= r["epoch"] < 600]
     p4_losses = [r["window_eval"]["mean_loss_lsb2"] for r in records if r["epoch"] >= 600]
 
+    p1_str = f"{np.mean(p1_losses):.1f} L²" if p1_losses else "N/A"
+    p2_str = f"{np.mean(p2_losses):.1f} L²" if p2_losses else "N/A"
+    p3_str = f"{np.mean(p3_losses):.1f} L²" if p3_losses else "N/A"
+    p4_str = f"{np.mean(p4_losses):.1f} L²" if p4_losses else "N/A"
+
     for ax in axes:
         ax.axvspan(0, 100, color="#f1f5f9", alpha=0.7)
         ax.axvspan(100, 200, color="#dcfce7", alpha=0.6)
         ax.axvspan(200, 600, color="#fef3c7", alpha=0.6)
-        ax.axvspan(600, max(epochs), color="#fee2e2", alpha=0.6)
+        if max(epochs) >= 600:
+            ax.axvspan(600, max(epochs), color="#fee2e2", alpha=0.6)
 
-    ax1.axvspan(0, 100, color="#f1f5f9", alpha=0.7, label=f"Phase 1: Baseline W=0 (Win: {np.mean(p1_losses):.1f} L²)")
-    ax1.axvspan(100, 200, color="#dcfce7", alpha=0.6, label=f"Phase 2: Train ON, Dist=0 (Win: {np.mean(p2_losses):.1f} L²)")
-    ax1.axvspan(200, 600, color="#fef3c7", alpha=0.6, label=f"Phase 3: Active Comp, Dist=±{var_range} (Win: {np.mean(p3_losses):.1f} L²)")
-    ax1.axvspan(600, max(epochs), color="#fee2e2", alpha=0.6, label=f"Phase 4: Ablation W=0, Dist=±{var_range} (Win: {np.mean(p4_losses):.1f} L²)")
+    ax1.axvspan(0, 100, color="#f1f5f9", alpha=0.7, label=f"Phase 1: Baseline W=0 (Win: {p1_str})")
+    ax1.axvspan(100, 200, color="#dcfce7", alpha=0.6, label=f"Phase 2: Train ON, Dist=0 (Win: {p2_str})")
+    ax1.axvspan(200, 600, color="#fef3c7", alpha=0.6, label=f"Phase 3: Active Comp, Dist=±{var_range} (Win: {p3_str})")
+    if max(epochs) >= 600:
+        ax1.axvspan(600, max(epochs), color="#fee2e2", alpha=0.6, label=f"Phase 4: Ablation W=0, Dist=±{var_range} (Win: {p4_str})")
 
     ax1.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
     ax1.set_title(
@@ -474,7 +491,8 @@ def generate_timeline_figure(records: list[dict], meta: dict, out_path: Path):
 
     # Panel 2: ENOB
     ax2.plot(epochs, win_enobs, color="#d97706", linewidth=1.5, label=f"Window Mean ENOB [4.5..5.5 ms] (Mean: {np.mean(win_enobs[200:600]):.2f} b)")
-    ax2.plot(epochs, c5_enobs, color="#059669", linewidth=1.1, alpha=0.8, label=f"5.0 ms Center ENOB (Peak: {max(c5_enobs[200:600]):.2f} b)")
+    peak_c5 = max(c5_enobs[200:600]) if len(c5_enobs) > 200 else max(c5_enobs)
+    ax2.plot(epochs, c5_enobs, color="#059669", linewidth=1.1, alpha=0.8, label=f"5.0 ms Center ENOB (Peak: {peak_c5:.2f} b)")
     ax2.set_ylabel("ENOB (Bits)", fontsize=11, fontweight="bold")
     ax2.set_ylim(2.5, 7.8)
     ax2.grid(True, linestyle=":", alpha=0.6)
@@ -507,20 +525,29 @@ def generate_temporal_profile_figure(records: list[dict], strata_delays: list[in
     delays_ms = np.array(strata_delays) / 1000.0
 
     # Collect mean per-stratum ENOB across phases
-    p1_strata_enobs = np.mean([[r["strata_enobs"][i] for i in range(len(strata_delays))] for r in records if r["epoch"] < 100], axis=0)
-    p2_strata_enobs = np.mean([[r["strata_enobs"][i] for i in range(len(strata_delays))] for r in records if 100 <= r["epoch"] < 200], axis=0)
-    p3_strata_enobs = np.mean([[r["strata_enobs"][i] for i in range(len(strata_delays))] for r in records if 200 <= r["epoch"] < 600], axis=0)
-    p4_strata_enobs = np.mean([[r["strata_enobs"][i] for i in range(len(strata_delays))] for r in records if r["epoch"] >= 600], axis=0)
+    p1_recs = [r for r in records if r["epoch"] < 100]
+    p2_recs = [r for r in records if 100 <= r["epoch"] < 200]
+    p3_recs = [r for r in records if 200 <= r["epoch"] < 600]
+    p4_recs = [r for r in records if r["epoch"] >= 600]
 
     fig, ax = plt.subplots(figsize=(11, 6.5), dpi=180)
-    ax.plot(delays_ms, p1_strata_enobs, "o-", color="#64748b", linewidth=2.0, markersize=7,
-            label=f"Phase 1: Baseline W=0 (Mean: {np.mean(p1_strata_enobs):.2f} b)")
-    ax.plot(delays_ms, p2_strata_enobs, "s-", color="#2563eb", linewidth=2.2, markersize=7,
-            label=f"Phase 2: Nominal Converged (Mean: {np.mean(p2_strata_enobs):.2f} b)")
-    ax.plot(delays_ms, p3_strata_enobs, "D-", color="#059669", linewidth=2.5, markersize=8,
-            label=f"Phase 3: Active Comp under Dist ±{meta.get('w33_variance_lsb_range', 5)} (Mean: {np.mean(p3_strata_enobs):.2f} b)")
-    ax.plot(delays_ms, p4_strata_enobs, "^--", color="#dc2626", linewidth=2.0, markersize=7,
-            label=f"Phase 4: Ablation W=0 (Mean: {np.mean(p4_strata_enobs):.2f} b)")
+
+    if p1_recs:
+        p1_enobs = np.mean([[r["strata_enobs"][i] for i in range(len(strata_delays))] for r in p1_recs], axis=0)
+        ax.plot(delays_ms, p1_enobs, "o-", color="#64748b", linewidth=2.0, markersize=7,
+                label=f"Phase 1: Baseline W=0 (Mean: {np.mean(p1_enobs):.2f} b)")
+    if p2_recs:
+        p2_enobs = np.mean([[r["strata_enobs"][i] for i in range(len(strata_delays))] for r in p2_recs], axis=0)
+        ax.plot(delays_ms, p2_enobs, "s-", color="#2563eb", linewidth=2.2, markersize=7,
+                label=f"Phase 2: Nominal Converged (Mean: {np.mean(p2_enobs):.2f} b)")
+    if p3_recs:
+        p3_enobs = np.mean([[r["strata_enobs"][i] for i in range(len(strata_delays))] for r in p3_recs], axis=0)
+        ax.plot(delays_ms, p3_enobs, "D-", color="#059669", linewidth=2.5, markersize=8,
+                label=f"Phase 3: Active Comp under Dist ±{meta.get('w33_variance_lsb_range', 5)} (Mean: {np.mean(p3_enobs):.2f} b)")
+    if p4_recs:
+        p4_enobs = np.mean([[r["strata_enobs"][i] for i in range(len(strata_delays))] for r in p4_recs], axis=0)
+        ax.plot(delays_ms, p4_enobs, "^--", color="#dc2626", linewidth=2.0, markersize=7,
+                label=f"Phase 4: Ablation W=0 (Mean: {np.mean(p4_enobs):.2f} b)")
 
     ax.set_title(
         "Inverted MAML: Generalization Profile across Broadened Temporal Window [4.5 – 5.5 ms]\n"
