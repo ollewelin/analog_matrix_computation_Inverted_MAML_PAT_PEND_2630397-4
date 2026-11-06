@@ -18,3 +18,4 @@ $PYTHON "${K1_PKG}/pc_python/run_card2_broadened_11strata_k1_online.py" \
 echo "[*] Generating Comprehensive 10-page Report (K=4)..."
 $PYTHON "${K1_PKG}/pc_python/generate_card2_w3_staircase_comprehensive_report.py" \
     --k-batch 4
+
