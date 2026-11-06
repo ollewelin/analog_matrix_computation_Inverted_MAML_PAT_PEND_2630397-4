@@ -68,6 +68,12 @@ def generate_joint_loss_and_enob_figure(data: dict, out_path: Path):
     delays_us = meta["strata_delays_us"]
     num_strata = len(delays_us)
 
+    min_ms = min(delays_us) / 1000.0
+    max_ms = max(delays_us) / 1000.0
+    center_idx = len(delays_us) // 2
+    center_delay_us = delays_us[center_idx]
+    center_delay_ms = center_delay_us / 1000.0
+
     cmap = cm.coolwarm
     norm_colors = Normalize(vmin=min(delays_us), vmax=max(delays_us))
     colors_strata = [cmap(norm_colors(d)) for d in delays_us]
@@ -89,17 +95,17 @@ def generate_joint_loss_and_enob_figure(data: dict, out_path: Path):
     # --- Panel 1: Joint Loss ---
     for i, dly in enumerate(delays_us):
         s_losses = [e["strata_losses"][i] for e in eps]
-        lbl = f"{dly/1000.0:.1f} ms" if (i == 0 or i == num_strata-1 or dly == 5000) else None
+        lbl = f"{dly/1000.0:.1f} ms" if (i == 0 or i == num_strata-1 or dly == center_delay_us) else None
         ax1.plot(epochs, s_losses, color=colors_strata[i], linewidth=0.85, alpha=0.55, label=lbl)
 
-    ax1.plot(epochs, win_losses, color="#1e293b", linewidth=2.4, label="Window Mean [4.5..5.5 ms] Loss")
-    ax1.plot(epochs, c5_losses, color="#2563eb", linewidth=1.5, linestyle="--", label="5.0 ms Center Loss")
+    ax1.plot(epochs, win_losses, color="#1e293b", linewidth=2.4, label=f"Window Mean [{min_ms:.1f}..{max_ms:.1f} ms] Loss")
+    ax1.plot(epochs, c5_losses, color="#2563eb", linewidth=1.5, linestyle="--", label=f"{center_delay_ms:.1f} ms Center Loss")
 
     ax1.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
     ax1.set_yscale("log")
     ax1.set_title(
-        "INVERTED MAML SILICON: JOINT LOSS TRAJECTORIES ACROSS ALL 11 STRATA [4.5 – 5.5 ms]\n"
-        "Card 2 (1k/3.3k Attenuator) | W(3) Staircase Ref/Bias ([-40..+40] LSB) | Pure Online SGD (K=1) | White Noise",
+        f"INVERTED MAML SILICON: JOINT LOSS TRAJECTORIES ACROSS ALL {num_strata} STRATA [{min_ms:.1f} – {max_ms:.1f} ms]\n"
+        f"Card 2 (1k/3.3k Attenuator) | W(3) Staircase Ref/Bias ([-40..+40] LSB) | Online SGD (K={meta.get('k_batch', 1)}) | White Noise",
         fontsize=12, fontweight="bold"
     )
     ax1.grid(True, linestyle=":", alpha=0.6)
@@ -108,14 +114,14 @@ def generate_joint_loss_and_enob_figure(data: dict, out_path: Path):
     # --- Panel 2: Joint ENOB ---
     for i, dly in enumerate(delays_us):
         s_enobs = [e["strata_enobs"][i] for e in eps]
-        lbl = f"{dly/1000.0:.1f} ms Stratum" if (i == 0 or i == num_strata-1 or dly == 5000) else None
+        lbl = f"{dly/1000.0:.1f} ms Stratum" if (i == 0 or i == num_strata-1 or dly == center_delay_us) else None
         ax2.plot(epochs, s_enobs, color=colors_strata[i], linewidth=0.85, alpha=0.55, label=lbl)
 
     ax2.plot(epochs, win_enobs, color="#1e293b", linewidth=2.4, label=f"Window Mean ENOB (Phase 2: {np.mean(win_enobs[100:200]):.2f} b, Phase 3: {np.mean(win_enobs[200:600]):.2f} b)")
-    ax2.plot(epochs, c5_enobs, color="#059669", linewidth=1.6, linestyle="--", label=f"5.0 ms Center ENOB (Peak: {max(c5_enobs[100:600]):.2f} b)")
+    ax2.plot(epochs, c5_enobs, color="#059669", linewidth=1.6, linestyle="--", label=f"{center_delay_ms:.1f} ms Center ENOB (Peak: {max(c5_enobs[100:600]):.2f} b)")
 
     ax2.set_ylabel("ENOB (Bits)", fontsize=11, fontweight="bold")
-    ax2.set_xlabel("Epoch (11 Online Single-Sample Updates per Epoch across 4.5..5.5 ms)", fontsize=11, fontweight="bold")
+    ax2.set_xlabel(f"Epoch ({num_strata} Online Updates per Epoch across {min_ms:.1f}..{max_ms:.1f} ms)", fontsize=11, fontweight="bold")
     ax2.set_ylim(2.2, 6.8)
     ax2.set_title("JOINT ENOB TRAJECTORIES: ENTIRE TEMPORAL WAVEFRONT LIFTS SYNCHRONOUSLY UNDER W(3) STAIRCASE INITIALIZATION",
                   fontsize=11, fontweight="bold")
@@ -142,7 +148,14 @@ def generate_multi_timepoint_figure(data: dict, out_path: Path):
     epochs = [e["epoch"] for e in eps]
     delays_us = data["metadata"]["strata_delays_us"]
 
-    key_delays = [4500, 4800, 5000, 5200, 5500]
+    if all(d in delays_us for d in [4500, 4800, 5000, 5200, 5500]):
+        key_delays = [4500, 4800, 5000, 5200, 5500]
+    elif all(d in delays_us for d in [5000, 5200, 5500, 5800, 6000]):
+        key_delays = [5000, 5200, 5500, 5800, 6000]
+    else:
+        k_idxs = [0, len(delays_us)//4, len(delays_us)//2, 3*len(delays_us)//4, len(delays_us)-1]
+        key_delays = [delays_us[i] for i in k_idxs]
+
     indices = [delays_us.index(d) for d in key_delays]
     colors_slices = ["#6366f1", "#0284c7", "#059669", "#d97706", "#dc2626"]
 
@@ -201,8 +214,9 @@ def generate_multi_timepoint_figure(data: dict, out_path: Path):
     axes[-1, 0].set_xlabel("Epoch (11 Online Updates/Epoch)", fontsize=10, fontweight="bold")
     axes[-1, 1].set_xlabel("Epoch (11 Online Updates/Epoch)", fontsize=10, fontweight="bold")
 
-    fig.suptitle("INVERTED MAML SILICON: MULTI-TIMEPOINT DETAILED SLICES ACROSS 1,000 EPOCHS (W3 STAIRCASE)\n"
-                 "Demonstrating Simultaneous Precision Elevation at 4.5, 4.8, 5.0, 5.2, and 5.5 ms",
+    dly_str = ", ".join([f"{d/1000.0:.1f}" for d in key_delays[:-1]]) + f", and {key_delays[-1]/1000.0:.1f} ms"
+    fig.suptitle(f"INVERTED MAML SILICON: MULTI-TIMEPOINT DETAILED SLICES ACROSS 1,000 EPOCHS (W3 STAIRCASE)\n"
+                 f"Demonstrating Simultaneous Precision Elevation at {dly_str}",
                  fontsize=12.5, fontweight="bold", y=0.975)
     fig.savefig(out_path, dpi=180, bbox_inches="tight")
     plt.close(fig)
@@ -234,17 +248,18 @@ def generate_spectrogram_heatmap_figure(data: dict, out_path: Path):
     ax.axvline(x=200, color="white", linestyle="--", linewidth=1.5, alpha=0.9)
     ax.axvline(x=600, color="red", linestyle="-", linewidth=2.0, alpha=0.95)
 
-    ax.text(50, 5.42, "Phase 1: Staircase Baseline (W8=0)", color="white", fontsize=9.5, fontweight="bold", ha="center",
+    text_y = delays_ms[-1] - 0.08 * (delays_ms[-1] - delays_ms[0])
+    ax.text(50, text_y, "Phase 1: Staircase Baseline (W8=0)", color="white", fontsize=9.5, fontweight="bold", ha="center",
             bbox=dict(boxstyle="round,pad=0.2", facecolor="#1e293b", alpha=0.7))
-    ax.text(150, 5.42, "Phase 2: Train ON", color="white", fontsize=9.5, fontweight="bold", ha="center",
+    ax.text(150, text_y, "Phase 2: Train ON", color="white", fontsize=9.5, fontweight="bold", ha="center",
             bbox=dict(boxstyle="round,pad=0.2", facecolor="#065f46", alpha=0.7))
-    ax.text(400, 5.42, "Phase 3: Active Comp (Dist ±5 LSB)", color="white", fontsize=9.5, fontweight="bold", ha="center",
+    ax.text(400, text_y, "Phase 3: Active Comp (Dist ±5 LSB)", color="white", fontsize=9.5, fontweight="bold", ha="center",
             bbox=dict(boxstyle="round,pad=0.2", facecolor="#92400e", alpha=0.7))
-    ax.text(800, 5.42, "Phase 4: Ablation W8=0", color="white", fontsize=9.5, fontweight="bold", ha="center",
+    ax.text(800, text_y, "Phase 4: Ablation W8=0", color="white", fontsize=9.5, fontweight="bold", ha="center",
             bbox=dict(boxstyle="round,pad=0.2", facecolor="#991b1b", alpha=0.7))
 
     ax.set_ylabel("Snapshot Sampling Delay (ms)", fontsize=11, fontweight="bold")
-    ax.set_xlabel("Epoch (11 Online Updates/Epoch across 4.5..5.5 ms)", fontsize=11, fontweight="bold")
+    ax.set_xlabel(f"Epoch ({len(delays_us)} Online Updates/Epoch across {delays_ms[0]:.1f}..{delays_ms[-1]:.1f} ms)", fontsize=11, fontweight="bold")
     ax.set_yticks(delays_ms)
     ax.set_yticklabels([f"{d:.1f}" for d in delays_ms], fontsize=9)
     ax.set_title("INVERTED MAML SILICON: 2D TEMPORAL SPECTROGRAM OF PRECISION (DELAY × EPOCH)\n"
@@ -290,8 +305,11 @@ def generate_temporal_profile_figure(data: dict, out_path: Path):
                 fontsize=9.5, fontweight="bold",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="#eff6ff", edgecolor="#2563eb"))
 
+    min_ms = min(delays_ms)
+    max_ms = max(delays_ms)
+
     ax.set_title(
-        "INVERTED MAML SILICON: GENERALIZATION PROFILE ACROSS BROADENED TEMPORAL WINDOW [4.5 – 5.5 ms]\n"
+        f"INVERTED MAML SILICON: GENERALIZATION PROFILE ACROSS BROADENED TEMPORAL WINDOW [{min_ms:.1f} – {max_ms:.1f} ms]\n"
         "Card 2 Silicon (1k/3.3k Attenuator) with W(3) Staircase Ref & Bias Cells ([-40..+40] LSB)",
         fontsize=12, fontweight="bold", pad=12
     )
@@ -731,12 +749,19 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
     best_c5_loss = min([e["center_5ms"]["loss_lsb2"] for e in eps if 100 <= e["epoch"] < 600])
     best_c5_enob = max([e["center_5ms"]["enob_bits"] for e in eps if 100 <= e["epoch"] < 600])
 
+    delays_ms = np.array(delays_us) / 1000.0
+    min_ms = delays_ms[0]
+    max_ms = delays_ms[-1]
+    center_idx = len(delays_us) // 2
+    center_us = delays_us[center_idx]
+    center_ms = center_us / 1000.0
+
     story = []
 
     # =========================================================================
     # PAGE 1: Title, Executive Summary, Setup, Performance Table
     # =========================================================================
-    story.append(Paragraph("INVERTED MAML: CARD 2 W(3) STAIRCASE REFERENCE & BIAS BENCHMARK [4.5 – 5.5 ms]", title_style))
+    story.append(Paragraph(f"INVERTED MAML: CARD 2 W(3) STAIRCASE REFERENCE & BIAS BENCHMARK [{min_ms:.1f} – {max_ms:.1f} ms]", title_style))
     story.append(Paragraph(
         "<b>Pure Online Single-Sample SGD (K=1, 11 Updates/Epoch) across Non-Stationary Perturbations (±5 LSB) with Staircase Reference & Bias Cells under White Noise</b><br/>"
         "Patent Pending SE 2630397-4 | Open Science Hardware | Target: Card 2 (PCB v1.3.2, 1k/3.3k Attenuator) | Date: 2026-11-06",
@@ -748,13 +773,13 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
         "<b>Executive Summary & Scientific Scope:</b><br/>"
         "This benchmark report presents the definitive silicon verification of the <b>Inverted MAML</b> proprioceptive analog feedback "
         "architecture operating on Card 2 (PCB v1.3.2, 1k/3.3k summing attenuator) under <b>uncorrelated White Noise excitation</b>. "
-        "Evaluating across an extended 1,000 µs temporal snapshot window (<b>4.5 to 5.5 ms</b>, sampled across 11 discrete strata at 100 µs intervals), "
+        f"Evaluating across an extended 1,000 µs temporal snapshot window (<b>{min_ms:.1f} to {max_ms:.1f} ms</b>, sampled across {len(delays_us)} discrete strata at 100 µs intervals), "
         "the FPGA executes <b>pure online single-sample Stochastic Gradient Descent (SGD, K=1)</b> (11 physical updates per epoch, 11,000 total updates). "
         "Matrix 3 is initialized with a persistent staircase pattern spanning <b>±40 LSB around 0</b> across columns: "
         "Row 6 (Ref ClkB1 dynamic ramp) is set to <code>[-40, -24, -8, +8, +24, +40]</code> and Row 7 (Bias ClkRef DC anchor) "
         "is set to complementary <code>[+40, +24, +8, -8, -24, -40]</code>. This maximizes dynamic swing through hardware Sigmoid 4 "
         "while maintaining exact zero-mean common-mode current at the ColTIA virtual grounds. "
-        f"5.0 ms center precision reaches <b>{p2_c5_enob:.2f} bits (peaking at {best_c5_enob:.2f} bits, {best_c5_loss:.1f} LSB²)</b>, "
+        f"{center_ms:.1f} ms center precision reaches <b>{p2_c5_enob:.2f} bits (peaking at {best_c5_enob:.2f} bits, {best_c5_loss:.1f} LSB²)</b>, "
         f"and reduces window mean error by <b>{(p2_win_loss - p1_win_loss)/p1_win_loss*100:+.1f}%</b>."
     )
     story.append(Paragraph(exec_summary_text, body_style))
@@ -786,14 +811,14 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
     story.append(t_setup)
     story.append(Spacer(1, 3))
 
-    story.append(Paragraph("2. Consolidated Silicon Performance Metrics (Window Mean vs. 5.0 ms Center)", h1_style))
+    story.append(Paragraph(f"2. Consolidated Silicon Performance Metrics (Window Mean vs. {center_ms:.1f} ms Center)", h1_style))
     perf_data = [
         ["Benchmark Metric", "Phase 1: Baseline\n(W8=0, Dist=0)", "Phase 2: Nominal\n(FHP ON, Dist=0)", "Phase 3: Disturbed\n(FHP ON, Dist=±5)", "Phase 4: Ablation\n(W8=0, Dist=±5)", "Net Silicon Gain\n(Phase 2 vs. Baseline)"],
-        ["Window Mean Loss [4.5..5.5 ms]", f"{p1_win_loss:.1f} L²", f"{p2_win_loss:.1f} L²", f"{p3_win_loss:.1f} L²", f"{p4_win_loss:.1f} L²", f"{(p2_win_loss - p1_win_loss)/p1_win_loss*100:+.1f}% error reduction"],
-        ["Window Mean ENOB [4.5..5.5 ms]", f"{p1_win_enob:.2f} bits", f"{p2_win_enob:.2f} bits", f"{p3_win_enob:.2f} bits", f"{p4_win_enob:.2f} bits", f"+{p2_win_enob - p1_win_enob:.2f} bits sustained"],
-        ["5.0 ms Center Loss", f"{p1_c5_loss:.1f} L²", f"{p2_c5_loss:.1f} L²", f"{p3_c5_loss:.1f} L²", f"{p4_c5_loss:.1f} L²", f"{(p2_c5_loss - p1_c5_loss)/p1_c5_loss*100:+.1f}% error reduction"],
-        ["5.0 ms Center ENOB", f"{p1_c5_enob:.2f} bits", f"{p2_c5_enob:.2f} bits", f"{p3_c5_enob:.2f} bits", f"{p4_c5_enob:.2f} bits", f"+{p2_c5_enob - p1_c5_enob:.2f} bits sustained"],
-        ["Peak Measured Precision", f"{p1_c5_enob:.2f} bits", f"{p2_c5_enob:.2f} bits", f"{best_c5_enob:.2f} bits (5.0ms)", f"{p4_c5_enob:.2f} bits", f"+{best_c5_enob - p1_c5_enob:.2f} bits above baseline"],
+        [f"Window Mean Loss [{min_ms:.1f}..{max_ms:.1f} ms]", f"{p1_win_loss:.1f} L²", f"{p2_win_loss:.1f} L²", f"{p3_win_loss:.1f} L²", f"{p4_win_loss:.1f} L²", f"{(p2_win_loss - p1_win_loss)/p1_win_loss*100:+.1f}% error reduction"],
+        [f"Window Mean ENOB [{min_ms:.1f}..{max_ms:.1f} ms]", f"{p1_win_enob:.2f} bits", f"{p2_win_enob:.2f} bits", f"{p3_win_enob:.2f} bits", f"{p4_win_enob:.2f} bits", f"+{p2_win_enob - p1_win_enob:.2f} bits sustained"],
+        [f"{center_ms:.1f} ms Center Loss", f"{p1_c5_loss:.1f} L²", f"{p2_c5_loss:.1f} L²", f"{p3_c5_loss:.1f} L²", f"{p4_c5_loss:.1f} L²", f"{(p2_c5_loss - p1_c5_loss)/p1_c5_loss*100:+.1f}% error reduction"],
+        [f"{center_ms:.1f} ms Center ENOB", f"{p1_c5_enob:.2f} bits", f"{p2_c5_enob:.2f} bits", f"{p3_c5_enob:.2f} bits", f"{p4_c5_enob:.2f} bits", f"+{p2_c5_enob - p1_c5_enob:.2f} bits sustained"],
+        ["Peak Measured Precision", f"{p1_c5_enob:.2f} bits", f"{p2_c5_enob:.2f} bits", f"{best_c5_enob:.2f} bits ({center_ms:.1f}ms)", f"{p4_c5_enob:.2f} bits", f"+{best_c5_enob - p1_c5_enob:.2f} bits above baseline"],
         ["Best Single Evaluation Loss", f"{p1_c5_loss:.1f} L²", f"{p2_c5_loss:.1f} L²", f"{best_c5_loss:.1f} L²", f"{p4_c5_loss:.1f} L²", f"{p1_c5_loss / best_c5_loss:.1f}× error reduction"],
         ["Physical Updates Executed", "1,100 (W locked)", "1,100 (Online SGD)", "4,400 (Online SGD)", "4,400 (W locked)", "11,000 total k=1 evaluations"],
     ]
@@ -817,11 +842,11 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
     # PAGE 2: Joint Loss & Joint ENOB across All 11 Strata
     # =========================================================================
     story.append(PageBreak())
-    story.append(Paragraph("3. Joint Loss & Joint ENOB Trajectories across All 11 Strata [4.5 – 5.5 ms] (W3 Staircase)", h1_style))
+    story.append(Paragraph(f"3. Joint Loss & Joint ENOB Trajectories across All {len(delays_us)} Strata [{min_ms:.1f} – {max_ms:.1f} ms] (W3 Staircase)", h1_style))
     story.append(Spacer(1, 1))
     story.append(Paragraph(
-        "Simultaneous evolution of all 11 temporal sampling strata across 1,000 epochs under pure online single-sample SGD with White Noise excitation and W3 staircase initialization. "
-        "Colors range from 4.5 ms (purple/indigo) to 5.5 ms (crimson/red). The thick black line traces the window-averaged envelope.",
+        f"Simultaneous evolution of all {len(delays_us)} temporal sampling strata across 1,000 epochs under pure online single-sample SGD with White Noise excitation and W3 staircase initialization. "
+        f"Colors range from {min_ms:.1f} ms (purple/indigo) to {max_ms:.1f} ms (crimson/red). The thick black line traces the window-averaged envelope.",
         subtitle_style
     ))
     story.append(Spacer(1, 2))
@@ -835,8 +860,8 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
         "under uncorrelated white noise inputs avoids catastrophic forgetting. The 11 individual loss curves plunge in unison at Epoch 100 "
         "and maintain a strictly bounded, tight envelope throughout training.<br/>"
         "• <b>Consistent Discharge Hierarchy:</b> The strata trajectories maintain a stable vertical hierarchy reflecting the physical capacitor discharge: "
-        "earlier delays (4.7–5.0 ms) achieve superior peak ENOB due to optimal gate-source overdrive, while late delays (5.3–5.5 ms) "
-        "stabilize at 3.0–3.5 b. Single-sample online steps at 5.5 ms never degrade the convergence or accuracy at 4.5 ms.<br/>"
+        f"earlier delays ({min_ms:.1f}–{center_ms:.1f} ms) achieve superior peak ENOB due to optimal gate-source overdrive, while late delays ({center_ms:.1f}–{max_ms:.1f} ms) "
+        "stabilize at 3.0–3.5 b. Single-sample online steps at late delays never degrade the convergence or accuracy at earlier delays.<br/>"
         "• <b>Rapid Re-Convergence under Perturbations:</b> When random ±5 LSB offsets are applied to Matrix 33 at Epochs 200, 300, 400, and 500, "
         "the network absorbs the error shock and re-converges to a high-precision state within ~10–20 epochs."
     )
@@ -845,6 +870,15 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
     # =========================================================================
     # PAGE 3: Multi-Timepoint Detailed Slices & 2D Spectrogram
     # =========================================================================
+    if all(d in delays_us for d in [4500, 4800, 5000, 5200, 5500]):
+        key_delays = [4500, 4800, 5000, 5200, 5500]
+    elif all(d in delays_us for d in [5000, 5200, 5500, 5800, 6000]):
+        key_delays = [5000, 5200, 5500, 5800, 6000]
+    else:
+        k_idxs = [0, len(delays_us)//4, len(delays_us)//2, 3*len(delays_us)//4, len(delays_us)-1]
+        key_delays = [delays_us[i] for i in k_idxs]
+    key_delays_str = ", ".join([f"{d/1000.0:.1f}" for d in key_delays]) + " ms"
+
     story.append(PageBreak())
     story.append(Paragraph("4. Multi-Timepoint Detailed Slices & 2D Temporal Spectrogram (Heatmap)", h1_style))
     story.append(Spacer(1, 1))
@@ -862,7 +896,7 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
 
     slices_text = (
         "<b>Detailed Multi-Timepoint Analysis:</b><br/>"
-        "The multi-timepoint slices demonstrate consistent error suppression across both early (4.5, 4.8 ms), central (5.0 ms), and late (5.2, 5.5 ms) snapshots. "
+        f"The multi-timepoint slices demonstrate consistent error suppression across snapshots ({key_delays_str}). "
         "In the 2D spectrogram heatmap, the transition at Epoch 100 reveals an instantaneous illumination of the entire 1,000 µs window from dark blue (2.5–3.2 b) "
         "to bright green/yellow (4.5–5.5 b). At Epoch 600, clamping weights to zero in Phase 4 instantly plunges the surface back to dark blue, "
         "providing unequivocal empirical proof of active hardware compensation."
@@ -873,7 +907,7 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
     # PAGE 4: Generalization Profile Across Temporal Strata
     # =========================================================================
     story.append(PageBreak())
-    story.append(Paragraph("5. Generalization Profile Across Temporal Strata [4.5 – 5.5 ms]", h1_style))
+    story.append(Paragraph(f"5. Generalization Profile Across Temporal Strata [{min_ms:.1f} – {max_ms:.1f} ms]", h1_style))
     story.append(Spacer(1, 1))
     story.append(Paragraph(
         "Measured precision (ENOB bits) across all 11 strata averaged within each of the 4 experimental phases.",
@@ -1106,7 +1140,7 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
 # ==============================================================================
 # 8. Generate Comprehensive Markdown Report
 # ==============================================================================
-def generate_comprehensive_markdown(data: dict, out_md: Path, fig_dict: dict):
+def generate_comprehensive_markdown(data: dict, out_md: Path, fig_dict: dict, data_name: str = ""):
     eps = data["epochs"]
     meta = data["metadata"]
     delays_us = meta["strata_delays_us"]
@@ -1152,19 +1186,43 @@ def generate_comprehensive_markdown(data: dict, out_md: Path, fig_dict: dict):
         )
     strata_table_md = "\n".join(strata_table_rows)
 
-    raw_template = r"""# Inverted MAML: Card 2 W(3) Staircase Reference & Bias Benchmark Report
-**Pure Online Single-Sample SGD ($K=1$, 11 Updates/Epoch) across Non-Stationary Hardware Perturbations ($\pm 5\text{ LSB}$) with Staircase Reference & Bias Cells under White Noise**  
+    min_ms = min(delays_us) / 1000.0
+    max_ms = max(delays_us) / 1000.0
+    center_idx = len(delays_us) // 2
+    center_us = delays_us[center_idx]
+    center_ms = center_us / 1000.0
+
+    if all(d in delays_us for d in [4500, 4800, 5000, 5200, 5500]):
+        key_delays = [4500, 4800, 5000, 5200, 5500]
+    elif all(d in delays_us for d in [5000, 5200, 5500, 5800, 6000]):
+        key_delays = [5000, 5200, 5500, 5800, 6000]
+    else:
+        k_idxs = [0, len(delays_us)//4, len(delays_us)//2, 3*len(delays_us)//4, len(delays_us)-1]
+        key_delays = [delays_us[i] for i in k_idxs]
+    key_delays_str = ", ".join([f"{d/1000.0:.1f}" for d in key_delays]) + " ms"
+
+    doc_k_tag = f"K{meta.get('k_batch', 1)}_" if meta.get('k_batch', 1) > 1 else ""
+    doc_win_tag = "5000TO6000US_" if "5000to6000us" in data_name else ""
+    doc_id = f"INVERTED_MAML_CARD2_1000EP_{doc_win_tag}{doc_k_tag}W3_STAIRCASE_COMPREHENSIVE_REPORT"
+
+    def get_url(key):
+        if fig_dict and key in fig_dict:
+            return f"file://{fig_dict[key].resolve()}"
+        return ""
+
+    raw_template = rf"""# Inverted MAML: Card 2 W(3) Staircase Reference & Bias Benchmark Report
+**Online SGD (K={meta.get('k_batch', 1)}, {len(delays_us)} Updates/Epoch) across Non-Stationary Hardware Perturbations ($\pm 5\text{{ LSB}}$) with Staircase Reference & Bias Cells under White Noise**  
 **Patent Pending SE 2630397-4 | Open Science Hardware**  
-**Document ID:** `INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT`  
+**Document ID:** `{doc_id}`  
 **Date:** [[DATE]]  
 **Target Hardware:** Card 2 (PCB v1.3.2, Repaired CH3, 1k/3.3k Attenuator) | Trion T120 Master SoC @ `192.168.1.50:5000`  
-**Silicon Run Artifact:** [`mode_a_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json`](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/mode_a_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json)
+**Silicon Run Artifact:** `[[DATA_FILE_NAME]]`
 
 ---
 
 ## Executive Summary & Scientific Scope
 
-This benchmark report presents the empirical characterization of the **Inverted MAML** dual-layer compensation network on Card 2 under **uncorrelated White Noise input streams** across an extended **1,000 µs temporal snapshot window ($4.5\text{ ms} \dots 5.5\text{ ms}$, 11 discrete strata at $100\text{ µs}$ steps)** using **pure online single-sample stochastic gradient descent ($K=1$)** with **engineered W(3) staircase reference & bias weights ($\pm 40\text{ LSB}$)**:
+This benchmark report presents the empirical characterization of the **Inverted MAML** dual-layer compensation network on Card 2 under **uncorrelated White Noise input streams** across an extended **1,000 µs temporal snapshot window ({min_ms:.1f}\text{{ ms}} \dots {max_ms:.1f}\text{{ ms}}, {len(delays_us)} discrete strata at $100\text{{ µs}}$ steps)** using **online stochastic gradient descent ($K={meta.get('k_batch', 1)}$)** with **engineered W(3) staircase reference & bias weights ($\pm 40\text{{ LSB}}$)**:
 - **Matrix 3 Row 6 (Ref cell, ClkB1 330k dynamic ramp)**: `[-40, -24, -8, +8, +24, +40]` LSB
 - **Matrix 3 Row 7 (Bias cell, ClkRef DC anchor)**: `[+40, +24, +8, -8, -24, -40]` LSB
 - **Zero Common-Mode Quiescent Sum**: Sum per column is exactly 0 LSB, preserving virtual ground headroom at ColTIA inputs.
@@ -1176,9 +1234,9 @@ This benchmark report presents the empirical characterization of the **Inverted 
 | Phase Segment | Epoch Range | Online FHP SGD | Matrix 33 State | Input Data Color | Primary Objective |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **Phase 1: Staircase Base** | $0 \dots 99$ (100 Ep) | INACTIVE ($W_8 = 0$) | Nominal ($W_{33}$, Dist = 0) | White Noise | Quantify baseline floor with W3 staircase Ref/Bias active. |
-| **Phase 2: Nominal Converge** | $100 \dots 199$ (100 Ep) | ACTIVE ($\text{LR}=0.02, \lambda=2048$) | Nominal ($W_{33}$, Dist = 0) | White Noise | Establish joint online equilibrium against intrinsic MOS triode non-linearity. |
-| **Phase 3: Disturbance Adapt** | $200 \dots 599$ (400 Ep) | ACTIVE ($\text{LR}=0.02, \lambda=2048$) | **$\pm 5\text{ LSB}$ Shifted / 100 Ep** | White Noise | Demonstrate dynamic multi-timepoint tracking under severe non-stationary drift. |
-| **Phase 4: Ablation Control** | $600 \dots 1000$ (401 Ep) | **OFF / Clamped $W_8 = 0$** | **$\pm 5\text{ LSB}$ Shifted / 100 Ep** | White Noise | Rigorous control proving precision is strictly driven by the 2-layer network. |
+| **Phase 2: Nominal Converge** | $100 \dots 199$ (100 Ep) | ACTIVE ($\text{{LR}}=0.02, \lambda=2048$) | Nominal ($W_{{33}}$, Dist = 0) | White Noise | Establish joint online equilibrium against intrinsic MOS triode non-linearity. |
+| **Phase 3: Disturbance Adapt** | $200 \dots 599$ (400 Ep) | ACTIVE ($\text{{LR}}=0.02, \lambda=2048$) | **$\pm 5\text{{ LSB}}$ Shifted / 100 Ep** | White Noise | Demonstrate dynamic multi-timepoint tracking under severe non-stationary drift. |
+| **Phase 4: Ablation Control** | $600 \dots 1000$ (401 Ep) | **OFF / Clamped $W_8 = 0$** | **$\pm 5\text{{ LSB}}$ Shifted / 100 Ep** | White Noise | Rigorous control proving precision is strictly driven by the 2-layer network. |
 
 ---
 
@@ -1186,35 +1244,35 @@ This benchmark report presents the empirical characterization of the **Inverted 
 
 | Benchmark Metric | Phase 1: Baseline<br/>($W_8=0$, Dist=0) | Phase 2: Nominal<br/>(FHP ON, Dist=0) | Phase 3: Disturbed<br/>(FHP ON, Dist=$\pm 5$) | Phase 4: Ablation<br/>($W_8=0$, Dist=$\pm 5$) | Net Silicon Gain<br/>(Phase 2 vs. Baseline) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Window Mean Loss [4.5..5.5 ms]** | [[P1_WIN_LOSS]] LSB² | **[[P2_WIN_LOSS]] LSB²** | [[P3_WIN_LOSS]] LSB² | [[P4_WIN_LOSS]] LSB² | **[[WIN_LOSS_GAIN]]% error reduction** |
-| **Window Mean ENOB [4.5..5.5 ms]** | [[P1_WIN_ENOB]] bits | **[[P2_WIN_ENOB]] bits** | [[P3_WIN_ENOB]] bits | [[P4_WIN_ENOB]] bits | **+[[WIN_ENOB_GAIN]] bits sustained** |
-| **5.0 ms Center Loss** | [[P1_C5_LOSS]] LSB² | **[[P2_C5_LOSS]] LSB²** | [[P3_C5_LOSS]] LSB² | [[P4_C5_LOSS]] LSB² | **[[C5_LOSS_GAIN]]% error reduction** |
-| **5.0 ms Center ENOB** | [[P1_C5_ENOB]] bits | **[[P2_C5_ENOB]] bits** | [[P3_C5_ENOB]] bits | [[P4_C5_ENOB]] bits | **+[[C5_ENOB_GAIN]] bits sustained** |
-| **Peak Measured Precision** | [[P1_C5_ENOB]] bits | [[P2_C5_ENOB]] bits | **[[BEST_C5_ENOB]] bits (5.0ms)** | [[P4_C5_ENOB]] bits | **+[[PEAK_GAIN]] bits above baseline** |
+| **Window Mean Loss [{min_ms:.1f}..{max_ms:.1f} ms]** | [[P1_WIN_LOSS]] LSB² | **[[P2_WIN_LOSS]] LSB²** | [[P3_WIN_LOSS]] LSB² | [[P4_WIN_LOSS]] LSB² | **[[WIN_LOSS_GAIN]]% error reduction** |
+| **Window Mean ENOB [{min_ms:.1f}..{max_ms:.1f} ms]** | [[P1_WIN_ENOB]] bits | **[[P2_WIN_ENOB]] bits** | [[P3_WIN_ENOB]] bits | [[P4_WIN_ENOB]] bits | **+[[WIN_ENOB_GAIN]] bits sustained** |
+| **{center_ms:.1f} ms Center Loss** | [[P1_C5_LOSS]] LSB² | **[[P2_C5_LOSS]] LSB²** | [[P3_C5_LOSS]] LSB² | [[P4_C5_LOSS]] LSB² | **[[C5_LOSS_GAIN]]% error reduction** |
+| **{center_ms:.1f} ms Center ENOB** | [[P1_C5_ENOB]] bits | **[[P2_C5_ENOB]] bits** | [[P3_C5_ENOB]] bits | [[P4_C5_ENOB]] bits | **+[[C5_ENOB_GAIN]] bits sustained** |
+| **Peak Measured Precision** | [[P1_C5_ENOB]] bits | [[P2_C5_ENOB]] bits | **[[BEST_C5_ENOB]] bits ({center_ms:.1f}ms)** | [[P4_C5_ENOB]] bits | **+[[PEAK_GAIN]] bits above baseline** |
 | **Best Single Evaluation Loss** | [[P1_C5_LOSS]] LSB² | [[P2_C5_LOSS]] LSB² | **[[BEST_C5_LOSS]] LSB²** | [[P4_C5_LOSS]] LSB² | **[[BEST_REDUCTION]]× error reduction** |
 | **Total Physical Updates** | 1,100 (W locked) | 1,100 (Online SGD) | 4,400 (Online SGD) | 4,400 (W locked) | **11,000 total updates on silicon** |
 
 ---
 
-## 3. Joint Loss & Joint ENOB Trajectories across All 11 Strata
+## 3. Joint Loss & Joint ENOB Trajectories across All {len(delays_us)} Strata [{min_ms:.1f}..{max_ms:.1f} ms]
 
-![Joint Loss and ENOB across All 11 Strata](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_card2_w3_staircase_joint_loss_and_enob_all_stratas.png)
+![Joint Loss and ENOB across All {len(delays_us)} Strata]({get_url('joint')})
 
 ---
 
 ## 4. Multi-Timepoint Detailed Slices & 2D Spectrogram Heatmap
 
-### Detailed Timepoint Slices (4.5, 4.8, 5.0, 5.2, 5.5 ms):
-![Multi-Timepoint Slices](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_card2_w3_staircase_multi_timepoint_loss_enob.png)
+### Detailed Timepoint Slices ({key_delays_str}):
+![Multi-Timepoint Slices]({get_url('slices')})
 
 ### 2D Temporal Spectrogram Heatmap of Precision (Delay × Epoch):
-![2D Temporal Spectrogram](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_card2_w3_staircase_temporal_heatmap_spectrogram.png)
+![2D Temporal Spectrogram]({get_url('heatmap')})
 
 ---
 
-## 5. Generalization Profile across 11 Strata [4.5..5.5 ms]
+## 5. Generalization Profile across {len(delays_us)} Strata [{min_ms:.1f}..{max_ms:.1f} ms]
 
-![Generalization Profile](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_card2_w3_staircase_temporal_profile_4phases.png)
+![Generalization Profile]({get_url('profile')})
 
 | Delay (ms) | Phase 1: Base (W8=0) | Phase 2: Nom (Train) | Net Gain (P2 - P1) | Phase 3: Dist (±5 LSB) | Phase 4: Abla (W8=0) |
 | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -1225,39 +1283,40 @@ This benchmark report presents the empirical characterization of the **Inverted 
 ## 6. Discrete 3D Dual-2T1C Topographies
 
 ### Part 1: Baseline vs. Nominal Equilibrium
-![3D Topographies Part 1](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_card2_w3_staircase_part1_baseline_nominal.png)
+![3D Topographies Part 1]({get_url('part1_3d')})
 
 ### Part 2: Disturbance Tracking (Dist 1 vs. Dist 2)
-![3D Topographies Part 2](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_card2_w3_staircase_part2_dist1_dist2.png)
+![3D Topographies Part 2]({get_url('part2_3d')})
 
 ### 8-Panel Master Weight Topography
-![8-Panel 3D Overview](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_card2_w3_staircase_8panel.png)
+![8-Panel 3D Overview]({get_url('panel8_3d')})
 
 ---
 
 ## 7. 3D Disturbance Topographies on Matrix 33 (Patent Fig 7 Emulator)
 
-![3D Disturbance Matrices](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_3d_card2_w3_staircase_disturbances_m33_4panel.png)
+![3D Disturbance Matrices]({get_url('dist_3d')})
 
 ---
 
 ## 8. Multi-Channel Dynamic Trajectories (M3 & M8)
 
 ### Matrix 3 (8x6 = 48 Weights, showing W3 Staircase [-40..+40] LSB on Rows 6 & 7):
-![Matrix 3 Trajectories](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_2d_m3_trajectory_card2_w3_staircase.png)
+![Matrix 3 Trajectories]({get_url('m3_2d')})
 
 ### Matrix 8 (7x6 = 42 Weights):
-![Matrix 8 Trajectories](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/fig_2d_m8_trajectory_card2_w3_staircase.png)
+![Matrix 8 Trajectories]({get_url('m8_2d')})
 
 ---
 
 ## 9. Publication Artifacts
 
-- **Publication PDF Report**: [`INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf`](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf)
-- **JSON Telemetry Dataset**: [`mode_a_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json`](file:///home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a/mode_a_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json)
+- **Publication PDF Report**: [`{doc_id}.pdf`](file://{(DOCS_DIR / f"{doc_id}.pdf").resolve()})
+- **JSON Telemetry Dataset**: [`{data_name}`](file://{(REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training" / data_name).resolve()})
 """
 
     md_content = raw_template.replace("[[DATE]]", meta.get("date", "2026-11-06"))
+    md_content = md_content.replace("[[DATA_FILE_NAME]]", data_name or "mode_a_dataset.json")
     md_content = md_content.replace("[[P1_WIN_LOSS]]", f"{p1_win_loss:.1f}")
     md_content = md_content.replace("[[P2_WIN_LOSS]]", f"{p2_win_loss:.1f}")
     md_content = md_content.replace("[[P3_WIN_LOSS]]", f"{p3_win_loss:.1f}")
@@ -1319,19 +1378,25 @@ def main():
 
     data = load_dataset(data_path)
 
-    joint_fig = FIGURES_DIR / f"fig_card2_w3_staircase_joint_loss_and_enob_all_stratas{k_suffix}.png"
-    slices_fig = FIGURES_DIR / f"fig_card2_w3_staircase_multi_timepoint_loss_enob{k_suffix}.png"
-    heatmap_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_heatmap_spectrogram{k_suffix}.png"
-    profile_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_profile_4phases{k_suffix}.png"
-    part1_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part1_baseline_nominal{k_suffix}.png"
-    part2_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part2_dist1_dist2{k_suffix}.png"
-    panel8_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_8panel{k_suffix}.png"
-    dist_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_disturbances_m33_4panel{k_suffix}.png"
-    m3_2d = FIGURES_DIR / f"fig_2d_m3_trajectory_card2_w3_staircase{k_suffix}.png"
-    m8_2d = FIGURES_DIR / f"fig_2d_m8_trajectory_card2_w3_staircase{k_suffix}.png"
+    win_slug = ""
+    doc_win = ""
+    if "5000to6000us" in str(data_path):
+        win_slug = "_5000to6000us"
+        doc_win = "5000TO6000US_"
 
-    out_pdf = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf"
-    out_md = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.md"
+    joint_fig = FIGURES_DIR / f"fig_card2_w3_staircase_joint_loss_and_enob_all_stratas{win_slug}{k_suffix}.png"
+    slices_fig = FIGURES_DIR / f"fig_card2_w3_staircase_multi_timepoint_loss_enob{win_slug}{k_suffix}.png"
+    heatmap_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_heatmap_spectrogram{win_slug}{k_suffix}.png"
+    profile_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_profile_4phases{win_slug}{k_suffix}.png"
+    part1_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part1_baseline_nominal{win_slug}{k_suffix}.png"
+    part2_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part2_dist1_dist2{win_slug}{k_suffix}.png"
+    panel8_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_8panel{win_slug}{k_suffix}.png"
+    dist_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_disturbances_m33_4panel{win_slug}{k_suffix}.png"
+    m3_2d = FIGURES_DIR / f"fig_2d_m3_trajectory_card2_w3_staircase{win_slug}{k_suffix}.png"
+    m8_2d = FIGURES_DIR / f"fig_2d_m8_trajectory_card2_w3_staircase{win_slug}{k_suffix}.png"
+
+    out_pdf = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_win}{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf"
+    out_md = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_win}{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.md"
 
     fig_dict = {
         "joint": joint_fig,
@@ -1357,7 +1422,7 @@ def main():
 
     # Generate Reports
     compile_pdf_report(data, out_pdf, fig_dict)
-    generate_comprehensive_markdown(data, out_md, fig_dict)
+    generate_comprehensive_markdown(data, out_md, fig_dict, data_name=data_path.name)
 
     # Copy to Artifacts
     for f in [joint_fig, slices_fig, heatmap_fig, profile_fig, part1_3d, part2_3d, panel8_3d, dist_3d, m3_2d, m8_2d, out_pdf, out_md]:
@@ -1366,7 +1431,7 @@ def main():
 
     # Render Preview Images for Artifacts Directory
     try:
-        prefix = str(ARTIFACTS_DIR / f"page_card2_{doc_k.lower()}w3_staircase_comp")
+        prefix = str(ARTIFACTS_DIR / f"page_card2_{doc_win.lower()}{doc_k.lower()}w3_staircase_comp")
         subprocess.run(["pdftoppm", "-png", "-r", "150", str(out_pdf), prefix], check=True)
         print("[+] Generated page preview images in artifacts directory.")
     except Exception as e:

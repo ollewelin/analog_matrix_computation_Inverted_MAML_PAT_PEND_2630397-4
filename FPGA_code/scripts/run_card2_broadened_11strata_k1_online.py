@@ -161,7 +161,7 @@ def main():
     fig_profile_path = DOCS_DIR / f"fig_{out_stem}_temporal_profile.png"
 
     print("=" * 105)
-    print(f"INVERTED MAML: 1000-EPOCH BROADENED WINDOW [4.5 - 5.5 ms] PURE ONLINE SGD ON {args.card.upper()}")
+    print(f"INVERTED MAML: {args.epochs}-EPOCH BROADENED WINDOW [{args.t_min/1000:.1f} - {args.t_max/1000:.1f} ms] ONLINE SGD (K={args.k_batch}) ON {args.card.upper()}")
     print(f"Sampling Protocol: {num_strata} Strata [{args.t_min} .. {args.t_max} µs, step {args.t_step} µs]")
     print(f"Weight Update: PURE ONLINE SINGLE-SAMPLE (k_batch=1, num_strata=1) - UPDATED EVERY SAMPLE!")
     print(f"Target: {args.host}:{args.port} | Epochs: {args.epochs} | Updates per Epoch: {num_strata} (Total: {args.epochs * num_strata})")
@@ -230,12 +230,14 @@ def main():
     mean_rmse_0 = float(np.sqrt(np.mean([s["loss_lsb2"] * 2.0 / 6.0 for s in strata_0])))
     mean_enob_0 = max(0.0, 11.0 - math.log2(max(mean_rmse_0, 1.0)))
 
-    # 5.0ms center stratum (index 5)
-    center_idx = strata_delays.index(5000) if 5000 in strata_delays else len(strata_delays) // 2
+    # Dynamic center stratum
+    target_center_us = (args.t_min + args.t_max) // 2
+    center_idx = strata_delays.index(target_center_us) if target_center_us in strata_delays else len(strata_delays) // 2
     s5_0 = strata_0[center_idx]
+    center_delay_ms = strata_delays[center_idx] / 1000.0
 
-    print(f"  Ep   0 [BASE 0   ]: Window Mean [4.5..5.5ms]: Loss={mean_loss_0:8.1f} L² | ENOB={mean_enob_0:4.2f} b")
-    print(f"                    5.0ms Snapshot:            Loss={s5_0['loss_lsb2']:8.1f} L² | ENOB={s5_0['enob_bits']:4.2f} b | W8={s5_0['t_obj'].w_m8[0]}")
+    print(f"  Ep   0 [BASE 0   ]: Window Mean [{args.t_min/1000:.1f}..{args.t_max/1000:.1f}ms]: Loss={mean_loss_0:8.1f} L² | ENOB={mean_enob_0:4.2f} b")
+    print(f"                    {center_delay_ms:.1f}ms Snapshot:            Loss={s5_0['loss_lsb2']:8.1f} L² | ENOB={s5_0['enob_bits']:4.2f} b | W8={s5_0['t_obj'].w_m8[0]}")
     print("-" * 105)
 
     records = [{
@@ -390,7 +392,7 @@ def main():
             w3_samp = [int(v) for v in last_t.w_m3[0]]
             print(
                 f"  Ep {ep:4d} [{p_code}]: Win Loss={ep_mean_loss:8.1f} L² | Win ENOB={ep_mean_enob:4.2f} b | "
-                f"5.0ms: {s5['loss_lsb2']:8.1f} L² ({s5['enob_bits']:4.2f}b) | W8_R0={w8_samp} | Rate={rate:4.1f} ep/s"
+                f"{center_delay_ms:.1f}ms: {s5['loss_lsb2']:8.1f} L² ({s5['enob_bits']:4.2f}b) | W8_R0={w8_samp} | Rate={rate:4.1f} ep/s"
             )
             sys.stdout.flush()
 
@@ -462,13 +464,19 @@ def generate_timeline_figure(records: list[dict], meta: dict, out_path: Path):
     c5_losses = [r["center_5ms"]["loss_lsb2"] for r in records]
     c5_enobs = [r["center_5ms"]["enob_bits"] for r in records]
 
+    strata_delays = meta.get("strata_delays_us", [4500, 5500])
+    min_ms = min(strata_delays) / 1000.0
+    max_ms = max(strata_delays) / 1000.0
+    c_idx = len(strata_delays) // 2
+    c_dly_ms = strata_delays[c_idx] / 1000.0
+
     fig, axes = plt.subplots(3, 1, figsize=(14, 11), sharex=True)
     ax1, ax2, ax3 = axes
     var_range = meta.get("w33_variance_lsb_range", 0)
 
     # Panel 1: Quadratic Loss
-    ax1.plot(epochs, win_losses, color="#d97706", linewidth=1.5, label="Window Mean [4.5..5.5 ms] Loss (LSB²)")
-    ax1.plot(epochs, c5_losses, color="#2563eb", linewidth=1.0, alpha=0.75, label="5.0 ms Center Loss (LSB²)")
+    ax1.plot(epochs, win_losses, color="#d97706", linewidth=1.5, label=f"Window Mean [{min_ms:.1f}..{max_ms:.1f} ms] Loss (LSB²)")
+    ax1.plot(epochs, c5_losses, color="#2563eb", linewidth=1.0, alpha=0.75, label=f"{c_dly_ms:.1f} ms Center Loss (LSB²)")
 
     p1_losses = [r["window_eval"]["mean_loss_lsb2"] for r in records if r["epoch"] < 100]
     p2_losses = [r["window_eval"]["mean_loss_lsb2"] for r in records if 100 <= r["epoch"] < 200]
@@ -495,17 +503,17 @@ def generate_timeline_figure(records: list[dict], meta: dict, out_path: Path):
 
     ax1.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
     ax1.set_title(
-        f"Inverted MAML: 1000 Epochs Broadened Window [4.5..5.5 ms] Online Single-Sample SGD on {meta.get('card', 'Card 2')}\n"
-        f"LR={meta['lr']}x, λ={meta['reg_lambda']}, Swing ±{40} LSB, Dist=±{var_range} LSB, {meta['attenuator']} Attenuator (K=1, 11 Updates/Epoch)",
+        f"Inverted MAML: {meta.get('epochs', 1000)} Epochs Broadened Window [{min_ms:.1f}..{max_ms:.1f} ms] Online SGD on {meta.get('card', 'Card 2')}\n"
+        f"LR={meta['lr']}x, λ={meta['reg_lambda']}, Swing ±{40} LSB, Dist=±{var_range} LSB, {meta['attenuator']} Attenuator (K={meta.get('k_batch', 1)}, {meta.get('num_strata', 11)} Updates/Epoch)",
         fontsize=12, fontweight="bold"
     )
     ax1.grid(True, linestyle=":", alpha=0.6)
     ax1.legend(loc="upper right", fontsize=8.5, framealpha=0.92)
 
     # Panel 2: ENOB
-    ax2.plot(epochs, win_enobs, color="#d97706", linewidth=1.5, label=f"Window Mean ENOB [4.5..5.5 ms] (Mean: {np.mean(win_enobs[200:600]):.2f} b)")
+    ax2.plot(epochs, win_enobs, color="#d97706", linewidth=1.5, label=f"Window Mean ENOB [{min_ms:.1f}..{max_ms:.1f} ms] (Mean: {np.mean(win_enobs[200:600]):.2f} b)")
     peak_c5 = max(c5_enobs[200:600]) if len(c5_enobs) > 200 else max(c5_enobs)
-    ax2.plot(epochs, c5_enobs, color="#059669", linewidth=1.1, alpha=0.8, label=f"5.0 ms Center ENOB (Peak: {peak_c5:.2f} b)")
+    ax2.plot(epochs, c5_enobs, color="#059669", linewidth=1.1, alpha=0.8, label=f"{c_dly_ms:.1f} ms Center ENOB (Peak: {peak_c5:.2f} b)")
     ax2.set_ylabel("ENOB (Bits)", fontsize=11, fontweight="bold")
     ax2.set_ylim(2.5, 7.8)
     ax2.grid(True, linestyle=":", alpha=0.6)
@@ -518,7 +526,7 @@ def generate_timeline_figure(records: list[dict], meta: dict, out_path: Path):
         ax3.plot(epochs, w8_channels[c], color=colors_ch[c], linewidth=1.2, label=f"M8 Ch {c} (End: {w8_channels[c][-1]:+d} LSB)")
     ax3.axhline(0, color="#64748b", linestyle="--", linewidth=0.8)
     ax3.set_ylabel("M8 Row 0 [LSB]", fontsize=11, fontweight="bold")
-    ax3.set_xlabel("Epoch (11 Single-Sample Updates per Epoch across 4.5..5.5 ms)", fontsize=11, fontweight="bold")
+    ax3.set_xlabel(f"Epoch ({meta.get('num_strata', 11)} Single-Sample Updates per Epoch across {min_ms:.1f}..{max_ms:.1f} ms)", fontsize=11, fontweight="bold")
     ax3.grid(True, linestyle=":", alpha=0.6)
     ax3.legend(loc="upper right", fontsize=8.0, ncol=3, framealpha=0.92)
 
@@ -562,9 +570,12 @@ def generate_temporal_profile_figure(records: list[dict], strata_delays: list[in
         ax.plot(delays_ms, p4_enobs, "^--", color="#dc2626", linewidth=2.0, markersize=7,
                 label=f"Phase 4: Ablation W=0 (Mean: {np.mean(p4_enobs):.2f} b)")
 
+    min_ms = min(strata_delays) / 1000.0
+    max_ms = max(strata_delays) / 1000.0
+
     ax.set_title(
-        "Inverted MAML: Generalization Profile across Broadened Temporal Window [4.5 – 5.5 ms]\n"
-        f"{meta.get('card', 'Card 2')} Silicon | Pure Online Single-Sample SGD (K=1) | Attenuator: {meta.get('attenuator', '1k/3.3k')}",
+        f"Inverted MAML: Generalization Profile across Broadened Temporal Window [{min_ms:.1f} – {max_ms:.1f} ms]\n"
+        f"{meta.get('card', 'Card 2')} Silicon | Online SGD (K={meta.get('k_batch', 1)}) | Attenuator: {meta.get('attenuator', '1k/3.3k')}",
         fontsize=12, fontweight="bold", pad=12
     )
     ax.set_xlabel("Snapshot Sampling Delay (ms)", fontsize=11, fontweight="bold")
