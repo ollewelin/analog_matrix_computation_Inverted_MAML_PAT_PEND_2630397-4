@@ -141,19 +141,32 @@ Working with analog computing is an act of balancing physics and precision. Very
     - **Ablation Control under Identical Disturbance (Phase 4, $W_8=0$):** Mean Window Loss = $154\,613.5\text{ LSB}^2$ ($3.48\text{ b}$ ENOB); Nominal 5.0 ms snapshot precision collapses to **$3.41\text{ b}$ ENOB** ($36\,329\text{ LSB}^2$).
     - **Empirical Proof of Active Cancellation:** Disabling active compensation causes an immediate **$+109\%$ surge in quadratic error** ($2.09\times$ error increase), proving active, hardware-level error reduction of $>52\%$ on real silicon with crystal-locked 10.0 ms timing.
     - **Mini-Batch $K=4$ Scaling:** Averaging 4 stochastic forward passes per update suppresses gradient variance, achieving a best window loss of **$52\,405.5\text{ LSB}^2$ ($3.95\text{ b}$)** and nominal 5.0 ms precision of **$5.11\text{ b}$ ENOB** ($10\,494\text{ LSB}^2$), with ablation error surging to $142\,530\text{ LSB}^2$ ($2.72\times$ contrast).
-  - **5. Visual Telemetry (Empirical Silicon Figures - K=1 Online SGD & K=4 Mini-Batch):**
+  - **5. Visual Telemetry (Empirical Silicon Figures - K=1 Online SGD & K=4 Mini-Batch Suites):**
 
-  ![Inverted MAML Silicon: 2D Temporal Spectrogram of Precision](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_heatmap_spectrogram.png)
+  #### 📊 Reference Baseline & Window Generalization (K=1 Online Single-Sample SGD):
+
+  ![Inverted MAML Silicon: 2D Temporal Spectrogram of Precision (K=1)](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_heatmap_spectrogram.png)
   *Figure: 2D Temporal Spectrogram of Precision (Delay × Epoch) across the 1,000 µs window on Card 2 live silicon (K=1 Online SGD). The transition at Epoch 100 demonstrates instant illumination of the window from dark blue (2.5–3.2 b) to bright green/yellow (4.5–5.5 b). At Epoch 600, clamping $W_8=0$ in Phase 4 under the exact same disturbances instantly plunges the precision back to dark blue.*
 
-  ![Inverted MAML Silicon: Generalization Profile Across Broadened Temporal Window](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_profile_4phases.png)
-  *Figure: Generalization profile across the broadened temporal window [4.5–5.5 ms]. Peak gain of +1.10 b at 5.0 ms nominal delay. Phase 3 active compensation maintains 4.05 b mean under ±5 LSB disturbance, while Phase 4 ablation collapses to 3.48 b under the identical disturbances (loss jumps from $73\,911\text{ LSB}^2 \to 154\,613\text{ LSB}^2$, a $>2.09\times$ error surge).*
+  ![Inverted MAML Silicon: Generalization Profile Across Broadened Temporal Window (K=1)](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_profile_4phases.png)
+  *Figure: Generalization profile across the broadened temporal window [4.5–5.5 ms] under K=1. Peak gain of +1.10 b at 5.0 ms nominal delay. Phase 3 active compensation maintains 4.05 b mean under ±5 LSB disturbance, while Phase 4 ablation collapses to 3.48 b under the identical disturbances (loss jumps from $73\,911\text{ LSB}^2 \to 154\,613\text{ LSB}^2$, a $>2.09\times$ error surge).*
+
+  #### 🚀 Complete High-Performance Suite (K=4 Mini-Batch SGD - All 5 Empirical Visualizations):
 
   ![Joint ENOB Trajectories: Entire Temporal Wavefront Lifts Synchronously (K=4)](FPGA_code/docs/figures/fig_card2_w3_staircase_joint_loss_and_enob_all_stratas_k4.png)
-  *Figure: Joint ENOB trajectories across all 11 strata under K=4 mini-batch SGD. The entire temporal wavefront lifts synchronously under W(3) staircase initialization, holding stable 3.74 b mean precision under continuous disturbances, with center 5.0 ms precision peaking at 5.55 b ENOB.*
+  *Figure 1 (K=4): Joint ENOB trajectories across all 11 strata under K=4 mini-batch SGD. The entire temporal wavefront lifts synchronously under W(3) staircase initialization, holding stable 3.74 b mean precision under continuous disturbances, with center 5.0 ms precision peaking at 5.55 b ENOB.*
+
+  ![Inverted MAML Silicon: 2D Temporal Spectrogram of Precision (K=4)](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_heatmap_spectrogram_k4.png)
+  *Figure 2 (K=4): 2D Temporal Spectrogram of Precision (Delay × Epoch) under K=4 mini-batch SGD. Batch averaging suppresses variance across the continuous 1,000 µs corridor, expanding the high-precision yellow/green core across 4.9–5.2 ms, with sharp contrast collapse to dark purple/blue at Epoch 600 ablation.*
+
+  ![Inverted MAML Silicon: Generalization Profile Across Broadened Temporal Window (K=4)](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_profile_4phases_k4.png)
+  *Figure 3 (K=4): Generalization profile across the broadened temporal window [4.5–5.5 ms] under K=4 mini-batch SGD. Peak gain of +1.02 b at nominal 5.0 ms delay. Phase 3 active compensation maintains 4.07 b mean under ±5 LSB disturbance, while Phase 4 ablation collapses to 3.73 b under the identical disturbances (loss surges from $52\,405.5\text{ LSB}^2 \to 142\,530\text{ LSB}^2$, a $2.72\times$ contrast).*
+
+  ![Matrix 3 Dynamic Trajectories (K=4)](FPGA_code/docs/figures/fig_2d_m3_trajectory_card2_w3_staircase_k4.png)
+  *Figure 4 (K=4): Continuous 1,000-epoch trajectories for all 48 weights of Matrix 3 ($8\text{ rows} \times 6\text{ cols}$) under K=4 mini-batch SGD. Rows 0..5 adapt smoothly to input variations while Rows 6 & 7 hold the fixed W(3) staircase reference distribution ($[-40, -24, -8, +8, +24, +40]\text{ LSB}$ and $[+40\dots -40]\text{ LSB}$), ensuring stable clock ramp centering throughout training.*
 
   ![Matrix 8 Dynamic Trajectories (K=4)](FPGA_code/docs/figures/fig_2d_m8_trajectory_card2_w3_staircase_k4.png)
-  *Figure: Dynamic trajectories of all 42 Matrix 8 weights under K=4 mini-batch SGD. Weights adapt smoothly to each non-stationary disturbance shift at Epochs 200, 300, 400, and 500 without rail-saturation ($|W_8| < 25\text{ LSB}$). At Epoch 600, weights are ablated ($W_8=0$) under the identical paired disturbances.*
+  *Figure 5 (K=4): Dynamic trajectories of all 42 Matrix 8 weights under K=4 mini-batch SGD. Weights adapt smoothly to each non-stationary disturbance shift at Epochs 200, 300, 400, and 500 without rail-saturation ($|W_8| < 25\text{ LSB}$). At Epoch 600, weights are ablated ($W_8=0$) under the identical paired disturbances.*
 
   - **6. Official Comprehensive Reports:**  
     - [📄 `INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf) (Complete 10-page publication report for $K=1$, with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.md))
