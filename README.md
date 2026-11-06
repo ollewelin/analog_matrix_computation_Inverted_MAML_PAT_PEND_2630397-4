@@ -175,6 +175,25 @@ Working with analog computing is an act of balancing physics and precision. Very
   - **7. Note on Upcoming Physical Oscilloscope Verification:**  
     The metrics reported above were captured via high-speed bare-metal differential SAR ADC telemetry (`XC2361A`, $\text{ADC}_{45}$) over Ethernet with crystal-locked $10.0\text{ ms}$ refresh timing. Direct physical oscilloscope verification of the analog circuit nodes (probing ColTIA virtual ground summing junctions `CH1`–`CH6`, the 24 µs Hadamard carrier burst modulation on 2T1C capacitor gates, and Sigmoid 4 analog activation outputs) will be conducted separately in an upcoming bench session to provide direct visual correlation between digital telemetry and physical analog waveforms.
 
+- **2026-11-06 (Temporal Window Shift Exploration: [5.0 .. 6.0 ms] on Card 2 Silicon):**
+  - **1. Objective & Shifted Temporal Parameters:**  
+    Following the [4.5 .. 5.5 ms] benchmark, the 11-strata sampling window was shifted +0.5 ms upwards in time to **[5.0 .. 6.0 ms]** (11 strata: 5000, 5100, ..., 6000 µs), leaving all other parameters identical (1000 epochs, $W_3$ staircase $\pm 40\text{ LSB}$, White Noise, $\text{LR}=0.02\times$, $\lambda=2048$, dynamic swing $\pm 40\text{ LSB}$, $\pm 5\text{ LSB}$ non-stationary disturbance shifts, and 1:1 paired ablation control $W_8=0$).
+  - **2. Observations Across the Discharge Slope:**  
+    In this later temporal window, the 2T1C analog gate capacitors ($100\text{ nF}$) discharge for an extra 500 µs, increasing transconductance droop. While uncompensated baseline precision declines at later snapshot times (reaching $3.39\text{ b}$ at 6.0 ms), the active Inverted MAML compensation network provides sustained error suppression across the later strata, showing net gains of **+0.23 b to +0.75 b** between 5.4 ms and 6.0 ms. At the nominal 5.5 ms center snapshot, precision reached **$5.19\text{ b}$** (peaking at **$6.73\text{ b}$**, with best evaluation loss of $1\,118.0\text{ LSB}^2$, a $17.0\times$ reduction relative to baseline).
+  - **3. Empirical Visualizations ([5.0 .. 6.0 ms] Window):**
+    
+    ![Inverted MAML Silicon: 2D Temporal Spectrogram of Precision (5.0-6.0 ms)](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_heatmap_spectrogram_5000to6000us.png)
+    *Figure: 2D Temporal Spectrogram of Precision (Delay × Epoch) across the shifted [5.0 .. 6.0 ms] window on Card 2 live silicon (K=1 Online SGD). Note the instantaneous precision illumination at Epoch 100 when training is engaged, active disturbance tracking in Phase 3, and immediate precision collapse across the entire window when $W_8$ is clamped to 0 in Phase 4.*
+
+    ![Inverted MAML Silicon: Generalization Profile Across Shifted Temporal Window [5.0 - 6.0 ms]](FPGA_code/docs/figures/fig_card2_w3_staircase_temporal_profile_4phases_5000to6000us.png)
+    *Figure: Generalization profile across 11 discrete strata [5.0 .. 6.0 ms] across the 4 experimental phases. Active compensation provides the largest error reduction (+0.23 to +0.75 b) in the late temporal region (5.4–6.0 ms) where capacitor discharge is most pronounced, while Phase 4 ablation collapses back to baseline levels.*
+
+  - **4. Comprehensive Report:**  
+    - [📄 `INVERTED_MAML_CARD2_1000EP_5000TO6000US_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5000TO6000US_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf) (Complete 10-page publication report for [5.0..6.0 ms], with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_5000TO6000US_W3_STAIRCASE_COMPREHENSIVE_REPORT.md))
+
+  - **5. Planned Oscilloscope Bench Verification:**  
+    As with the previous runs, this shifted-window dataset was collected via differential ADC telemetry (`XC2361A`, $\text{ADC}_{45}$) over Ethernet. Direct physical oscilloscope verification of the analog circuit nodes across this shifted 5.0–6.0 ms range will be conducted separately in a dedicated bench session.
+
 ---
 
 ### 📦 Verified Release Archives & Reproducibility Packages
@@ -183,6 +202,7 @@ Release packages containing synthesized bitstreams (`*.bit`), flash hex (`*.hex`
 
 - [**`Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K1_PairedAblation`**](FPGA_code/releases/Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K1_PairedAblation/): Verified 1000-epoch benchmark on Card 2 live silicon with crystal-locked 10.0 ms timing, W(3) staircase dynamic calibration, and 1:1 paired-ablation control ($K=1$ Online SGD). Contains clean RISC-V firmware, T120/T20 bitstreams, HDL, Python runner, and 10-page report.
 - [**`Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K4_Addon`**](FPGA_code/releases/Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K4_Addon/): Mini-batch $K=4$ variant add-on package (same bitstream & firmware, host batch averaging parameter `--k-batch 4`) with full 1000-epoch dataset, 10-page report, and figures.
+- [**`Release_20261106_ModeA_Card2_1000ep_ShiftedWindow_5to6ms_W3_Staircase_K1`**](FPGA_code/releases/Release_20261106_ModeA_Card2_1000ep_ShiftedWindow_5to6ms_W3_Staircase_K1/): 1000-epoch benchmark archive for the shifted temporal window `[5.0 .. 6.0 ms]` on Card 2 silicon ($K=1$ Online SGD). Includes execution script `run_card2_5to6ms.sh`, telemetry dataset, 10-page report, and figures.
 - [**`Milestone_1_ModeA_5ms_Verified`**](FPGA_code/releases/Milestone_1_ModeA_5ms_Verified/): Initial Mode A baseline bringup bitstreams and verification logs (1k/5.1k attenuator, $K=20$).
 - [**`T20_Custom_Verified`**](FPGA_code/releases/T20_Custom_Verified/): T20 Coprocessor verified configuration and synchronous bus bridge.
 - [**`v1.2_bridge_udp_version`**](FPGA_code/releases/v1.2_bridge_udp_version/): Base UDP communication and Master SoC baseline bridge.
