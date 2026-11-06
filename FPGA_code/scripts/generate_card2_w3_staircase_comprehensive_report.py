@@ -22,6 +22,7 @@ joint 11-strata loss/ENOB plots, 2D spectrogram heatmaps, discrete 3D bar topogr
 """
 
 from __future__ import annotations
+import argparse
 import sys
 import json
 import math
@@ -49,10 +50,10 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def load_dataset():
-    if not DATA_FILE.exists():
-        raise FileNotFoundError(f"Data file not found: {DATA_FILE}")
-    with open(DATA_FILE, "r") as f:
+def load_dataset(data_path: Path):
+    if not data_path.exists():
+        raise FileNotFoundError(f"Data file not found: {data_path}")
+    with open(data_path, "r") as f:
         data = json.load(f)
     return data
 
@@ -1296,25 +1297,41 @@ This benchmark report presents the empirical characterization of the **Inverted 
 # Main Orchestration Function
 # ==============================================================================
 def main():
+    parser = argparse.ArgumentParser(description="Generate Inverted MAML Card 2 W3 Staircase Comprehensive Report")
+    parser.add_argument("--k-batch", type=int, default=1, help="K batch size (1 or 4)")
+    parser.add_argument("--data-path", type=str, default=None, help="Explicit path to JSON dataset")
+    args = parser.parse_args()
+
+    k_suffix = f"_k{args.k_batch}" if args.k_batch > 1 else ""
+    k_slug = f"_k{args.k_batch}" if args.k_batch > 1 else "_k1"
+    doc_k = f"K{args.k_batch}_" if args.k_batch > 1 else ""
+
+    if args.data_path:
+        data_path = Path(args.data_path)
+    else:
+        k_tag = f"k{args.k_batch}"
+        data_path = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training" / f"mode_a_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_{k_tag}_1k_3p3k_w3staircase_ablation.json"
+
     print("=" * 80)
-    print("Inverted MAML: Generating Card 2 W3 Staircase Comprehensive Report")
+    print(f"Inverted MAML: Generating Card 2 W3 Staircase Comprehensive Report (K={args.k_batch})")
+    print(f"Dataset: {data_path}")
     print("=" * 80)
 
-    data = load_dataset()
+    data = load_dataset(data_path)
 
-    joint_fig = FIGURES_DIR / "fig_card2_w3_staircase_joint_loss_and_enob_all_stratas.png"
-    slices_fig = FIGURES_DIR / "fig_card2_w3_staircase_multi_timepoint_loss_enob.png"
-    heatmap_fig = FIGURES_DIR / "fig_card2_w3_staircase_temporal_heatmap_spectrogram.png"
-    profile_fig = FIGURES_DIR / "fig_card2_w3_staircase_temporal_profile_4phases.png"
-    part1_3d = FIGURES_DIR / "fig_3d_card2_w3_staircase_part1_baseline_nominal.png"
-    part2_3d = FIGURES_DIR / "fig_3d_card2_w3_staircase_part2_dist1_dist2.png"
-    panel8_3d = FIGURES_DIR / "fig_3d_card2_w3_staircase_8panel.png"
-    dist_3d = FIGURES_DIR / "fig_3d_card2_w3_staircase_disturbances_m33_4panel.png"
-    m3_2d = FIGURES_DIR / "fig_2d_m3_trajectory_card2_w3_staircase.png"
-    m8_2d = FIGURES_DIR / "fig_2d_m8_trajectory_card2_w3_staircase.png"
+    joint_fig = FIGURES_DIR / f"fig_card2_w3_staircase_joint_loss_and_enob_all_stratas{k_suffix}.png"
+    slices_fig = FIGURES_DIR / f"fig_card2_w3_staircase_multi_timepoint_loss_enob{k_suffix}.png"
+    heatmap_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_heatmap_spectrogram{k_suffix}.png"
+    profile_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_profile_4phases{k_suffix}.png"
+    part1_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part1_baseline_nominal{k_suffix}.png"
+    part2_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part2_dist1_dist2{k_suffix}.png"
+    panel8_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_8panel{k_suffix}.png"
+    dist_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_disturbances_m33_4panel{k_suffix}.png"
+    m3_2d = FIGURES_DIR / f"fig_2d_m3_trajectory_card2_w3_staircase{k_suffix}.png"
+    m8_2d = FIGURES_DIR / f"fig_2d_m8_trajectory_card2_w3_staircase{k_suffix}.png"
 
-    out_pdf = DOCS_DIR / "INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf"
-    out_md = DOCS_DIR / "INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.md"
+    out_pdf = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf"
+    out_md = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.md"
 
     fig_dict = {
         "joint": joint_fig,
@@ -1349,14 +1366,15 @@ def main():
 
     # Render Preview Images for Artifacts Directory
     try:
-        prefix = str(ARTIFACTS_DIR / "page_card2_w3_staircase_comp")
+        prefix = str(ARTIFACTS_DIR / f"page_card2_{doc_k.lower()}w3_staircase_comp")
         subprocess.run(["pdftoppm", "-png", "-r", "150", str(out_pdf), prefix], check=True)
         print("[+] Generated page preview images in artifacts directory.")
     except Exception as e:
         print(f"[!] Warning: Could not render page preview images: {e}")
 
-    print("\n[✓] All Card 2 W(3) Staircase Comprehensive assets generated successfully!")
+    print(f"\n[✓] All Card 2 W(3) Staircase Comprehensive assets (K={args.k_batch}) generated successfully!")
 
 
 if __name__ == "__main__":
     main()
+

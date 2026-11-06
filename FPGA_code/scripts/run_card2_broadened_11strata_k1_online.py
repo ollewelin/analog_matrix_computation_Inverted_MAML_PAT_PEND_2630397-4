@@ -76,17 +76,17 @@ def run_single_sample_stratum_step(
     delay_us: int,
     lr_q16: int,
     reg_q16: int,
+    k_batch: int = 1,
 ) -> dict:
     """
-    Executes MAML_CMD_BATCH_STEP with k_batch=1, num_strata=1 at delay_us.
-    Pure single-sample online SGD on physical silicon:
-    Hardware evaluates exactly 1 sample, extracts Hadamard gradients, and
-    IMMEDIATELY updates weights with lr_q16 and reg_q16.
+    Executes MAML_CMD_BATCH_STEP with k_batch, num_strata=1 at delay_us.
+    Hardware evaluates k_batch samples, extracts Hadamard gradients, and
+    updates weights with lr_q16 and reg_q16.
     """
     pkt = struct.pack(
         "<BBHHHH",
-        1,         # k_batch = 1
-        1,         # num_strata = 1 (single-sample!)
+        k_batch,   # k_batch
+        1,         # num_strata = 1
         delay_us,  # t_min_us
         delay_us,  # t_max_us
         lr_q16,
@@ -125,6 +125,7 @@ def main():
     parser.add_argument("--host", default="192.168.1.50")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--epochs", type=int, default=1000)
+    parser.add_argument("--k-batch", type=int, default=1, help="Mini-batch size K vectors per stratum update")
     parser.add_argument("--lr", type=float, default=0.02)
     parser.add_argument("--reg-lambda", type=int, default=2048)
     parser.add_argument("--noise-color", choices=["toeplitz", "white"], default="toeplitz")
@@ -151,7 +152,8 @@ def main():
     att_slug = args.attenuator.replace("/", "_").replace(".", "p")
     stair_str = "_w3staircase" if args.staircase_w3 else ""
     abl_str = "_ablation" if args.epochs >= 600 else ""
-    tag = args.tag or f"broadened_{args.t_min}to{args.t_max}us_{args.noise_color}_reg{args.reg_lambda}_{lr_str}_{swing_str}_{var_str}_k1_{att_slug}{stair_str}{abl_str}"
+    k_str = f"k{args.k_batch}"
+    tag = args.tag or f"broadened_{args.t_min}to{args.t_max}us_{args.noise_color}_reg{args.reg_lambda}_{lr_str}_{swing_str}_{var_str}_{k_str}_{att_slug}{stair_str}{abl_str}"
 
     out_stem = f"{args.prefix}_{args.epochs}ep_{tag}"
     json_path = LOG_DIR / f"{out_stem}.json"
@@ -220,7 +222,7 @@ def main():
     strata_0 = []
     last_t_obj = None
     for dly in strata_delays:
-        res = run_single_sample_stratum_step(client, dly, lr_q16=0, reg_q16=0)
+        res = run_single_sample_stratum_step(client, dly, lr_q16=0, reg_q16=0, k_batch=args.k_batch)
         strata_0.append(res)
         last_t_obj = res["t_obj"]
 
@@ -326,11 +328,11 @@ def main():
             if ep >= 600:
                 client._send_binary(MAML_CMD_CENTER_WEIGHTS, baseline_payload)
 
-        # Execute 11 single-sample stratum steps sequentially, updating weights IMMEDIATELY after each sample!
+        # Execute 11 stratum steps sequentially, updating weights IMMEDIATELY after each step!
         ep_strata = []
         last_t = None
         for dly in strata_delays:
-            res = run_single_sample_stratum_step(client, dly, lr_q16=cur_lr_q16, reg_q16=cur_reg)
+            res = run_single_sample_stratum_step(client, dly, lr_q16=cur_lr_q16, reg_q16=cur_reg, k_batch=args.k_batch)
             ep_strata.append(res)
             last_t = res["t_obj"]
 
@@ -402,8 +404,8 @@ def main():
             "epochs": args.epochs,
             "strata_delays_us": strata_delays,
             "num_strata": num_strata,
-            "k_batch": 1,
-            "online_mode": "immediate_single_sample_update_per_stratum",
+            "k_batch": args.k_batch,
+            "online_mode": f"immediate_k{args.k_batch}_update_per_stratum",
             "lr": args.lr,
             "reg_lambda": args.reg_lambda,
             "d_line": args.d_line,
