@@ -129,6 +129,7 @@ def copy_reports_and_logs(target_dir: Path):
     data_dir = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training"
     datasets = [
         "mode_a_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
+        "mode_a_1000ep_broadened_4500to5500us_white_reg512_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
         "mode_a_1000ep_broadened_4900to5900us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
         "mode_a_1000ep_broadened_4900to5900us_white_reg2048_lr0p02_swing40_var5_k4_1k_3p3k_w3staircase_ablation.json",
         "mode_a_1000ep_broadened_4900to5900us_white_reg1024_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
@@ -143,6 +144,8 @@ def copy_reports_and_logs(target_dir: Path):
     reports = [
         "INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
         "INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.md",
+        "INVERTED_MAML_CARD2_1000EP_REG512_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
+        "INVERTED_MAML_CARD2_1000EP_REG512_W3_STAIRCASE_COMPREHENSIVE_REPORT.md",
         "INVERTED_MAML_CARD2_1000EP_4900TO5900US_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
         "INVERTED_MAML_CARD2_1000EP_4900TO5900US_W3_STAIRCASE_COMPREHENSIVE_REPORT.md",
         "INVERTED_MAML_CARD2_1000EP_4900TO5900US_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
@@ -221,6 +224,13 @@ This release completely removes software from the physical timing loop by implem
 - **Phase 4 (Ablation $W=0$ under $\pm 5$ LSB):** Window Loss $= 123,373.7\\,\\text{{LSB}}^2$ ($3.34\\,\\text{{b}}$, **$+147.3\\%$ error increase!**)
 - **Regularization Impact:** Halving $\lambda$ from 2048 to 1024 allows Matrix 8 to achieve significantly sharper compensation on steep droop slopes, reaching **$6.26\\,\\text{{b}}$ peak precision** without instability.
 
+### 5. Nominal Window [4.5..5.5 ms] Quarter L2 Regularization ($K=1$, 11 Strata, $\lambda=512$, $\pm 5$ LSB Disturbance):
+- **Phase 1 (Baseline $W=0$):** Window Loss $= 54,042.9\\,\\text{{LSB}}^2$ ($3.93\\,\\text{{b}}$) | 5.0 ms: $7,512.4\\,\\text{{LSB}}^2$ ($5.53\\,\\text{{b}}$)
+- **Phase 2 (Active Nominal):** Window Loss $= 42,563.1\\,\\text{{LSB}}^2$ ($4.11\\,\\text{{b}}$) | 5.0 ms: $8,651.9\\,\\text{{LSB}}^2$ ($5.40\\,\\text{{b}}$)
+- **Phase 3 (Active Tracking $\pm 5$ LSB):** Window Loss $= 38,623.8\\,\\text{{LSB}}^2$ ($4.18\\,\\text{{b}}$) | Peak evaluation: **$6.78\\,\\text{{b}}$** ($1,039.5\\,\\text{{LSB}}^2$, all-time silicon record!)
+- **Phase 4 (Ablation $W=0$ under $\pm 5$ LSB):** Window Loss $= 78,823.6\\,\\text{{LSB}}^2$ ($3.69\\,\\text{{b}}$) | 5.0 ms: $33,963.6\\,\\text{{LSB}}^2$ ($4.37\\,\\text{{b}}$, $+133\\%$ error increase at center!)
+- **Key Discovery:** Lowering $\lambda$ to 512 enables exceptional tracking robustness during dynamic $\pm 5\\,\\text{{LSB}}$ drift (Phase 3 loss actually improved below Phase 2!), achieving up to **$6.78\\,\\text{{b}}$ peak ENOB**.
+
 ---
 
 ## 📦 Directory Structure & Deliverables
@@ -246,6 +256,7 @@ This release completely removes software from the physical timing loop by implem
   - `flash_soc.py` & `program_t120.py`: High-speed JTAG flashing tools.
 - `reports_and_logs/`:
   - `INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.5..5.5 ms, K=1, reg2048])
+  - `INVERTED_MAML_CARD2_1000EP_REG512_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.5..5.5 ms, K=1, reg512])
   - `INVERTED_MAML_CARD2_1000EP_4900TO5900US_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.9..5.9 ms, K=1, reg2048])
   - `INVERTED_MAML_CARD2_1000EP_4900TO5900US_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.9..5.9 ms, K=4, reg2048])
   - `INVERTED_MAML_CARD2_1000EP_4900TO5900US_REG1024_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.9..5.9 ms, K=1, reg1024])
