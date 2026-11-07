@@ -38,7 +38,7 @@
 ---
 
 ## 🌐 Open Source Hardware (OSHWLab / JLCPCB) & Demos
-* **Zenodo Open Research Publication (DOI):** [🔗 `10.5281/zenodo.23859108`](https://zenodo.org/records/23859108)
+* **Zenodo Open Research Publication (DOI):** [🔗 `10.5281/zenodo.24030796`](https://zenodo.org/records/24030796)
 * **OSHWLab Interactive CAD, Schematics & PCB:** [🔗 `Inverted_MAML_6x6` on OSHWLab](https://oshwlab.com/olle_welin/project_yvkekxrp)
 * **EasyEDA Pro Cloud Editor:** [🔗 Open Directly in EasyEDA Pro](https://pro.easyeda.com/editor#id=901f528fcedd48afb0c852fa55bc80b4)
 * **YouTube — Project Overview & Architecture Audio:** [Watch on YouTube](https://www.youtube.com/watch?v=LbWriQ0J6QY&t=72s)
@@ -536,8 +536,8 @@ This daisy-chained architecture covers all sequential, pipelined, staggered, and
 
 ## 📚 Citation & Zenodo Record
 
-* **Zenodo Record URL:** [https://zenodo.org/records/23954797](https://zenodo.org/records/23954797)  
-* **Digital Object Identifier (DOI):** [10.5281/zenodo.23859108](https://doi.org/10.5281/zenodo.23859108)
+* **Zenodo Record URL:** [https://zenodo.org/records/23954797](https://zenodo.org/records/24030796)  
+* **Digital Object Identifier (DOI):** [10.5281/zenodo.24030796](https://doi.org/10.5281/zenodo.24030796)
 
 If you use this work, hardware designs, FPGA firmware, or silicon telemetry datasets in your research, please cite the Zenodo release:
 
