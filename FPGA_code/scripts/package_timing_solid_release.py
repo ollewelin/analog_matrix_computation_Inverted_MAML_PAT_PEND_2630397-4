@@ -129,10 +129,12 @@ def copy_reports_and_logs(target_dir: Path):
     data_dir = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training"
     datasets = [
         "mode_a_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
+        "mode_a_1000ep_broadened_4500to5500us_white_reg1024_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
         "mode_a_1000ep_broadened_4500to5500us_white_reg512_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
         "mode_a_1000ep_broadened_4900to5900us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
         "mode_a_1000ep_broadened_4900to5900us_white_reg2048_lr0p02_swing40_var5_k4_1k_3p3k_w3staircase_ablation.json",
         "mode_a_1000ep_broadened_4900to5900us_white_reg1024_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
+        "mode_b_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json",
     ]
     for ds in datasets:
         p = data_dir / ds
@@ -144,8 +146,12 @@ def copy_reports_and_logs(target_dir: Path):
     reports = [
         "INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
         "INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.md",
+        "INVERTED_MAML_CARD2_1000EP_REG1024_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
+        "INVERTED_MAML_CARD2_1000EP_REG1024_W3_STAIRCASE_COMPREHENSIVE_REPORT.md",
         "INVERTED_MAML_CARD2_1000EP_REG512_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
         "INVERTED_MAML_CARD2_1000EP_REG512_W3_STAIRCASE_COMPREHENSIVE_REPORT.md",
+        "INVERTED_MAML_CARD2_1000EP_MODE_B_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
+        "INVERTED_MAML_CARD2_1000EP_MODE_B_W3_STAIRCASE_COMPREHENSIVE_REPORT.md",
         "INVERTED_MAML_CARD2_1000EP_4900TO5900US_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
         "INVERTED_MAML_CARD2_1000EP_4900TO5900US_W3_STAIRCASE_COMPREHENSIVE_REPORT.md",
         "INVERTED_MAML_CARD2_1000EP_4900TO5900US_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf",
