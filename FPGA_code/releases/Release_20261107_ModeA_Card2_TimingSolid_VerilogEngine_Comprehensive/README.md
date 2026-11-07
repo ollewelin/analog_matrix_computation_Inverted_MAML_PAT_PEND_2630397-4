@@ -43,12 +43,19 @@ This release completely removes software from the physical timing loop by implem
 - **Phase 4 (Ablation $W=0$ under $\pm 5$ LSB):** Window Loss $= 117,572.5\,\text{LSB}^2$ ($3.38\,\text{b}$, **$+113.1\%$ error increase!**)
 - **Ablation Contrast:** More than **$2.1\times$ error increase** without active compensation on the deep capacitor discharge slope.
 
-### 3. Shifted Window [4.9..5.9 ms] Mini-Batch SGD ($K=4$, 11 Strata, $\pm 5$ LSB Disturbance):
+### 3. Shifted Window [4.9..5.9 ms] Mini-Batch SGD ($K=4$, 11 Strata, $\lambda=2048$, $\pm 5$ LSB Disturbance):
 - **Phase 1 (Baseline $W=0$):** Window Loss $= 100,163.7\,\text{LSB}^2$ ($3.49\,\text{b}$) | 5.4 ms: $59,650.9\,\text{LSB}^2$ ($3.87\,\text{b}$)
 - **Phase 2 (Active Nominal):** Window Loss $= 41,633.8\,\text{LSB}^2$ ($4.12\,\text{b}$, **$-58.4\%$ error reduction**) | 5.4 ms: $22,432.2\,\text{LSB}^2$ ($4.59\,\text{b}$, **$-62.4\%$ error reduction**)
 - **Phase 3 (Active Tracking $\pm 5$ LSB):** Window Loss $= 67,815.6\,\text{LSB}^2$ ($3.80\,\text{b}$) | Peak evaluation: **$5.37\,\text{b}$** ($7,338.0\,\text{LSB}^2$, **$8.1\times$ error reduction**)
 - **Phase 4 (Ablation $W=0$ under $\pm 5$ LSB):** Window Loss $= 163,615.2\,\text{LSB}^2$ ($3.17\,\text{b}$, **$+141.2\%$ error increase!**)
 - **Ablation Contrast:** Extreme degradation when $W_8=0$ is forced under disturbance; Mini-batch $K=4$ maintains solid convergence across the entire $1,000\,\mu\text{s}$ discharge slope.
+
+### 4. Shifted Window [4.9..5.9 ms] Halved L2 Regularization ($K=1$, 11 Strata, $\lambda=1024$, $\pm 5$ LSB Disturbance):
+- **Phase 1 (Baseline $W=0$):** Window Loss $= 103,511.7\,\text{LSB}^2$ ($3.47\,\text{b}$) | 5.4 ms: $59,956.2\,\text{LSB}^2$ ($3.89\,\text{b}$)
+- **Phase 2 (Active Nominal):** Window Loss $= 39,464.9\,\text{LSB}^2$ ($4.17\,\text{b}$, **$-61.9\%$ error reduction**) | 5.4 ms: $18,366.0\,\text{LSB}^2$ ($4.81\,\text{b}$, **$-69.4\%$ error reduction**, $+0.93\,\text{b}$!)
+- **Phase 3 (Active Tracking $\pm 5$ LSB):** Window Loss $= 49,891.5\,\text{LSB}^2$ ($4.00\,\text{b}$) | Peak evaluation: **$6.26\,\text{b}$** ($2,154.0\,\text{LSB}^2$, **$27.8\times$ error reduction!**)
+- **Phase 4 (Ablation $W=0$ under $\pm 5$ LSB):** Window Loss $= 123,373.7\,\text{LSB}^2$ ($3.34\,\text{b}$, **$+147.3\%$ error increase!**)
+- **Regularization Impact:** Halving $\lambda$ from 2048 to 1024 allows Matrix 8 to achieve significantly sharper compensation on steep droop slopes, reaching **$6.26\,\text{b}$ peak precision** without instability.
 
 ---
 
@@ -74,9 +81,10 @@ This release completely removes software from the physical timing loop by implem
   - `verify_and_guard_version.py`: Pre-flight version guard.
   - `flash_soc.py` & `program_t120.py`: High-speed JTAG flashing tools.
 - `reports_and_logs/`:
-  - `INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.5..5.5 ms, K=1])
-  - `INVERTED_MAML_CARD2_1000EP_4900TO5900US_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.9..5.9 ms, K=1])
-  - `INVERTED_MAML_CARD2_1000EP_4900TO5900US_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.9..5.9 ms, K=4])
+  - `INVERTED_MAML_CARD2_1000EP_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.5..5.5 ms, K=1, reg2048])
+  - `INVERTED_MAML_CARD2_1000EP_4900TO5900US_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.9..5.9 ms, K=1, reg2048])
+  - `INVERTED_MAML_CARD2_1000EP_4900TO5900US_K4_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.9..5.9 ms, K=4, reg2048])
+  - `INVERTED_MAML_CARD2_1000EP_4900TO5900US_REG1024_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf` ([4.9..5.9 ms, K=1, reg1024])
   - Complete 1000-epoch JSON telemetry datasets and high-resolution 3D figures.
 
 ---

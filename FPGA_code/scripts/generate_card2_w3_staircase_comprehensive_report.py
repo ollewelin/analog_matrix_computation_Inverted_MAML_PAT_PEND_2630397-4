@@ -1869,21 +1869,25 @@ def main():
     mode_slug = "_mode_b" if is_mode_b else ""
     doc_mode = "MODE_B_" if is_mode_b else ""
 
-    joint_fig = FIGURES_DIR / f"fig_card2_w3_staircase_joint_loss_and_enob_all_stratas{win_slug}{mode_slug}{k_suffix}.png"
-    slices_fig = FIGURES_DIR / f"fig_card2_w3_staircase_multi_timepoint_loss_enob{win_slug}{mode_slug}{k_suffix}.png"
-    heatmap_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_heatmap_spectrogram{win_slug}{mode_slug}{k_suffix}.png"
-    profile_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_profile_4phases{win_slug}{mode_slug}{k_suffix}.png"
-    part1_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part1_baseline_nominal{win_slug}{mode_slug}{k_suffix}.png"
-    part2_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part2_dist1_dist2{win_slug}{mode_slug}{k_suffix}.png"
-    panel8_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_8panel{win_slug}{mode_slug}{k_suffix}.png"
-    dist_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_disturbances_m33_4panel{win_slug}{mode_slug}{k_suffix}.png"
-    dist_2d_numeric = FIGURES_DIR / f"fig_2d_card2_w3_staircase_disturbances_numeric{win_slug}{mode_slug}{k_suffix}.png"
-    m3_2d = FIGURES_DIR / f"fig_2d_m3_trajectory_card2_w3_staircase{win_slug}{mode_slug}{k_suffix}.png"
-    m8_2d = FIGURES_DIR / f"fig_2d_m8_trajectory_card2_w3_staircase{win_slug}{mode_slug}{k_suffix}.png"
-    comp_fig = FIGURES_DIR / f"fig_card2_w3_staircase_mode_a_vs_mode_b_comparison{win_slug}{k_suffix}.png"
+    reg_lambda = meta.get("reg_lambda", 2048)
+    reg_slug = f"_reg{reg_lambda}" if reg_lambda != 2048 else ""
+    doc_reg = f"REG{reg_lambda}_" if reg_lambda != 2048 else ""
 
-    out_pdf = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_mode}{doc_win}{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf"
-    out_md = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_mode}{doc_win}{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.md"
+    joint_fig = FIGURES_DIR / f"fig_card2_w3_staircase_joint_loss_and_enob_all_stratas{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    slices_fig = FIGURES_DIR / f"fig_card2_w3_staircase_multi_timepoint_loss_enob{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    heatmap_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_heatmap_spectrogram{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    profile_fig = FIGURES_DIR / f"fig_card2_w3_staircase_temporal_profile_4phases{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    part1_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part1_baseline_nominal{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    part2_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_part2_dist1_dist2{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    panel8_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_8panel{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    dist_3d = FIGURES_DIR / f"fig_3d_card2_w3_staircase_disturbances_m33_4panel{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    dist_2d_numeric = FIGURES_DIR / f"fig_2d_card2_w3_staircase_disturbances_numeric{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    m3_2d = FIGURES_DIR / f"fig_2d_m3_trajectory_card2_w3_staircase{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    m8_2d = FIGURES_DIR / f"fig_2d_m8_trajectory_card2_w3_staircase{win_slug}{mode_slug}{reg_slug}{k_suffix}.png"
+    comp_fig = FIGURES_DIR / f"fig_card2_w3_staircase_mode_a_vs_mode_b_comparison{win_slug}{reg_slug}{k_suffix}.png"
+
+    out_pdf = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_mode}{doc_win}{doc_reg}{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf"
+    out_md = DOCS_DIR / f"INVERTED_MAML_CARD2_1000EP_{doc_mode}{doc_win}{doc_reg}{doc_k}W3_STAIRCASE_COMPREHENSIVE_REPORT.md"
 
     fig_dict = {
         "joint": joint_fig,
@@ -1941,7 +1945,7 @@ def main():
 
     # Render Preview Images for Artifacts Directory
     try:
-        prefix = str(ARTIFACTS_DIR / f"page_card2_{doc_mode.lower()}{doc_win.lower()}{doc_k.lower()}w3_staircase_comp")
+        prefix = str(ARTIFACTS_DIR / f"page_card2_{doc_mode.lower()}{doc_win.lower()}{doc_reg.lower()}{doc_k.lower()}w3_staircase_comp")
         subprocess.run(["pdftoppm", "-png", "-r", "150", str(out_pdf), prefix], check=True)
         print("[+] Generated page preview images in artifacts directory.")
     except Exception as e:
