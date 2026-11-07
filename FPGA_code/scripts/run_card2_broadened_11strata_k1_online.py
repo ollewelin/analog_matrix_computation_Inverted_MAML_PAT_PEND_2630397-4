@@ -195,18 +195,22 @@ def main():
         client.set_data_color(COLOR_LLM_TOEPLITZ, args.rho)
     time.sleep(0.03)
 
-    # 2. Sätt baslinje i T120 RAM
+    # 2. Kalibrera nollbaslinje (g_baseline_mode=0 tvingar maml_calibrate_zero_baseline() i aktuell bygelkonfiguration)
+    zero_cal_payload = struct.pack("<B48b42b", 0, *([0] * 48), *([0] * 42))
+    client._send_binary(MAML_CMD_CENTER_WEIGHTS, zero_cal_payload)
+    time.sleep(0.05)
+
     if args.staircase_w3:
         from FPGA_code.config.w3_staircase_pattern import build_center_weights_payload, get_staircase_config
         staircase_cfg = get_staircase_config()
         baseline_payload = build_center_weights_payload(1)
-        print("[*] Sätter W(3) trappmönster ([-40..+40] LSB) på referens- och biasrader...")
+        print("[*] Nollbaslinje kalibrerad. Sätter W(3) trappmönster ([-40..+40] LSB) på referens- och biasrader...")
+        client._send_binary(MAML_CMD_CENTER_WEIGHTS, baseline_payload)
     else:
         staircase_cfg = None
-        baseline_payload = struct.pack("<B48b42b", 0, *([0] * 48), *([0] * 42))
+        baseline_payload = zero_cal_payload
         print("[*] Sätter platt baslinje: M3_null = 0, M8_null = 0, W = 0 LSB...")
 
-    client._send_binary(MAML_CMD_CENTER_WEIGHTS, baseline_payload)
     client.set_regularization(0)
     time.sleep(0.05)
 
@@ -457,6 +461,23 @@ def main():
     client.close()
 
 
+def add_mode_b_banner_if_needed(fig, meta: dict, y: float = 0.992, fontsize: float = 10.0):
+    is_mode_b = (
+        meta.get("mode") == "mode_b"
+        or meta.get("prefix") == "mode_b"
+        or meta.get("jumper_mode") == 1
+        or "mode_b" in str(meta.get("experiment", "")).lower()
+    )
+    if is_mode_b:
+        fig.text(
+            0.5, y,
+            "Remove Jumper: Compensation network path is physical removed, Mode = B\nOnly Verification matris(33) alone",
+            ha="center", va="top", fontsize=fontsize, fontweight="bold", color="white",
+            bbox=dict(boxstyle="square,pad=0.35", facecolor="#dc2626", edgecolor="#991b1b", linewidth=1.5, alpha=0.95),
+            zorder=9999
+        )
+
+
 def generate_timeline_figure(records: list[dict], meta: dict, out_path: Path):
     epochs = [r["epoch"] for r in records]
     win_losses = [r["window_eval"]["mean_loss_lsb2"] for r in records]
@@ -536,7 +557,17 @@ def generate_timeline_figure(records: list[dict], meta: dict, out_path: Path):
             ax.axvline(x=d_ep, color="#ea580c", linestyle="--", linewidth=1.3, alpha=0.85)
         ax.axvline(x=600, color="#dc2626", linestyle="-", linewidth=1.8, alpha=0.95)
 
-    plt.tight_layout()
+    is_mode_b = (
+        meta.get("mode") == "mode_b"
+        or meta.get("prefix") == "mode_b"
+        or meta.get("jumper_mode") == 1
+        or "mode_b" in str(meta.get("experiment", "")).lower()
+    )
+    if is_mode_b:
+        plt.tight_layout(rect=[0, 0, 1, 0.94])
+        add_mode_b_banner_if_needed(fig, meta, y=0.995, fontsize=10.0)
+    else:
+        plt.tight_layout()
     fig.savefig(out_path, dpi=180, bbox_inches="tight")
     plt.close(fig)
 
@@ -586,7 +617,17 @@ def generate_temporal_profile_figure(records: list[dict], strata_delays: list[in
     ax.grid(True, linestyle=":", alpha=0.6)
     ax.legend(loc="lower left", fontsize=10, framealpha=0.92)
 
-    plt.tight_layout()
+    is_mode_b = (
+        meta.get("mode") == "mode_b"
+        or meta.get("prefix") == "mode_b"
+        or meta.get("jumper_mode") == 1
+        or "mode_b" in str(meta.get("experiment", "")).lower()
+    )
+    if is_mode_b:
+        plt.tight_layout(rect=[0, 0, 1, 0.94])
+        add_mode_b_banner_if_needed(fig, meta, y=0.995, fontsize=10.0)
+    else:
+        plt.tight_layout()
     fig.savefig(out_path, dpi=180, bbox_inches="tight")
     plt.close(fig)
 

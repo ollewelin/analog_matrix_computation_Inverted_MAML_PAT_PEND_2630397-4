@@ -94,3 +94,4 @@ python FPGA_code/scripts/run_card2_broadened_11strata_k1_online.py \
 
 ## 6. Planned Physical Oscilloscope Verification
 As with previous runs, data in this package was acquired via high-speed differential SAR ADC telemetry (`XC2361A`, $\text{ADC}_{45}$) over Ethernet. Direct physical oscilloscope probing of the analog circuit nodes (ColTIA virtual ground nodes `CH1`–`CH6`, 24 µs Hadamard carrier injection bursts, and Sigmoid 4 outputs) across this shifted 5.0–6.0 ms range is planned in an upcoming bench verification session to provide explicit visual correlation with physical analog waveforms.
+
