@@ -1,7 +1,7 @@
 # Analog 2T1C Matrix Computation with Inverted Meta-Learning (MAML)
 ## Patent Application: SE 2630397-4 (Patent Pending)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23859108.svg)](https://zenodo.org/records/23859108)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24030796.svg)](https://zenodo.org/records/24030796)
 
 ### 📄 Patent Document:
 * **Patent Specification (English Translation):** [📄 `inverterad MAML_12_Eng.pdf`](inverterad%20MAML_12_Eng.pdf)
