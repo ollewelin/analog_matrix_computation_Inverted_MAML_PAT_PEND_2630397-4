@@ -977,6 +977,7 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict, compare_data: 
     eps = data["epochs"]
     meta = data["metadata"]
     delays_us = meta["strata_delays_us"]
+    var_range = meta.get("w33_variance_lsb_range", 5)
 
     p1 = [e for e in eps if e["epoch"] < 100]
     p2 = [e for e in eps if 100 <= e["epoch"] < 200]
@@ -1043,8 +1044,8 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict, compare_data: 
     mode_title_prefix = "MODE B (UNCOMPENSATED MATRIX 33 ALONE): " if is_mode_b else ""
     story.append(Paragraph(f"INVERTED MAML: {mode_title_prefix}CARD 2 W(3) STAIRCASE REFERENCE & BIAS BENCHMARK [{min_ms:.1f} – {max_ms:.1f} ms]", title_style))
     story.append(Paragraph(
-        "<b>Pure Online Single-Sample SGD (K=1, 11 Updates/Epoch) across Non-Stationary Perturbations (±5 LSB) with Staircase Reference & Bias Cells under White Noise</b><br/>"
-        "Patent Pending SE 2630397-4 | Open Science Hardware | Target: Card 2 (PCB v1.3.2, 1k/3.3k Attenuator) | Date: 2026-11-06",
+        f"<b>White Noise In-Data Vector Test: Pure Online Single-Sample SGD (K={meta.get('k_batch', 1)}, {len(delays_us)} Updates/Epoch) across Non-Stationary Perturbations (±{var_range} LSB) with Staircase Reference & Bias Cells</b><br/>"
+        f"Patent Pending SE 2630397-4 | Open Science Hardware | Target: Card 2 (PCB v1.3.2, 1k/3.3k Attenuator) | Date: {meta.get('timestamp', '2026-11-07')[:10]}",
         subtitle_style
     ))
     story.append(Spacer(1, 2))
@@ -1506,7 +1507,8 @@ def compile_pdf_report(data: dict, out_pdf: Path, fig_dict: dict, compare_data: 
     # PAGE 11: Forward Hadamard Propagation & Scientific Conclusions
     # =========================================================================
     story.append(PageBreak())
-    story.append(Paragraph("12. Forward Hadamard Propagation (FHP) Parallel Demodulation (Patent Fig 8)", h1_style))
+    sec_num = "12." if compare_data is not None else "11."
+    story.append(Paragraph(f"{sec_num} Forward Hadamard Propagation (FHP) Parallel Demodulation (Patent Fig 8)", h1_style))
     story.append(Spacer(1, 1))
 
     fhp_banner = (
@@ -1560,6 +1562,7 @@ def generate_comprehensive_markdown(data: dict, out_md: Path, fig_dict: dict, da
     eps = data["epochs"]
     meta = data["metadata"]
     delays_us = meta["strata_delays_us"]
+    var_range = meta.get("w33_variance_lsb_range", 5)
 
     p1 = [e for e in eps if e["epoch"] < 100]
     p2 = [e for e in eps if 100 <= e["epoch"] < 200]
@@ -1681,7 +1684,7 @@ def generate_comprehensive_markdown(data: dict, out_md: Path, fig_dict: dict, da
     dist_img_key = 'dist_2d_numeric' if ('dist_2d_numeric' in fig_dict and fig_dict['dist_2d_numeric'].exists()) else 'dist_3d'
 
     raw_template = mode_b_alert + rf"""# Inverted MAML: Card 2 {'Mode B (Uncompensated Matrix 33 Alone)' if is_mode_b else 'W(3) Staircase Reference & Bias'} Benchmark Report
-**Online SGD (K={meta.get('k_batch', 1)}, {len(delays_us)} Updates/Epoch) across Non-Stationary Hardware Perturbations ($\pm 5\text{{ LSB}}$) with Staircase Reference & Bias Cells under White Noise**  
+**White Noise In-Data Vector Test: Online SGD (K={meta.get('k_batch', 1)}, {len(delays_us)} Updates/Epoch) across Non-Stationary Hardware Perturbations ($\pm {var_range}\text{{ LSB}}$) with Staircase Reference & Bias Cells**  
 **Patent Pending SE 2630397-4 | Open Science Hardware**  
 **Document ID:** `{doc_id}`  
 **Date:** [[DATE]]  
@@ -1831,6 +1834,7 @@ def main():
     parser.add_argument("--k-batch", type=int, default=1, help="K batch size (1 or 4)")
     parser.add_argument("--data-path", type=str, default=None, help="Explicit path to JSON dataset")
     parser.add_argument("--compare-mode-b-path", type=str, default=None, help="Explicit path to Mode B dataset for comparative analysis")
+    parser.add_argument("--skip-mode-b-comparison", action="store_true", help="Skip Mode B comparative analysis section")
     args = parser.parse_args()
 
     k_suffix = f"_k{args.k_batch}" if args.k_batch > 1 else ""
@@ -1850,11 +1854,16 @@ def main():
 
     data = load_dataset(data_path)
 
+    meta = data.get("metadata", {})
+    delays_us = meta.get("strata_delays_us", [])
+    t_min = meta.get("t_min", min(delays_us) if delays_us else 4500)
+    t_max = meta.get("t_max", max(delays_us) if delays_us else 5500)
+
     win_slug = ""
     doc_win = ""
-    if "5000to6000us" in str(data_path):
-        win_slug = "_5000to6000us"
-        doc_win = "5000TO6000US_"
+    if not (t_min == 4500 and t_max == 5500):
+        win_slug = f"_{t_min}to{t_max}us"
+        doc_win = f"{t_min}TO{t_max}US_"
 
     is_mode_b = check_is_mode_b(data) or "mode_b" in str(data_path)
     mode_slug = "_mode_b" if is_mode_b else ""
@@ -1902,7 +1911,7 @@ def main():
 
     # Optional Mode B Comparison
     compare_data = None
-    if not is_mode_b:
+    if not is_mode_b and not args.skip_mode_b_comparison:
         comp_b_path = (
             Path(args.compare_mode_b_path)
             if args.compare_mode_b_path
