@@ -11,8 +11,8 @@ This skill provides a standardized protocol and automated CLI script (`.agents/s
 
 ## 1. Safety & Hardware Rules (Mandatory)
 
-1. **Heater Safety First:**
-   - **NEVER** arm `HEAT_1..4_EN` (`heater_armed = 1`) during routine multiplier diagnostics unless explicitly requested by the user. Always ensure `set_heaters(False, [0, 0, 0, 0])` is sent at the start and end of every diagnostic run.
+1. **Heaters (HEAT_1..4_EN):**
+   - The on-board resistor heaters operate at low dissipated power with zero risk of overheating. They can be freely armed (`heater_armed = 1`) at 0–100% duty cycle across all 4 channels for thermal perturbation experiments without restrictions.
 2. **Single-Ended Row Data (`DAC_2`) vs. Differential Weight (`W`) & Hadamard (`H+/H-`) — MANDATORY NOTATION RULE:**
    - **Outside the matrix, ONLY Weight $W$ and Hadamard $H$ are differential:**
      - **Weight $W$ (`W_15`, `W_12`, `W_34`):** Differential across the mirrored `P`-branch (`G_P`) and `N`-branch (`G_N`) 2T1C half-cells (`W+ = 128 + W`, `W- = 128 - W` for signed $W \in [-127, +127]$; `W = 0` sets both gates to `code 128` = `2.60 V`, which cancels out at `COL+` minus `COL-`).

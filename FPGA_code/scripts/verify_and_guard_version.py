@@ -81,7 +81,7 @@ def ensure_version_guard(
     print(f"  Expected SW FW    : {expected_sw}")
     print("=" * 80)
 
-    info = query_t120_versions(host=host, port=port, timeout=0.8)
+    info = query_t120_versions(host=host, port=port, timeout=2.0)
     print(f"[*] Current board response:\n    {info['raw'].replace(chr(10), chr(10) + '    ')}")
 
     hw_match = (expected_hw in info["hw_version"]) if expected_hw else True
@@ -107,7 +107,7 @@ def ensure_version_guard(
     print(f"[*] Polling T120 version up to {max_retries} times...")
     for attempt in range(1, max_retries + 1):
         time.sleep(1.0)
-        info = query_t120_versions(host=host, port=port, timeout=0.8)
+        info = query_t120_versions(host=host, port=port, timeout=2.0)
         hw_match = (expected_hw in info["hw_version"]) if expected_hw else True
         sw_match = (expected_sw in info["sw_version"]) if expected_sw else True
         online = "Offline" not in info["raw"]
