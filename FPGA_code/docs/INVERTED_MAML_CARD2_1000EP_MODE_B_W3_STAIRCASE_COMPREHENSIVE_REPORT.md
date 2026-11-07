@@ -5,10 +5,10 @@
 > In this benchmark session on Card 2 silicon, all analog compensation network jumpers (`H1$CBB` / Sigmoid 4) were physically disconnected from the summing bus. The differential ColTIA transimpedance amplifiers and XC2361A SAR ADCs measured exclusively the raw, uncompensated Verification Matrix 33.
 
 # Inverted MAML: Card 2 Mode B (Uncompensated Matrix 33 Alone) Benchmark Report
-**Online SGD (K=1, 11 Updates/Epoch) across Non-Stationary Hardware Perturbations ($\pm 5\text{ LSB}$) with Staircase Reference & Bias Cells under White Noise**  
+**White Noise In-Data Vector Test: Online SGD (K=1, 11 Updates/Epoch) across Non-Stationary Hardware Perturbations ($\pm 5\text{ LSB}$) with Staircase Reference & Bias Cells**  
 **Patent Pending SE 2630397-4 | Open Science Hardware**  
 **Document ID:** `INVERTED_MAML_CARD2_1000EP_MODE_B_W3_STAIRCASE_COMPREHENSIVE_REPORT`  
-**Date:** 2026-11-07 10:13:52  
+**Date:** 2026-11-07 22:39:28  
 **Target Hardware:** Card 2 (PCB v1.3.2, Repaired CH3, 1k/3.3k Attenuator) | Trion T120 Master SoC @ `192.168.1.50:5000`  
 **Silicon Run Artifact:** `mode_b_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json`
 
@@ -38,12 +38,12 @@ This benchmark report presents the empirical characterization of the **Inverted 
 
 | Benchmark Metric | Phase 1: Baseline<br/>($W_8=0$, Dist=0) | Phase 2: Nominal<br/>(FHP ON, Dist=0) | Phase 3: Disturbed<br/>(FHP ON, Dist=$\pm 5$) | Phase 4: Ablation<br/>($W_8=0$, Dist=$\pm 5$) | Net Silicon Gain<br/>(Phase 2 vs. Baseline) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Window Mean Loss [4.5..5.5 ms]** | 68748.9 LSB² | **69995.0 LSB²** | 98382.9 LSB² | 96524.8 LSB² | **+1.8% error reduction** |
-| **Window Mean ENOB [4.5..5.5 ms]** | 3.76 bits | **3.75 bits** | 3.52 bits | 3.53 bits | **+-0.01 bits sustained** |
-| **5.0 ms Center Loss** | 10426.2 LSB² | **9278.0 LSB²** | 40421.7 LSB² | 38645.5 LSB² | **-11.0% error reduction** |
-| **5.0 ms Center ENOB** | 5.31 bits | **5.36 bits** | 4.30 bits | 4.33 bits | **+0.05 bits sustained** |
-| **Peak Measured Precision** | 5.31 bits | 5.36 bits | **6.96 bits (5.0ms)** | 4.33 bits | **+1.65 bits above baseline** |
-| **Best Single Evaluation Loss** | 10426.2 LSB² | 9278.0 LSB² | **806.5 LSB²** | 38645.5 LSB² | **12.9× error reduction** |
+| **Window Mean Loss [4.5..5.5 ms]** | 80140.0 LSB² | **81199.9 LSB²** | 161898.9 LSB² | 161270.7 LSB² | **+1.3% error reduction** |
+| **Window Mean ENOB [4.5..5.5 ms]** | 3.65 bits | **3.64 bits** | 3.19 bits | 3.20 bits | **+-0.01 bits sustained** |
+| **5.0 ms Center Loss** | 10276.9 LSB² | **9566.5 LSB²** | 107629.8 LSB² | 105744.0 LSB² | **-6.9% error reduction** |
+| **5.0 ms Center ENOB** | 5.32 bits | **5.32 bits** | 3.55 bits | 3.58 bits | **+0.01 bits sustained** |
+| **Peak Measured Precision** | 5.32 bits | 5.32 bits | **6.79 bits (5.0ms)** | 3.58 bits | **+1.47 bits above baseline** |
+| **Best Single Evaluation Loss** | 10276.9 LSB² | 9566.5 LSB² | **1024.5 LSB²** | 105744.0 LSB² | **10.0× error reduction** |
 | **Total Physical Updates** | 1,100 (W locked) | 1,100 (Online SGD) | 4,400 (Online SGD) | 4,400 (W locked) | **11,000 total updates on silicon** |
 
 ---
@@ -70,17 +70,17 @@ This benchmark report presents the empirical characterization of the **Inverted 
 
 | Delay (ms) | Phase 1: Base (W8=0) | Phase 2: Nom (Train) | Net Gain (P2 - P1) | Phase 3: Dist (±5 LSB) | Phase 4: Abla (W8=0) |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| **4.5 ms** | 3.07 b | **3.00 b** | **-0.07 b** | 3.01 b | 3.05 b |
-| **4.6 ms** | 3.52 b | **3.46 b** | **-0.06 b** | 3.43 b | 3.46 b |
-| **4.7 ms** | 3.97 b | **3.88 b** | **-0.10 b** | 3.75 b | 3.80 b |
-| **4.8 ms** | 4.46 b | **4.36 b** | **-0.10 b** | 4.08 b | 4.11 b |
-| **4.9 ms** | 5.07 b | **5.01 b** | **-0.06 b** | 4.30 b | 4.31 b |
-| **5.0 ms** | 5.31 b | **5.36 b** | **+0.05 b** | 4.30 b | 4.33 b |
-| **5.1 ms** | 4.93 b | **5.05 b** | **+0.13 b** | 4.16 b | 4.13 b |
-| **5.2 ms** | 4.34 b | **4.39 b** | **+0.05 b** | 3.93 b | 3.88 b |
-| **5.3 ms** | 3.91 b | **3.96 b** | **+0.05 b** | 3.60 b | 3.58 b |
-| **5.4 ms** | 3.47 b | **3.58 b** | **+0.12 b** | 3.35 b | 3.35 b |
-| **5.5 ms** | 3.25 b | **3.29 b** | **+0.03 b** | 3.11 b | 3.10 b |
+| **4.5 ms** | 2.87 b | **2.87 b** | **-0.00 b** | 2.85 b | 2.85 b |
+| **4.6 ms** | 3.21 b | **3.23 b** | **+0.02 b** | 3.09 b | 3.09 b |
+| **4.7 ms** | 3.71 b | **3.70 b** | **-0.01 b** | 3.31 b | 3.32 b |
+| **4.8 ms** | 4.28 b | **4.25 b** | **-0.04 b** | 3.49 b | 3.49 b |
+| **4.9 ms** | 4.96 b | **4.96 b** | **+0.00 b** | 3.58 b | 3.57 b |
+| **5.0 ms** | 5.32 b | **5.32 b** | **+0.01 b** | 3.55 b | 3.58 b |
+| **5.1 ms** | 4.93 b | **4.81 b** | **-0.11 b** | 3.48 b | 3.50 b |
+| **5.2 ms** | 4.34 b | **4.33 b** | **-0.01 b** | 3.36 b | 3.37 b |
+| **5.3 ms** | 3.88 b | **3.89 b** | **+0.00 b** | 3.22 b | 3.24 b |
+| **5.4 ms** | 3.53 b | **3.53 b** | **+0.00 b** | 3.07 b | 3.09 b |
+| **5.5 ms** | 3.22 b | **3.18 b** | **-0.05 b** | 2.92 b | 2.91 b |
 
 ---
 
@@ -97,9 +97,9 @@ This benchmark report presents the empirical characterization of the **Inverted 
 
 ---
 
-## 7. 3D Disturbance Topographies on Matrix 33 (Patent Fig 7 Emulator)
+## 7. Patent Fig 7 Emulator: Injected Hidden Offset Matrices (±5 LSB)
 
-![3D Disturbance Matrices](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_3d_card2_w3_staircase_disturbances_m33_4panel_mode_b.png)
+![Patent Fig 7 Offset Matrices](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_2d_card2_w3_staircase_disturbances_numeric_mode_b.png)
 
 ---
 
@@ -111,9 +111,10 @@ This benchmark report presents the empirical characterization of the **Inverted 
 ### Matrix 8 (7x6 = 42 Weights):
 ![Matrix 8 Trajectories](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_2d_m8_trajectory_card2_w3_staircase_mode_b.png)
 
+
 ---
 
-## 9. Publication Artifacts
+## 11. Publication Artifacts
 
 - **Publication PDF Report**: [`INVERTED_MAML_CARD2_1000EP_MODE_B_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/INVERTED_MAML_CARD2_1000EP_MODE_B_W3_STAIRCASE_COMPREHENSIVE_REPORT.pdf)
 - **JSON Telemetry Dataset**: [`mode_b_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json`](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/logs/mode_a_extended_training/mode_b_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json)
