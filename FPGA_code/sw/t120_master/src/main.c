@@ -882,38 +882,15 @@ void main(void) {
             handle_ethernet_packet(rx_frame, rx_len);
         }
 
-        // Periodic MAML background tick (10.0 ms hardware-synchronous 2T1C refresh + watchdog)
+        // Periodic MAML background tick (pure Verilog 10.000000 ms frame engine runs in hardware;
+        // C tick only reads hardware frame counter and monitors 2s idle safety timeout)
         if ((loop_cnt & 0xFF) == 0) {
             maml_platform_tick();
         }
 
-        // Periodic Status Telemetry (~every 1 second)
+        // Non-blocking heartbeat LED toggle (~1 Hz) - NO blocking MDIO/UART prints in runtime loop!
         if ((loop_cnt % 500000) == 0) {
             led_on();
-            uint16_t bmsr = bmsr_read(active_phy);
-
-            uint16_t tx_ok = (uint16_t)ETH_TX_CNT_REG;
-            uint16_t rx_ok = (uint16_t)ETH_RX_CNT_REG;
-            uint16_t rx_crc = (uint16_t)ETH_RX_CRC_ERR_REG;
-            uint32_t pkt_st = ETH_STATUS_REG;
-
-            if ((bmsr & 0x0004) && !(last_bmsr & 0x0004)) {
-                println_s(">>> ETHERNET LINK UP! (Cable connected) <<<");
-            } else if (!(bmsr & 0x0004) && (last_bmsr & 0x0004)) {
-                println_s(">>> ETHERNET LINK DOWN! (Cable disconnected) <<<");
-            }
-            last_bmsr = bmsr;
-
-            print_s("[ETH] BMSR=");
-            print_hex16_s(bmsr);
-            print_s(" RX=");
-            print_hex16_s(rx_ok);
-            print_s(" TX=");
-            print_hex16_s(tx_ok);
-            print_s(" FCS="); print_hex16_s(rx_crc);
-            print_s(" FIFO_ST=");
-            print_hex16_s((uint16_t)pkt_st);
-            println_s("");
         } else if ((loop_cnt % 500000) == 250000) {
             led_off();
         }

@@ -211,7 +211,14 @@ static int t20_sbus_xact(uint8_t ch, uint8_t op, const uint8_t *pay, uint16_t le
     return ok;
 }
 
+static void maml_sync_hw_shadow_ram(void);
+
 static void t20_sync_heater_and_wdog(void) {
+    if (AIO_REG(AIO_HW_FRAME_CTRL) & 1u) {
+        maml_sync_hw_shadow_ram();
+        g_tel.heater_wdog_ok = 1u;
+        return;
+    }
     uint8_t pay[5];
     pay[0] = g_tel.heater_armed ? 1u : 0u;
     pay[1] = g_tel.heater_duty[0];
@@ -227,6 +234,10 @@ static void t20_sync_heater_and_wdog(void) {
 }
 
 static void t20_sync_leds(void) {
+    if (AIO_REG(AIO_HW_FRAME_CTRL) & 1u) {
+        maml_sync_hw_shadow_ram();
+        return;
+    }
     uint8_t pay[1];
     pay[0] = (g_tel.comp_led_on ? 1u : 0u) | (g_tel.mat33_led_on ? 2u : 0u);
     t20_sbus_xact(T20_CH_ANALOG_CTRL, T20_OP_SET_LEDS, pay, 1, NULL, NULL);
@@ -372,6 +383,8 @@ static void maml_sync_shadow_bytes(void) {
     g_tel.clip_events_cnt   = g_clip_events_cnt;
     g_tel.col_clip_mask     = g_col_clip_mask;
     g_tel.last_clip_adc_id  = g_last_clip_adc_id;
+
+    maml_sync_hw_shadow_ram();
 }
 
 /* Matrix P/N gate mask bits for pay[1] of T20_OP_PULSE_COL_GATES (CH 0x05 OP 0x4):
@@ -416,10 +429,152 @@ static uint8_t  g_focus_col          = 0u;
 static uint8_t  g_dac_row7_code      = 128u;  /* DAC2_D_ROW7 (w34[6], TRIM_B1) */
 static uint8_t  g_dac_row8_code      = 128u;  /* DAC2_D_ROW8 (w34[7], TRIM_REF) */
 static uint8_t  g_auto_random_data   = 0u;    /* Autonomous 100 Hz white-noise In-Data generator */
+static uint8_t  g_hw_auto_mode       = 0u;    /* 1 = Pure Verilog 10.000000 ms Autonomous Frame Engine active */
+static uint32_t g_last_hw_frame_seq  = 0u;
+
+static inline uint32_t pack4_bitrev(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3) {
+    return ((uint32_t)bitrev8(b0)) |
+           ((uint32_t)bitrev8(b1) << 8) |
+           ((uint32_t)bitrev8(b2) << 16) |
+           ((uint32_t)bitrev8(b3) << 24);
+}
+
+/* Synchronize heater PWM, LEDs, and all 12 half-column weight tables into the
+ * Pure Verilog 10.000000 ms Autonomous Frame Engine Shadow RAM (0x400..0x5FF) */
+static void maml_sync_hw_shadow_ram(void) {
+    uint32_t h_cfg = (g_tel.heater_armed ? 1u : 0u) |
+                     ((uint32_t)g_tel.heater_duty[0] << 8) |
+                     ((uint32_t)g_tel.heater_duty[1] << 16) |
+                     ((uint32_t)g_tel.heater_duty[2] << 24);
+    uint32_t h_led = ((uint32_t)g_tel.heater_duty[3]) |
+                     ((g_tel.comp_led_on ? 1u : 0u) << 8) |
+                     ((g_tel.mat33_led_on ? 1u : 0u) << 9);
+    AIO_REG(AIO_HW_HEATER_CFG) = h_cfg;
+    AIO_REG(AIO_HW_HEATER_LED) = h_led;
+
+    int use_hid = (g_tel.run_mode == MAML_MODE_BASE_TRAIN) && (g_hid_amp_dac > 0u);
+    int8_t hid_trim = use_hid ? g_hid_trim[g_cur_basin_idx] : 0;
+    g_tel.hid_trim_offset = hid_trim;
+    uint8_t trim_code = off_to_dac_u8((int32_t)g_tel.trim_dac_38 + (int32_t)hid_trim);
+
+    uint8_t w15_n[8], w12_n[8], w34_n[8];
+    uint8_t w15_p[8], w12_p[8], w34_p[8];
+
+    for (int col = 0; col < 6; col++) {
+        for (int r = 0; r < 8; r++) {
+            int32_t w = (int32_t)g_tel.w_m3[r][col] + (use_hid ? (int32_t)g_hid_w_m3[g_cur_basin_idx][r][col] : 0);
+            w15_n[r] = off_to_dac_u8(-w);
+            w15_p[r] = off_to_dac_u8(+w);
+        }
+        for (int r = 0; r < 7; r++) {
+            int32_t w = (int32_t)g_tel.w_m8[r][col] + (use_hid ? (int32_t)g_hid_w_m8[g_cur_basin_idx][r][col] : 0);
+            w12_n[r] = off_to_dac_u8(-w);
+            w12_p[r] = off_to_dac_u8(+w);
+        }
+        w12_n[7] = trim_code;
+        w12_p[7] = trim_code;
+
+        for (int r = 0; r < 6; r++) {
+            int32_t w = (int32_t)g_tel.w_m33[r][col] + (int32_t)g_hid_w_m33[r][col];
+            if (w > 120)  w = 120;
+            if (w < -120) w = -120;
+            w34_n[r] = off_to_dac_u8(-w);
+            w34_p[r] = off_to_dac_u8(+w);
+        }
+        w34_n[6] = g_dac_row7_code;
+        w34_n[7] = g_dac_row8_code;
+        w34_p[6] = g_dac_row7_code;
+        w34_p[7] = g_dac_row8_code;
+
+        uint32_t off_n = AIO_SHADOW_W_BASE + (((uint32_t)col * 2u + 0u) << 5);
+        AIO_REG(off_n + 0x00) = pack4_bitrev(w15_n[0], w15_n[1], w15_n[2], w15_n[3]);
+        AIO_REG(off_n + 0x04) = pack4_bitrev(w15_n[4], w15_n[5], w15_n[6], w15_n[7]);
+        AIO_REG(off_n + 0x08) = pack4_bitrev(w12_n[0], w12_n[1], w12_n[2], w12_n[3]);
+        AIO_REG(off_n + 0x0C) = pack4_bitrev(w12_n[4], w12_n[5], w12_n[6], w12_n[7]);
+        AIO_REG(off_n + 0x10) = pack4_bitrev(w34_n[0], w34_n[1], w34_n[2], w34_n[3]);
+        AIO_REG(off_n + 0x14) = pack4_bitrev(w34_n[4], w34_n[5], w34_n[6], w34_n[7]);
+
+        uint32_t off_p = AIO_SHADOW_W_BASE + (((uint32_t)col * 2u + 1u) << 5);
+        AIO_REG(off_p + 0x00) = pack4_bitrev(w15_p[0], w15_p[1], w15_p[2], w15_p[3]);
+        AIO_REG(off_p + 0x04) = pack4_bitrev(w15_p[4], w15_p[5], w15_p[6], w15_p[7]);
+        AIO_REG(off_p + 0x08) = pack4_bitrev(w12_p[0], w12_p[1], w12_p[2], w12_p[3]);
+        AIO_REG(off_p + 0x0C) = pack4_bitrev(w12_p[4], w12_p[5], w12_p[6], w12_p[7]);
+        AIO_REG(off_p + 0x10) = pack4_bitrev(w34_p[0], w34_p[1], w34_p[2], w34_p[3]);
+        AIO_REG(off_p + 0x14) = pack4_bitrev(w34_p[4], w34_p[5], w34_p[6], w34_p[7]);
+    }
+
+    if (g_hw_auto_mode) {
+        g_tel.total_refresh_cycles = AIO_REG(AIO_HW_REFRESH_CNT);
+        g_tel.t20_h_ack_ok         = T20_REG(T20_H_ACK_OK);
+        g_tel.t20_h_ack_miss       = T20_REG(T20_H_ACK_MISS);
+        g_tel.t20_h_lat_last       = (uint16_t)T20_REG(T20_H_LAT_LAST);
+        g_tel.heater_wdog_ok       = 1u;
+    }
+}
+
+/* Wait until the Hardware Frame Engine is in its post-measurement HWF_IDLE window
+ * (after HWF_EXIT_SYNC at ~6.45 ms and at least 300 us before the 10.000 ms wrap) */
+static void maml_hw_wait_idle_window(void) {
+    if (!g_hw_auto_mode) return;
+    uint32_t guard = 600000u;
+    while (--guard) {
+        uint32_t ft  = AIO_REG(AIO_HW_FRAME_TIMER);
+        uint32_t st  = (ft >> 24) & 0x0Fu;
+        uint32_t cyc = ft & 0x7FFFFu;
+        if (st == 0u && cyc < 485000u) {
+            break;
+        }
+    }
+}
+
+/* Configure stratum settling delay (in microseconds after 6-col refresh) and
+ * wait for the next complete 10.000000 ms hardware frame (Refresh + Stratum + 16x ADC + M8/M3 Hadamard) */
+static void maml_hw_wait_next_frame(uint32_t dly_us) {
+    if (!g_hw_auto_mode) return;
+    if (dly_us < 100u)  dly_us = 100u;
+    if (dly_us > 7500u) dly_us = 7500u;
+    maml_hw_wait_idle_window();
+    AIO_REG(AIO_HW_STRATUM_CYC) = dly_us * 50u;
+    uint32_t seq0  = AIO_REG(AIO_HW_FRAME_SEQ);
+    uint32_t guard = 1500000u;
+    while ((AIO_REG(AIO_HW_FRAME_SEQ) == seq0) && --guard) {
+        /* Wait for pure Verilog 10.000000 ms frame completion */
+    }
+    g_last_hw_frame_seq        = AIO_REG(AIO_HW_FRAME_SEQ);
+    g_tel.total_refresh_cycles = AIO_REG(AIO_HW_REFRESH_CNT);
+    g_tel.t20_h_ack_ok         = T20_REG(T20_H_ACK_OK);
+    g_tel.t20_h_ack_miss       = T20_REG(T20_H_ACK_MISS);
+    g_tel.t20_h_lat_last       = (uint16_t)T20_REG(T20_H_LAT_LAST);
+}
+
+static void maml_hw_auto_pause(void) {
+    if (!g_hw_auto_mode) return;
+    g_hw_auto_mode = 0u;
+    AIO_REG(AIO_HW_FRAME_CTRL) = 0u;
+    bsp_uDelay(60);
+    T20_REG(T20_CLK_PERIOD)    = 25u;
+    AIO_REG(AIO_SETTLE_CYCLES) = (25u << 16) | 100u;
+    AIO_REG(AIO_CTRL)          = 0x00000FA9u;
+}
+
+static void maml_hw_auto_resume(void) {
+    maml_sync_shadow_bytes();
+    uint32_t dly_us = (g_hadamard_delay_us >= 100u && g_hadamard_delay_us <= 7500u) ?
+                      g_hadamard_delay_us : 5000u;
+    AIO_REG(AIO_HW_STRATUM_CYC) = dly_us * 50u;
+    AIO_REG(AIO_HW_FRAME_CTRL)  = (100u << 8) | 0x03u; /* gate_clk9=100 (50us), had_en=1, auto_en=1 */
+    g_hw_auto_mode              = 1u;
+    g_last_hw_frame_seq         = AIO_REG(AIO_HW_FRAME_SEQ);
+}
 
 
 static void maml_refresh_all_columns(void) {
     maml_sync_shadow_bytes();
+    if (g_hw_auto_mode) {
+        /* In Pure Verilog 10.000000 ms Autonomous Frame Engine mode,
+         * 6-column differential refresh is driven 100% by hardware at frame_timer == 0! */
+        return;
+    }
 
     /* Step 1: Ensure Hadamard outputs are 3-Stated (Hi-Z, OE=0) before recharging 2T1C gates */
     t20_hadamard_tristate_center();
@@ -761,7 +916,34 @@ static void maml_read_latest_adcs(int16_t adc45_out[6], int16_t adc49_out[6]) {
     adc49_out[5] = (int16_t)(w49_45 >> 16);
 }
 
+/* Read 16x hardware-averaged quiet forward-pass ADC_45 & ADC_49 from Autonomous Frame Engine */
+static void maml_read_hw_fwd_adcs(int16_t adc45_out[6], int16_t adc49_out[6]) {
+    uint32_t w45_01 = AIO_REG(AIO_HW_FWD45_01);
+    uint32_t w45_23 = AIO_REG(AIO_HW_FWD45_23);
+    uint32_t w45_45 = AIO_REG(AIO_HW_FWD45_45);
+    adc45_out[0] = (int16_t)(w45_01 & 0xFFFFu);
+    adc45_out[1] = (int16_t)(w45_01 >> 16);
+    adc45_out[2] = (int16_t)(w45_23 & 0xFFFFu);
+    adc45_out[3] = (int16_t)(w45_23 >> 16);
+    adc45_out[4] = (int16_t)(w45_45 & 0xFFFFu);
+    adc45_out[5] = (int16_t)(w45_45 >> 16);
+
+    uint32_t w49_01 = AIO_REG(AIO_HW_FWD49_01);
+    uint32_t w49_23 = AIO_REG(AIO_HW_FWD49_23);
+    uint32_t w49_45 = AIO_REG(AIO_HW_FWD49_45);
+    adc49_out[0] = (int16_t)(w49_01 & 0xFFFFu);
+    adc49_out[1] = (int16_t)(w49_01 >> 16);
+    adc49_out[2] = (int16_t)(w49_23 & 0xFFFFu);
+    adc49_out[3] = (int16_t)(w49_23 >> 16);
+    adc49_out[4] = (int16_t)(w49_45 & 0xFFFFu);
+    adc49_out[5] = (int16_t)(w49_45 >> 16);
+}
+
 static void aio_trigger_settled_adc_read(int16_t adc45_out[6], int16_t adc49_out[6]) {
+    if (g_hw_auto_mode) {
+        maml_read_hw_fwd_adcs(adc45_out, adc49_out);
+        return;
+    }
     int32_t acc45[6] = {0, 0, 0, 0, 0, 0};
     int32_t acc49[6] = {0, 0, 0, 0, 0, 0};
     int16_t tmp45[6], tmp49[6];
@@ -874,11 +1056,22 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     int16_t sens_m8_raw[16][6];
     int16_t sens_m3_raw[16][6];
 
-    /* 1. Ensure Hadamard carrier is in 3-State (0x8000 Hi-Z) on the settled plateau
-     *    and read the quiet forward-pass analog output on ADC_45 & ADC_49 FIRST! */
-    t20_hadamard_tristate_center();
-    bsp_uDelay(10);
-    aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
+    if (g_hw_auto_mode) {
+        /* Pure Verilog 10.000000 ms Frame Engine has ALREADY executed:
+         *   1) 16x-averaged quiet forward ADC_45 & ADC_49 read -> AIO_HW_FWD45/49
+         *   2) Sub-Window A: M8 (0x3F00) 14x 2.00 us Hadamard burst -> AIO_CAP_ADC49_BASE
+         *   3) 20 us Tri-State Hi-Z gap
+         *   4) Sub-Window B: M3 (0x003F) 14x 2.00 us Hadamard burst -> AIO_CAP_ADC45_BASE
+         *   5) Return to 0x8000 Hi-Z + Heater/LED sync
+         * Zero C-code timing involvement! */
+        maml_read_hw_fwd_adcs(g_tel.adc45_sig, g_tel.adc49_sig);
+    } else {
+        /* 1. Ensure Hadamard carrier is in 3-State (0x8000 Hi-Z) on the settled plateau
+         *    and read the quiet forward-pass analog output on ADC_45 & ADC_49 FIRST! */
+        t20_hadamard_tristate_center();
+        bsp_uDelay(10);
+        aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
+    }
 
     /* 1b. Check physical headroom against ADC rails (+/-2047 LSB).
      *     Physical maximum Hadamard perturbation step swing measured on physical silicon is 243 LSB.
@@ -904,21 +1097,26 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
         }
     }
 
-    /* 2. Sub-Window A: Perturb Matrix 8 FIRST (active rows 0..5 = 0x3F00, M3 3-stated Hi-Z)
-     *    Per NON_BACKPROP_HADAMARD_GRADIENT_RULES.md §2: M8 is perturbed first while M3 is quiet! */
-    maml_run_permuted_hadamard_sweep(0x3F00u);
-    maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
+    if (g_hw_auto_mode) {
+        maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
+        maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
+    } else {
+        /* 2. Sub-Window A: Perturb Matrix 8 FIRST (active rows 0..5 = 0x3F00, M3 3-stated Hi-Z)
+         *    Per NON_BACKPROP_HADAMARD_GRADIENT_RULES.md §2: M8 is perturbed first while M3 is quiet! */
+        maml_run_permuted_hadamard_sweep(0x3F00u);
+        maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
 
-    /* 20 us quiet Tri-State separation between M8 table and M3 table */
-    t20_hadamard_tristate_center();
-    bsp_uDelay(20);
+        /* 20 us quiet Tri-State separation between M8 table and M3 table */
+        t20_hadamard_tristate_center();
+        bsp_uDelay(20);
 
-    /* 3. Sub-Window B: Perturb Matrix 3 SECOND (active rows 0..5 = 0x003F, M8 3-stated Hi-Z) */
-    maml_run_permuted_hadamard_sweep(0x003Fu);
-    maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
+        /* 3. Sub-Window B: Perturb Matrix 3 SECOND (active rows 0..5 = 0x003F, M8 3-stated Hi-Z) */
+        maml_run_permuted_hadamard_sweep(0x003Fu);
+        maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
 
-    /* 4. Return Hadamard carrier to 3-State (0x8000 Hi-Z) immediately after burst */
-    t20_hadamard_tristate_center();
+        /* 4. Return Hadamard carrier to 3-State (0x8000 Hi-Z) immediately after burst */
+        t20_hadamard_tristate_center();
+    }
 
     int16_t sens_m8[7][6];
     int16_t sens_m3[8][6];
@@ -1164,9 +1362,14 @@ static void maml_center_compensation_weights(void) {
     /* Always settle at the nominal 5.0 ms (5000 us) window center */
     uint32_t settle_dly_us = 5000u;
     /* Let the 100 nF gate capacitors settle at the exact 10.0 ms (100 Hz) cadence */
+    maml_sync_shadow_bytes();
     for (int rep = 0; rep < 3; rep++) {
-        maml_wait_10ms_refresh_tick();
-        bsp_uDelay(settle_dly_us);
+        if (g_hw_auto_mode) {
+            maml_hw_wait_next_frame(settle_dly_us);
+        } else {
+            maml_wait_10ms_refresh_tick();
+            bsp_uDelay(settle_dly_us);
+        }
     }
 
     /* Measure uncompensated bit precision at centered compensation weights */
@@ -1268,8 +1471,13 @@ static void maml_seed_weights(uint8_t mode, uint8_t swing_pct) {
 
     g_tel.outer_loop_epoch = 0;
     g_tel.cur_inner_step   = 0;
-    maml_refresh_all_columns();
-    bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 5000u);
+    uint32_t seed_dly_us   = (g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 5000u;
+    if (g_hw_auto_mode) {
+        maml_hw_wait_next_frame(seed_dly_us);
+    } else {
+        maml_refresh_all_columns();
+        bsp_uDelay(seed_dly_us);
+    }
 
     /* Measure initial compensated bit precision from live hardware */
     int16_t gm3[8][6], gm8[7][6];
@@ -1309,29 +1517,42 @@ static void maml_seed_fixed_test_weights_once(uint32_t seed_val);
 /* Calibrate quiescent DC zero baseline at x_ref = 0 (DAC_2 = 128) with M33 payload charged
  * and M3/M8 strictly at TRUE ZERO (W_M3 = 0, W_M8 = 0) at 100 Hz (10.0 ms) cadence */
 static void maml_calibrate_zero_baseline(void) {
-    t20_hadamard_tristate_center();
+    if (!g_hw_auto_mode) {
+        t20_hadamard_tristate_center();
+    } else {
+        maml_hw_wait_idle_window();
+    }
     uint8_t d2_mid[6] = {128, 128, 128, 128, 128, 128};
     g_dac_row7_code = 128u;
     g_dac_row8_code = 128u;
     aio_load_dac2(d2_mid);
     memset(g_w_m3_q14, 0, sizeof(g_w_m3_q14));
     memset(g_w_m8_q14, 0, sizeof(g_w_m8_q14));
+    maml_sync_shadow_bytes();
 
     /* Always calibrate quiescent zero baseline at the nominal 5.0 ms (5000 us) window center */
     uint32_t settle_dly_us = 5000u;
 
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
     for (int rep = 0; rep < 4; rep++) {
-        maml_wait_10ms_refresh_tick();
+        if (g_hw_auto_mode) {
+            maml_hw_wait_next_frame(settle_dly_us);
+        } else {
+            maml_wait_10ms_refresh_tick();
+        }
     }
 
     int32_t acc45[6] = {0, 0, 0, 0, 0, 0};
     int32_t acc49[6] = {0, 0, 0, 0, 0, 0};
     for (int i = 0; i < 8; i++) {
-        maml_wait_10ms_refresh_tick();
-        bsp_uDelay(settle_dly_us);
-        t20_hadamard_tristate_center();
-        bsp_uDelay(10);
+        if (g_hw_auto_mode) {
+            maml_hw_wait_next_frame(settle_dly_us);
+        } else {
+            maml_wait_10ms_refresh_tick();
+            bsp_uDelay(settle_dly_us);
+            t20_hadamard_tristate_center();
+            bsp_uDelay(10);
+        }
         int16_t a45[6], a49[6];
         aio_trigger_settled_adc_read(a45, a49);
         for (int c = 0; c < 6; c++) {
@@ -1381,12 +1602,20 @@ void maml_platform_init(void) {
     AIO_REG(AIO_CTRL)          = 0x00000FA9u;
     AIO_REG(AIO_SETTLE_CYCLES) = (25u << 16) | 100u;
 
+    /* Ensure T20 bridge is enabled and Hadamard starts in 3-State Hi-Z before engaging Hardware Frame Engine */
+    T20_REG(T20_CTRL)        = 1u;
+    T20_REG(T20_CRESET_CTRL) = 1u;
+    t20_hadamard_tristate_center();
+    t20_sync_heater_and_wdog();
+    t20_sync_leds();
+
+    /* Activate Pure Verilog 10.000000 ms (500,000 cycles @ 50 MHz) Autonomous Frame Engine! */
+    maml_hw_auto_resume();
+
     maml_shuffle_outer_slots();
     maml_center_compensation_weights();
     g_tel.run_mode = MAML_MODE_IDLE;
     g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
-    t20_sync_heater_and_wdog();
-    t20_sync_leds();
 }
 
 /* ============================================================================
@@ -1416,13 +1645,15 @@ static void maml_execute_step(void) {
         }
 
         maml_shuffle_outer_slots();
-        maml_refresh_all_columns();
-
-        /* Wait until the programmable plateau delay (default 5000 us = 5.0 ms) after refresh
-         * so 2T1C gate capacitors and column amplifiers are 100% settled! */
         uint32_t settle_dly_us = (g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ?
                                  g_hadamard_delay_us : 5000u;
-        bsp_uDelay(settle_dly_us);
+        if (g_hw_auto_mode) {
+            maml_sync_shadow_bytes();
+            maml_hw_wait_next_frame(settle_dly_us);
+        } else {
+            maml_refresh_all_columns();
+            bsp_uDelay(settle_dly_us);
+        }
 
         memset(g_acc_grad_m3, 0, sizeof(g_acc_grad_m3));
         memset(g_acc_grad_m8, 0, sizeof(g_acc_grad_m8));
@@ -1563,8 +1794,6 @@ static void maml_execute_step(void) {
             memset(g_acc_grad_m8, 0, sizeof(g_acc_grad_m8));
         }
 
-        maml_refresh_all_columns();
-
         uint8_t slot = g_slot_perm[g_slot_cursor];
         g_tel.cur_stratum_slot = slot;
 
@@ -1572,8 +1801,14 @@ static void maml_execute_step(void) {
         uint32_t slot_delay_us = (g_tel.num_strata_m == 1 && g_hadamard_delay_us > 0) ?
                                  g_hadamard_delay_us :
                                  ((uint32_t)slot * (uint32_t)g_tel.settle_cycles);
-        if (slot_delay_us > 0 && slot_delay_us <= 9500) {
-            bsp_uDelay(slot_delay_us);
+        if (g_hw_auto_mode) {
+            maml_sync_shadow_bytes();
+            maml_hw_wait_next_frame(slot_delay_us);
+        } else {
+            maml_refresh_all_columns();
+            if (slot_delay_us > 0 && slot_delay_us <= 9500) {
+                bsp_uDelay(slot_delay_us);
+            }
         }
 
         maml_measure_and_extract_gradients(slot, gm3, gm8);
@@ -1652,7 +1887,9 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
     uint64_t loss_accum = 0;
 
     for (uint8_t vi = 0; vi < k_batch; vi++) {
-        /* Generate fresh arbitrary white-noise vector for this batch member */
+        /* Generate fresh arbitrary white-noise vector for this batch member
+         * during the quiet HWF_IDLE window so DAC_2 never changes mid-frame! */
+        maml_hw_wait_idle_window();
         maml_generate_new_white_noise_ref();
         t20_sync_heater_and_wdog();
 
@@ -1661,22 +1898,29 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
                 (uint16_t)(t_min_us + ((uint32_t)si * (uint32_t)(t_max_us - t_min_us)) / (uint32_t)(num_strata - 1)) :
                 t_min_us;
 
-            /* Phase-locked wait for exact 10.0 ms capacitor refresh boundary */
-            while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks) {
-                /* spin */
-            }
-            uint32_t now_ticks = clint_getTimeLow(BSP_CLINT);
-            if ((uint32_t)(now_ticks - g_last_refresh_ticks) < (period_ticks * 2u)) {
-                g_last_refresh_ticks += period_ticks;
+            if (g_hw_auto_mode) {
+                /* Pure Verilog Crystal-Locked 10.000000 ms (500,000 cycles @ 50 MHz) Frame Engine:
+                 * Waits for hardware to execute 6-col refresh at frame_timer == 0,
+                 * countdown dly_us, 16x Forward ADC read, M8 Hadamard, 20 us gap, and M3 Hadamard! */
+                maml_hw_wait_next_frame(dly_us);
             } else {
-                g_last_refresh_ticks = now_ticks;
+                /* Phase-locked wait for exact 10.0 ms capacitor refresh boundary */
+                while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks) {
+                    /* spin */
+                }
+                uint32_t now_ticks = clint_getTimeLow(BSP_CLINT);
+                if ((uint32_t)(now_ticks - g_last_refresh_ticks) < (period_ticks * 2u)) {
+                    g_last_refresh_ticks += period_ticks;
+                } else {
+                    g_last_refresh_ticks = now_ticks;
+                }
+
+                /* Re-charge 2T1C capacitors with current weights */
+                maml_refresh_all_columns();
+
+                /* Settle at the exact stratum delay */
+                bsp_uDelay(dly_us);
             }
-
-            /* Re-charge 2T1C capacitors with current weights */
-            maml_refresh_all_columns();
-
-            /* Settle at the exact stratum delay */
-            bsp_uDelay(dly_us);
 
             /* Measure and extract gradients on physical silicon while holding x_ref constant! */
             maml_measure_and_extract_gradients(si, gm3, gm8);
@@ -1812,9 +2056,6 @@ static void maml_flip_all_weights_sign(void) {
 
 void maml_platform_tick(void) {
     g_wdog_refresh_cnt++;
-    if ((g_wdog_refresh_cnt % 2000u) == 0) {
-        t20_sync_heater_and_wdog();
-    }
 
     /* 3-state DAC Swing: 255 (MAX) -> 128 (CENTER) -> 0 (MIN)
      * Driven with bitrev8() so 74HC595 QA (pin 15, R-2R MSB) outputs true 1.65V at 128! */
@@ -1835,6 +2076,40 @@ void maml_platform_tick(void) {
             AIO_REG(AIO_CMD) = 0x0Fu;
         }
         return;
+    }
+
+    /* When Pure Verilog 10.000000 ms (500,000 cycles @ 50 MHz) Autonomous Frame Engine is active,
+     * C code NEVER triggers refreshes, Hadamard bursts, or S-bus polling on a software timer!
+     * It only reads completed hardware frame results after AIO_HW_FRAME_SEQ increments. */
+    if (g_hw_auto_mode) {
+        uint32_t cur_seq = AIO_REG(AIO_HW_FRAME_SEQ);
+        if (cur_seq != g_last_hw_frame_seq) {
+            g_last_hw_frame_seq        = cur_seq;
+            g_tel.total_refresh_cycles = AIO_REG(AIO_HW_REFRESH_CNT);
+            g_tel.t20_h_ack_ok         = T20_REG(T20_H_ACK_OK);
+            g_tel.t20_h_ack_miss       = T20_REG(T20_H_ACK_MISS);
+            g_tel.t20_h_lat_last       = (uint16_t)T20_REG(T20_H_LAT_LAST);
+            g_tel.heater_wdog_ok       = 1u;
+
+            uint32_t now_ticks = clint_getTimeLow(BSP_CLINT);
+            int udp_active = ((uint32_t)(now_ticks - g_last_udp_cmd_ticks) < (50000u * 200u));
+            if (!udp_active) {
+                if (g_tel.run_mode != MAML_MODE_BASE_TRAIN && g_tel.run_mode != MAML_MODE_OPERATIONAL) {
+                    int16_t gm3_idle[8][6], gm8_idle[7][6];
+                    maml_measure_and_extract_gradients(0, gm3_idle, gm8_idle);
+                    if (g_auto_random_data) {
+                        maml_generate_new_white_noise_ref();
+                    }
+                } else {
+                    maml_execute_step();
+                }
+            }
+        }
+        return;
+    }
+
+    if ((g_wdog_refresh_cnt % 2000u) == 0) {
+        t20_sync_heater_and_wdog();
     }
 
     /* Hardware-Synchronous Autonomous Refresh Timer (50 MHz CLINT -> 50 ticks/us):
@@ -1947,8 +2222,9 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
     resp.row       = row;
     resp.col       = col;
 
-    /* Probing a single cell pauses/disables autonomous random data generator */
+    /* Probing a single cell pauses/disables autonomous random data generator and HW Frame Engine */
     g_auto_random_data = 0u;
+    maml_hw_auto_pause();
 
     /* Save active Q2.14 weight matrices so non-hold probes restore them cleanly */
     int16_t saved_m3[8][6];
@@ -2119,6 +2395,10 @@ static uint16_t maml_probe_single_cell(uint8_t matrix_id, uint8_t row, uint8_t c
         resp.adc49_neg[c]  = (int16_t)(raw49_neg[c]  - base49[c]);
     }
 
+    if (!(mode_flag & 0x02u)) {
+        maml_hw_auto_resume();
+    }
+
     memcpy(resp_buf, &resp, sizeof(resp));
     return (uint16_t)sizeof(resp);
 }
@@ -2160,6 +2440,8 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
     resp.msg_type = 0x99;
     resp.mode     = mode;
     resp.en_mask  = en_mask;
+
+    maml_hw_auto_pause();
 
     for (int i = 0; i < 16; i++) resp.perm[i] = (uint8_t)i;
     for (int p = 0; p < 7; p++) {
@@ -2235,6 +2517,8 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
     aio_trigger_settled_adc_read(resp.adc45_hiz, resp.adc49_hiz);
 
     AIO_REG(AIO_CTRL) = 0x00000FA9u;
+
+    maml_hw_auto_resume();
 
     memcpy(resp_buf, &resp, sizeof(resp));
     return (uint16_t)sizeof(resp);
@@ -2321,8 +2605,14 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                     g_comp_is_centered = 0;
                 }
 
-                maml_refresh_all_columns();
-                bsp_uDelay((g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 5000u);
+                maml_sync_shadow_bytes();
+                uint32_t cfg_dly_us = (g_hadamard_delay_us > 0 && g_hadamard_delay_us <= 9500u) ? g_hadamard_delay_us : 5000u;
+                if (g_hw_auto_mode) {
+                    maml_hw_wait_next_frame(cfg_dly_us);
+                } else {
+                    maml_refresh_all_columns();
+                    bsp_uDelay(cfg_dly_us);
+                }
                 aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
             }
             break;
@@ -2358,6 +2648,10 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 uint32_t ctrl = 0x00000FA9u; /* base: sclr_n=1, auto_h_adc=1, pi_inv=1, w[11:0], sck_div=15 (280ns SCK/RCK HIGH) */
                 if (req_len >= 11 && req[10]) ctrl |= (1u << 4); /* optional r_adc_conv_mode */
 
+                if (g_tel.osc_10hz_en || g_tel.ovr_en) {
+                    maml_hw_auto_pause();
+                }
+
                 if (g_tel.osc_10hz_en) {
                     /* Drive 255 -> 128 -> 0 from C with bitrev8() so 128 = 0x01 on QA (MSB)! */
                     AIO_REG(AIO_CTRL) = ctrl;
@@ -2383,6 +2677,7 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 } else {
                     AIO_REG(AIO_CTRL) = ctrl;
                     aio_load_all_30_dacs(128u);
+                    maml_hw_auto_resume();
                 }
 
                 bsp_uDelay(5);
@@ -2488,10 +2783,12 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
 
                 /* Synchronize to the exact 10.0 ms (100 Hz) capacitor refresh boundary */
                 uint32_t period_ticks = g_refresh_period_us * 50u;
-                while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks) {
-                    /* wait for 10.0 ms boundary */
+                if (!g_hw_auto_mode) {
+                    while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks) {
+                        /* wait for 10.0 ms boundary */
+                    }
+                    g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
                 }
-                g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
 
                 uint8_t saved_mode = g_tel.run_mode;
                 g_tel.run_mode     = MAML_MODE_BASE_TRAIN;
@@ -2507,8 +2804,10 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                     g_tel.num_strata_m   = 1;
                     g_tel.cur_inner_step = 0;
                     maml_execute_step();
-                    while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks);
-                    g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
+                    if (!g_hw_auto_mode) {
+                        while ((uint32_t)(clint_getTimeLow(BSP_CLINT) - g_last_refresh_ticks) < period_ticks);
+                        g_last_refresh_ticks = clint_getTimeLow(BSP_CLINT);
+                    }
                     maml_execute_step();
                     g_tel.num_strata_m = saved_m;
                     g_tel.inner_loop_n = saved_n;

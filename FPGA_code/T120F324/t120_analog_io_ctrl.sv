@@ -1,5 +1,5 @@
 // =============================================================================
-// t120_analog_io_ctrl.sv : T120 Analog DAC & ADC Hardware Engine (APB3 Slave)
+// t120_analog_io_ctrl.sv : T120 Analog DAC, ADC & 10.000 ms Autonomous Frame Engine
 // =============================================================================
 // Mapped at APB3 Base 0xF810_4000 in T120F324/top_level.sv.
 //
@@ -12,17 +12,19 @@
 //   2. Hardware 10 Hz 3-State (255 -> 128 -> 0) Oscilloscope Swing Pattern
 //      generator + Single-DAC Static Override mode.
 //   3. Dual-Bank 6-Channel XC2361A 12-bit Serial SAR ADC Controller (ADC_45 & ADC_49)
-//      with hardware-interlocked 4-Phase Settle-Then-Sample sequencing:
-//        Phase 1: Shift 16-bit Hadamard word over H-bus & latch on T20 (OE=1, +/-)
-//        Phase 2: Quiet Analog DC Settling Window (~2.0 us default at 500 kHz,
-//                 scaling up to 20.0 us at 50 kHz). T20_CLK9, H-bus, DAC_SCK,
-//                 and ADC_SCK are held 100% static low while analog matrix settles.
-//        Phase 3: At the END of the quiet DC settling window, assert ADC_CONV to
-//                 lock Sample-and-Hold capacitors, shift 12-bit words into T120,
-//                 convert to signed differential Q1.11 (raw_12b - 2048), and
-//                 scatter-write via pi_inv[step] into Capture RAM.
-//        Phase 4: Release h_hold_busy so t120_hbus_seq advances to the next
-//                 Hadamard state (ending with 17th word 16'h8000 -> T20 OE=0 Hi-Z).
+//      with hardware-interlocked 4-Phase Settle-Then-Sample sequencing.
+//   4. Rock-Solid Crystal-Locked 10.000000 ms (500,000 cycles @ 50.000 MHz)
+//      Pure Verilog Autonomous Refresh & Hadamard Frame Engine:
+//        - Zero CPU/C-code involvement in Refresh or Hadamard timing (0.00 ns jitter).
+//        - Phase 1 (t = 0.000 .. 1.020 ms): Autonomous 6-Column Differential 2T1C
+//          Refresh (G_N then G_P) from Shadow Weight RAM (0x400..0x5FF) + S-bus
+//          PULSE_COL_GATES to T20.
+//        - Phase 2: Cycle-exact hardware countdown to r_hw_stratum_cycles.
+//        - Phase 3: Hardware 16x-averaged quiet Forward-Pass ADC_45/ADC_49 read,
+//          Sub-Window A (Matrix 8 0x3F00, 14x 2.00 us Sylvester H_8 Simplex burst
+//          -> cap49_ram), 20 us Tri-State Hi-Z gap, Sub-Window B (Matrix 3 0x003F,
+//          14x 2.00 us burst -> cap45_ram), return to Hi-Z (0x8000), and automatic
+//          S-bus Heater/Watchdog/LED sync.
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -47,6 +49,17 @@ module t120_analog_io_ctrl (
     input  wire         h_active,
     output logic        h_hold_busy,
     output logic        quiet_bus_freeze,
+
+    // Master Control Port to t120_inter_fpga_bridge for Autonomous 10.0 ms Engine
+    output wire         hw_auto_active,
+    output logic        hw_clk9_sync,
+    output logic        hw_clk9_10mhz,
+    output logic        hw_sbus_start,
+    output logic [31:0] hw_sbus_hdr,
+    output logic [31:0] hw_sbus_pay0,
+    output logic [31:0] hw_sbus_pay1,
+    output logic        hw_hbus_start,
+    input  wire         hw_hbus_done,
 
     // Bank 0: DAC_2 (6 channels)
     output logic [5:0]  si_dac_2,
@@ -102,13 +115,13 @@ module t120_analog_io_ctrl (
     logic [3:0]  r_sck_div;
 
     logic [15:0] r_settle_cycles; // Default 100 (2.00 us @ 50 MHz)
-    logic [7:0]  r_conv_cycles;   // Default 30  (600 ns @ 50 MHz)
+    logic [7:0]  r_conv_cycles;   // Default 25  (500 ns @ 50 MHz)
 
     logic [7:0]  r_ovr_val;
     logic [2:0]  r_ovr_ch;
     logic [1:0]  r_ovr_bank;
 
-    // 32-bit packed DAC shadow registers (initialized to 0x80 = 128 center)
+    // 32-bit packed DAC shadow registers (initialized to 0x01 = bitrev8(128) center)
     logic [31:0] r_dac2_lo, r_dac2_hi;
     logic [31:0] r_w15_lo,  r_w15_hi;
     logic [31:0] r_w12_lo,  r_w12_hi;
@@ -117,6 +130,16 @@ module t120_analog_io_ctrl (
     // Inverse permutation table pi_inv[0..15] packed into two 32-bit registers
     logic [31:0] r_pi_inv_lo; // {pi_inv[7], ..., pi_inv[0]}
     logic [31:0] r_pi_inv_hi; // {pi_inv[15], ..., pi_inv[8]}
+
+    // Autonomous Hardware 10.000000 ms Frame Engine Registers
+    logic        r_hw_auto_en;
+    logic        r_hw_had_en;
+    logic [7:0]  r_hw_gate_clk9;
+    logic [23:0] r_hw_stratum_cycles;
+    logic [31:0] r_hw_heater_cfg; // [0]=armed, [15:8]=d0, [23:16]=d1, [31:24]=d2
+    logic [31:0] r_hw_heater_led; // [7:0]=d3, [8]=comp_led, [9]=mat33_led
+
+    assign hw_auto_active = r_hw_auto_en && !r_osc_10hz_en && !r_ovr_en;
 
     assign sclr_dac_2   = r_dac_sclr_n;
     assign sclr_dac_w15 = r_dac_sclr_n;
@@ -130,6 +153,30 @@ module t120_analog_io_ctrl (
     logic [3:0] cmd_dac_load;
     logic       cmd_adc_trig;
     logic       init_dac_kick;
+    logic       dac2_pend_auto;
+
+    // =========================================================================
+    // Shadow Weight Block RAM (128 x 32-bit at APB 0x400..0x5FF)
+    //   Address = {half_col_step[3:0], word_idx[2:0]}
+    //   where half_col_step = {col[2:0], is_pos} (0..11)
+    //   and word_idx: 0=w15_lo, 1=w15_hi, 2=w12_lo, 3=w12_hi, 4=w34_lo, 5=w34_hi
+    // =========================================================================
+    (* ram_style = "block" *) reg [31:0] shadow_w_ram [0:127];
+    integer sw_i;
+    initial begin
+        for (sw_i = 0; sw_i < 128; sw_i = sw_i + 1) begin
+            shadow_w_ram[sw_i] = 32'h0101_0101; // bitrev8(128) = 0x01 (1.65V center)
+        end
+    end
+
+    logic [6:0]  sh_w_raddr;
+    logic [31:0] sh_w_rd_q;
+    always_ff @(posedge pclk) begin
+        if (apb_wr && (paddr[11:9] == 3'b010)) begin
+            shadow_w_ram[paddr[8:2]] <= pwdata;
+        end
+        sh_w_rd_q <= shadow_w_ram[sh_w_raddr];
+    end
 
     // =========================================================================
     // 10 Hz 3-State (255 -> 128 -> 0) Oscilloscope Pattern Generator
@@ -163,43 +210,108 @@ module t120_analog_io_ctrl (
                           (osc_state == 2'd1) ? 8'd128 : 8'd0;
 
     // =========================================================================
-    // Register Write Logic
+    // Pure Verilog 10.000000 ms (500,000 cycles @ 50.000 MHz) Frame Engine
+    // =========================================================================
+    localparam [18:0] HW_FRAME_PERIOD_CYC = 19'd500_000; // Exact 10.000000 ms
+
+    localparam [3:0]
+        HWF_IDLE         = 4'd0,
+        HWF_REF_STEP     = 4'd1,
+        HWF_STRATUM_WAIT = 4'd2,
+        HWF_FWD_ADC      = 4'd3,
+        HWF_M8_CFG       = 4'd4,
+        HWF_M8_BURST     = 4'd5,
+        HWF_GAP_20US     = 4'd6,
+        HWF_M3_CFG       = 4'd7,
+        HWF_M3_BURST     = 4'd8,
+        HWF_EXIT_SYNC    = 4'd9;
+
+    logic [3:0]  hw_fsm_state;
+    logic [18:0] frame_timer;
+    logic [3:0]  hw_col_step;
+    logic [15:0] hw_sub_cnt;
+    logic [23:0] hw_stratum_cnt;
+    logic [4:0]  hw_avg_cnt;
+    logic        hw_adc_armed;
+    logic        hw_adc_trig;
+    logic [3:0]  hw_dac_load;
+    logic        hw_dac2_clr_pend;
+    logic [31:0] hw_frame_seq;
+    logic [31:0] hw_refresh_cnt;
+
+    logic signed [19:0] fwd_acc45 [0:5];
+    logic signed [19:0] fwd_acc49 [0:5];
+    logic [15:0]        hw_fwd_adc45 [0:5];
+    logic [15:0]        hw_fwd_adc49 [0:5];
+
+    wire hw_pipe_2us_en = hw_auto_active && (hw_fsm_state == HWF_M8_BURST || hw_fsm_state == HWF_M3_BURST);
+    wire hw_cap_m8_only = hw_auto_active && (hw_fsm_state == HWF_M8_BURST);
+    wire hw_cap_m3_only = hw_auto_active && (hw_fsm_state == HWF_M3_BURST);
+
+    assign sh_w_raddr = {hw_col_step, hw_sub_cnt[2:0]};
+
+    // =========================================================================
+    // Register Write Logic & Autonomous Weight Latching
     // =========================================================================
     always_ff @(posedge pclk or negedge presetn) begin
         if (!presetn) begin
-            r_dac_sclr_n    <= 1'b1;
-            r_osc_10hz_en   <= 1'b0;
-            r_ovr_en        <= 1'b0;
-            r_auto_h_adc_en <= 1'b1;
-            r_adc_conv_mode <= 1'b0;
-            r_pi_inv_en     <= 1'b1;
-            r_adc_bit_align <= 2'd0;
-            r_sck_div       <= 4'd2;
-            r_settle_cycles <= 16'd100; // 2.00 us quiet DC settle @ 50 MHz
-            r_conv_cycles   <= 8'd25;   // 500 ns S/H conversion pulse
-            r_ovr_val       <= 8'd128;
-            r_ovr_ch        <= 3'd0;
-            r_ovr_bank      <= 2'd0;
-            r_dac2_lo       <= 32'h8080_8080;
-            r_dac2_hi       <= 32'h0000_8080;
-            r_w15_lo        <= 32'h8080_8080;
-            r_w15_hi        <= 32'h8080_8080;
-            r_w12_lo        <= 32'h8080_8080;
-            r_w12_hi        <= 32'h8080_8080;
-            r_w34_lo        <= 32'h8080_8080;
-            r_w34_hi        <= 32'h8080_8080;
-            r_pi_inv_lo     <= 32'h7654_3210;
-            r_pi_inv_hi     <= 32'hFEDC_BA98;
-            cmd_dac_load    <= 4'b0000;
-            cmd_adc_trig    <= 1'b0;
-            init_dac_kick   <= 1'b1;
+            r_dac_sclr_n        <= 1'b1;
+            r_osc_10hz_en       <= 1'b0;
+            r_ovr_en            <= 1'b0;
+            r_auto_h_adc_en     <= 1'b1;
+            r_adc_conv_mode     <= 1'b0;
+            r_pi_inv_en         <= 1'b1;
+            r_adc_bit_align     <= 2'd2;
+            r_sck_div           <= 4'd2;
+            r_settle_cycles     <= 16'd100; // 2.00 us quiet DC settle @ 50 MHz
+            r_conv_cycles       <= 8'd25;   // 500 ns S/H conversion pulse
+            r_ovr_val           <= 8'd128;
+            r_ovr_ch            <= 3'd0;
+            r_ovr_bank          <= 2'd0;
+            r_dac2_lo           <= 32'h0101_0101;
+            r_dac2_hi           <= 32'h0000_0101;
+            r_w15_lo            <= 32'h0101_0101;
+            r_w15_hi            <= 32'h0101_0101;
+            r_w12_lo            <= 32'h0101_0101;
+            r_w12_hi            <= 32'h0101_0101;
+            r_w34_lo            <= 32'h0101_0101;
+            r_w34_hi            <= 32'h0101_0101;
+            r_pi_inv_lo         <= 32'h7654_3210;
+            r_pi_inv_hi         <= 32'hFEDC_BA98;
+            r_hw_auto_en        <= 1'b0;
+            r_hw_had_en         <= 1'b1;
+            r_hw_gate_clk9      <= 8'd100;      // 50.00 us @ 2 MHz CLK9
+            r_hw_stratum_cycles <= 24'd250_000; // 5000.00 us @ 50 MHz
+            r_hw_heater_cfg     <= 32'd0;
+            r_hw_heater_led     <= 32'd0;
+            cmd_dac_load        <= 4'b0000;
+            cmd_adc_trig        <= 1'b0;
+            init_dac_kick       <= 1'b1;
+            dac2_pend_auto      <= 1'b0;
         end else begin
             cmd_dac_load  <= 4'b0000;
             cmd_adc_trig  <= 1'b0;
             init_dac_kick <= 1'b0;
 
+            if (hw_dac2_clr_pend) begin
+                dac2_pend_auto <= 1'b0;
+            end
+
             if (init_dac_kick || osc_trig) begin
                 cmd_dac_load <= 4'b1111;
+            end
+
+            // Hardware Autonomous Refresh loads W_15, W_12, W_34 from shadow_w_ram
+            if (hw_auto_active && (hw_fsm_state == HWF_REF_STEP)) begin
+                case (hw_sub_cnt)
+                    16'd1: r_w15_lo <= sh_w_rd_q;
+                    16'd2: r_w15_hi <= sh_w_rd_q;
+                    16'd3: r_w12_lo <= sh_w_rd_q;
+                    16'd4: r_w12_hi <= sh_w_rd_q;
+                    16'd5: r_w34_lo <= sh_w_rd_q;
+                    16'd6: r_w34_hi <= sh_w_rd_q;
+                    default: ;
+                endcase
             end
 
             if (apb_wr && is_reg) begin
@@ -217,18 +329,20 @@ module t120_analog_io_ctrl (
                             cmd_dac_load <= 4'b1111;
                     end
                     6'h03: begin // 0x00C CMD
-                        cmd_dac_load <= pwdata[3:0];
-                        cmd_adc_trig <= pwdata[4];
-                        if (pwdata[5]) begin // dac_center_all (set all to 128)
-                            r_dac2_lo    <= 32'h8080_8080;
-                            r_dac2_hi    <= 32'h0000_8080;
-                            r_w15_lo     <= 32'h8080_8080;
-                            r_w15_hi     <= 32'h8080_8080;
-                            r_w12_lo     <= 32'h8080_8080;
-                            r_w12_hi     <= 32'h8080_8080;
-                            r_w34_lo     <= 32'h8080_8080;
-                            r_w34_hi     <= 32'h8080_8080;
-                            cmd_dac_load <= 4'b1111;
+                        if (!hw_auto_active) begin
+                            cmd_dac_load <= pwdata[3:0];
+                            cmd_adc_trig <= pwdata[4];
+                        end
+                        if (pwdata[5]) begin // dac_center_all
+                            r_dac2_lo    <= 32'h0101_0101;
+                            r_dac2_hi    <= 32'h0000_0101;
+                            r_w15_lo     <= 32'h0101_0101;
+                            r_w15_hi     <= 32'h0101_0101;
+                            r_w12_lo     <= 32'h0101_0101;
+                            r_w12_hi     <= 32'h0101_0101;
+                            r_w34_lo     <= 32'h0101_0101;
+                            r_w34_hi     <= 32'h0101_0101;
+                            if (!hw_auto_active) cmd_dac_load <= 4'b1111;
                         end
                     end
                     6'h04: begin // 0x010 SETTLE_CYCLES
@@ -241,16 +355,40 @@ module t120_analog_io_ctrl (
                         r_ovr_bank   <= pwdata[13:12];
                         cmd_dac_load <= 4'b1111;
                     end
-                    6'h08: r_dac2_lo   <= pwdata;
-                    6'h09: begin r_dac2_hi <= pwdata; cmd_dac_load[0] <= 1'b1; end
-                    6'h0A: r_w15_lo    <= pwdata;
-                    6'h0B: begin r_w15_hi  <= pwdata; cmd_dac_load[1] <= 1'b1; end
-                    6'h0C: r_w12_lo    <= pwdata;
-                    6'h0D: begin r_w12_hi  <= pwdata; cmd_dac_load[2] <= 1'b1; end
-                    6'h0E: r_w34_lo    <= pwdata;
-                    6'h0F: begin r_w34_hi  <= pwdata; cmd_dac_load[3] <= 1'b1; end
+                    6'h08: r_dac2_lo <= pwdata;
+                    6'h09: begin
+                        r_dac2_hi <= pwdata;
+                        if (!hw_auto_active) begin
+                            cmd_dac_load[0] <= 1'b1;
+                        end else if (hw_fsm_state == HWF_STRATUM_WAIT || hw_fsm_state == HWF_IDLE) begin
+                            cmd_dac_load[0] <= 1'b1;
+                        end else begin
+                            dac2_pend_auto <= 1'b1;
+                        end
+                    end
+                    6'h0A: if (!hw_auto_active) r_w15_lo <= pwdata;
+                    6'h0B: if (!hw_auto_active) begin r_w15_hi <= pwdata; cmd_dac_load[1] <= 1'b1; end
+                    6'h0C: if (!hw_auto_active) r_w12_lo <= pwdata;
+                    6'h0D: if (!hw_auto_active) begin r_w12_hi <= pwdata; cmd_dac_load[2] <= 1'b1; end
+                    6'h0E: if (!hw_auto_active) r_w34_lo <= pwdata;
+                    6'h0F: if (!hw_auto_active) begin r_w34_hi <= pwdata; cmd_dac_load[3] <= 1'b1; end
                     6'h10: r_pi_inv_lo <= pwdata;
                     6'h11: r_pi_inv_hi <= pwdata;
+                    6'h20: begin // 0x080 AIO_HW_FRAME_CTRL
+                        r_hw_auto_en   <= pwdata[0];
+                        r_hw_had_en    <= pwdata[1];
+                        r_hw_gate_clk9 <= (pwdata[15:8] < 8'd20) ? 8'd100 : pwdata[15:8];
+                    end
+                    6'h21: begin // 0x084 AIO_HW_STRATUM_CYC
+                        if (pwdata[23:0] < 24'd5_000)
+                            r_hw_stratum_cycles <= 24'd5_000;
+                        else if (pwdata[23:0] > 24'd380_000)
+                            r_hw_stratum_cycles <= 24'd380_000;
+                        else
+                            r_hw_stratum_cycles <= pwdata[23:0];
+                    end
+                    6'h22: r_hw_heater_cfg <= pwdata; // 0x088 AIO_HW_HEATER_CFG
+                    6'h23: r_hw_heater_led <= pwdata; // 0x08C AIO_HW_HEATER_LED
                     default: ;
                 endcase
             end
@@ -288,6 +426,9 @@ module t120_analog_io_ctrl (
     logic [7:0] sh_w12 [0:7];
     logic [7:0] sh_w34 [0:7];
 
+    wire [3:0] dac_sck_div = hw_auto_active ? 4'd15 : r_sck_div;
+    wire [3:0] eff_dac_load = cmd_dac_load | hw_dac_load;
+
     integer di;
     always_ff @(posedge pclk or negedge presetn) begin
         if (!presetn) begin
@@ -301,15 +442,15 @@ module t120_analog_io_ctrl (
             si_dac_w15    <= 8'd0; sck_dac_w15 <= 8'd0; rck_dac_w15 <= 1'b0;
             si_dac_w12    <= 8'd0; sck_dac_w12 <= 8'd0; rck_dac_w12 <= 1'b0;
             si_dac_w34    <= 8'd0; sck_dac_w34 <= 8'd0; rck_dac_w34 <= 1'b0;
-            for (di = 0; di < 6; di = di + 1) sh_d2[di]  <= 8'd128;
+            for (di = 0; di < 6; di = di + 1) sh_d2[di]  <= 8'h01;
             for (di = 0; di < 8; di = di + 1) begin
-                sh_w15[di] <= 8'd128;
-                sh_w12[di] <= 8'd128;
-                sh_w34[di] <= 8'd128;
+                sh_w15[di] <= 8'h01;
+                sh_w12[di] <= 8'h01;
+                sh_w34[di] <= 8'h01;
             end
         end else begin
-            if (cmd_dac_load != 4'b0000)
-                dac_pend_mask <= dac_pend_mask | cmd_dac_load;
+            if (eff_dac_load != 4'b0000)
+                dac_pend_mask <= dac_pend_mask | eff_dac_load;
 
             case (dac_state)
                 3'd0: begin // IDLE
@@ -376,7 +517,7 @@ module t120_analog_io_ctrl (
                         si_dac_w12[di] <= sh_w12[di][dac_bit_idx];
                         si_dac_w34[di] <= sh_w34[di][dac_bit_idx];
                     end
-                    if (dac_div_cnt >= r_sck_div - 4'd1) begin
+                    if (dac_div_cnt >= dac_sck_div - 4'd1) begin
                         dac_div_cnt <= 4'd0;
                         dac_state   <= 3'd2;
                     end else begin
@@ -389,7 +530,7 @@ module t120_analog_io_ctrl (
                     if (dac_act_mask[1]) sck_dac_w15 <= 8'hFF;
                     if (dac_act_mask[2]) sck_dac_w12 <= 8'hFF;
                     if (dac_act_mask[3]) sck_dac_w34 <= 8'hFF;
-                    if (dac_div_cnt >= r_sck_div - 4'd1) begin
+                    if (dac_div_cnt >= dac_sck_div - 4'd1) begin
                         dac_div_cnt <= 4'd0;
                         sck_dac_2   <= 6'd0;
                         sck_dac_w15 <= 8'd0;
@@ -411,7 +552,7 @@ module t120_analog_io_ctrl (
                     rck_dac_w15 <= dac_act_mask[1];
                     rck_dac_w12 <= dac_act_mask[2];
                     rck_dac_w34 <= dac_act_mask[3];
-                    if (dac_div_cnt >= r_sck_div - 4'd1) begin
+                    if (dac_div_cnt >= dac_sck_div - 4'd1) begin
                         dac_div_cnt <= 4'd0;
                         rck_dac_2   <= 1'b0;
                         rck_dac_w15 <= 1'b0;
@@ -484,10 +625,16 @@ module t120_analog_io_ctrl (
         endcase
     endfunction
 
-    wire [3:0] dst_step      = r_pi_inv_en ? pi_inv_lut : adc_cap_step;
+    wire [15:0] eff_settle_cycles = hw_pipe_2us_en ? 16'd1  : (hw_auto_active ? 16'd100 : r_settle_cycles);
+    wire [7:0]  eff_conv_cycles   = hw_pipe_2us_en ? 8'd21  : (hw_auto_active ? 8'd25   : r_conv_cycles);
+    wire [3:0]  adc_sck_div       = hw_pipe_2us_en ? 4'd2   : (hw_auto_active ? 4'd4    : r_sck_div);
+    wire        eff_pi_inv_en     = hw_auto_active ? 1'b0   : r_pi_inv_en;
+
+    wire [3:0] dst_step      = eff_pi_inv_en ? pi_inv_lut : adc_cap_step;
     logic      quiet_freeze_q;
-    wire       hold_trig     = (h_latch_strobe && r_auto_h_adc_en) || cmd_adc_trig;
-    wire       pipe_2us_mode = (r_settle_cycles <= 16'd4);
+    wire       hold_trig     = (h_latch_strobe && (r_auto_h_adc_en || hw_auto_active)) ||
+                               (hw_auto_active ? hw_adc_trig : cmd_adc_trig);
+    wire       pipe_2us_mode = (eff_settle_cycles <= 16'd4);
 
     always_comb begin
         h_hold_busy      = pipe_2us_mode ? 1'b0 : (adc_busy || hold_trig);
@@ -529,8 +676,8 @@ module t120_analog_io_ctrl (
 
                     if (hold_trig) begin
                         adc_busy         <= 1'b1;
-                        quiet_freeze_q   <= 1'b1; // Freeze T20_CLK9 & DAC shifting during quiet DC settle!
-                        adc_is_h_trig    <= (h_latch_strobe && r_auto_h_adc_en);
+                        quiet_freeze_q   <= 1'b1;
+                        adc_is_h_trig    <= (h_latch_strobe && (r_auto_h_adc_en || hw_auto_active));
                         adc_cap_step     <= h_step_idx;
                         adc_timer        <= 16'd0;
                         adc_state        <= ADC_QUIET_SETTLE;
@@ -540,11 +687,10 @@ module t120_analog_io_ctrl (
                     end
                 end
 
-                // Phase 2: Quiet Analog DC Settling Window (~2.0 us at 500 kHz, up to 20.0 us at 50 kHz)
+                // Phase 2: Quiet Analog DC Settling Window
                 ADC_QUIET_SETTLE: begin
-                    if (adc_timer >= r_settle_cycles - 16'd1) begin
-                        adc_timer <= 16'd0;
-                        // Phase 3a: Lock Sample-and-Hold Capacitors at the END of the quiet DC settling window!
+                    if (adc_timer >= eff_settle_cycles - 16'd1) begin
+                        adc_timer   <= 16'd0;
                         adc_45_conv <= r_adc_conv_mode ? 1'b0 : 1'b1;
                         adc_49_conv <= r_adc_conv_mode ? 1'b0 : 1'b1;
                         adc_state   <= ADC_SH_CONV;
@@ -553,13 +699,13 @@ module t120_analog_io_ctrl (
                     end
                 end
 
-                // Phase 3a: S/H Conversion Aperture (while digital clocks remain 100% static)
+                // Phase 3a: S/H Conversion Aperture
                 ADC_SH_CONV: begin
-                    if (r_adc_conv_mode || (adc_timer >= {8'd0, r_conv_cycles} - 16'd1)) begin
+                    if (r_adc_conv_mode || (adc_timer >= {8'd0, eff_conv_cycles} - 16'd1)) begin
                         adc_timer        <= 16'd0;
                         adc_45_conv      <= 1'b0;
                         adc_49_conv      <= 1'b0;
-                        quiet_freeze_q   <= 1'b0; // S/H capacitor is now locked; allow ADC_SCK shifting while h_hold_busy keeps T20_CLK9 frozen!
+                        quiet_freeze_q   <= 1'b0;
                         adc_bit_cnt      <= 5'd0;
                         adc_div_cnt      <= 4'd0;
                         for (ai = 0; ai < 6; ai = ai + 1) begin
@@ -576,11 +722,11 @@ module t120_analog_io_ctrl (
                 ADC_SHIFT_LO: begin
                     adc_45_sck_1_2 <= 1'b0; adc_45_sck_3_4 <= 1'b0; adc_45_sck_5_6 <= 1'b0;
                     adc_49_sck_1_2 <= 1'b0; adc_49_sck_3_4 <= 1'b0; adc_49_sck_5_6 <= 1'b0;
-                    if (adc_div_cnt >= r_sck_div - 4'd1) begin
-                        adc_div_cnt <= 4'd0;
+                    if (adc_div_cnt >= adc_sck_div - 4'd1) begin
+                        adc_div_cnt    <= 4'd0;
                         adc_45_sck_1_2 <= 1'b1; adc_45_sck_3_4 <= 1'b1; adc_45_sck_5_6 <= 1'b1;
                         adc_49_sck_1_2 <= 1'b1; adc_49_sck_3_4 <= 1'b1; adc_49_sck_5_6 <= 1'b1;
-                        adc_state   <= ADC_SHIFT_HI;
+                        adc_state      <= ADC_SHIFT_HI;
                     end else begin
                         adc_div_cnt <= adc_div_cnt + 4'd1;
                     end
@@ -588,8 +734,8 @@ module t120_analog_io_ctrl (
 
                 // Phase 3b: Serial Clock High phase & Sample SDO
                 ADC_SHIFT_HI: begin
-                    if (adc_div_cnt >= r_sck_div - 4'd1) begin
-                        adc_div_cnt <= 4'd0;
+                    if (adc_div_cnt >= adc_sck_div - 4'd1) begin
+                        adc_div_cnt    <= 4'd0;
                         adc_45_sck_1_2 <= 1'b0; adc_45_sck_3_4 <= 1'b0; adc_45_sck_5_6 <= 1'b0;
                         adc_49_sck_1_2 <= 1'b0; adc_49_sck_3_4 <= 1'b0; adc_49_sck_5_6 <= 1'b0;
                         for (ai = 0; ai < 6; ai = ai + 1) begin
@@ -610,7 +756,7 @@ module t120_analog_io_ctrl (
                     end
                 end
 
-                // Phase 3c & Phase 4: Differential (-2048) conversion, Capture RAM store & Release Next Hadamard State
+                // Phase 3c & Phase 4: Differential (-2048) conversion & Capture RAM store
                 ADC_STORE: begin
                     if (store_sub == 2'd0) begin
                         for (ai = 0; ai < 6; ai = ai + 1) begin
@@ -627,7 +773,7 @@ module t120_analog_io_ctrl (
                     end else begin
                         sample_cnt       <= sample_cnt + 16'd1;
                         quiet_freeze_q   <= 1'b0;
-                        adc_busy         <= 1'b0; // Releases h_hold_busy so H-bus sequencer shifts next Hadamard state!
+                        adc_busy         <= 1'b0;
                         adc_state        <= ADC_IDLE;
                     end
                 end
@@ -637,7 +783,298 @@ module t120_analog_io_ctrl (
         end
     end
 
-    // Dedicated Dual-Port Block RAM Write & Read Ports (no asynchronous reset on array)
+    // =========================================================================
+    // Pure Verilog 10.000000 ms Master Frame State Machine
+    // =========================================================================
+    wire [2:0] cur_ref_col    = hw_col_step[3:1];
+    wire       cur_ref_is_pos = hw_col_step[0];
+
+    integer fi;
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (!presetn) begin
+            frame_timer      <= 19'd0;
+            hw_fsm_state     <= HWF_IDLE;
+            hw_col_step      <= 4'd0;
+            hw_sub_cnt       <= 16'd0;
+            hw_stratum_cnt   <= 24'd0;
+            hw_avg_cnt       <= 5'd0;
+            hw_adc_armed     <= 1'b0;
+            hw_adc_trig      <= 1'b0;
+            hw_dac_load      <= 4'b0000;
+            hw_dac2_clr_pend <= 1'b0;
+            hw_clk9_sync     <= 1'b0;
+            hw_clk9_10mhz    <= 1'b0;
+            hw_sbus_start    <= 1'b0;
+            hw_sbus_hdr      <= 32'd0;
+            hw_sbus_pay0     <= 32'd0;
+            hw_sbus_pay1     <= 32'd0;
+            hw_hbus_start    <= 1'b0;
+            hw_frame_seq     <= 32'd0;
+            hw_refresh_cnt   <= 32'd0;
+            for (fi = 0; fi < 6; fi = fi + 1) begin
+                fwd_acc45[fi]    <= 20'sd0;
+                fwd_acc49[fi]    <= 20'sd0;
+                hw_fwd_adc45[fi] <= 16'd0;
+                hw_fwd_adc49[fi] <= 16'd0;
+            end
+        end else begin
+            hw_adc_trig      <= 1'b0;
+            hw_dac_load      <= 4'b0000;
+            hw_dac2_clr_pend <= 1'b0;
+            hw_clk9_sync     <= 1'b0;
+            hw_sbus_start    <= 1'b0;
+            hw_hbus_start    <= 1'b0;
+
+            if (!hw_auto_active) begin
+                frame_timer   <= 19'd0;
+                hw_fsm_state  <= HWF_IDLE;
+                hw_clk9_10mhz <= 1'b0;
+            end else begin
+                // Modulo-500,000 Crystal-Locked 10.000000 ms Counter (0.00 ns jitter!)
+                if (frame_timer == HW_FRAME_PERIOD_CYC - 19'd1) begin
+                    frame_timer <= 19'd0;
+                end else begin
+                    frame_timer <= frame_timer + 19'd1;
+                end
+
+                // Trigger exact 10.000000 ms frame start at frame_timer == 0
+                if (frame_timer == 19'd0) begin
+                    hw_clk9_10mhz    <= 1'b0;
+                    hw_clk9_sync     <= 1'b1; // Phase-lock 2.0 MHz CLK9 to t = 0.000000 ms!
+                    hw_col_step      <= 4'd0;
+                    hw_sub_cnt       <= 16'd0;
+                    hw_dac2_clr_pend <= 1'b1;
+                    hw_fsm_state     <= HWF_REF_STEP;
+                end else begin
+                    case (hw_fsm_state)
+                        // ---------------------------------------------------------
+                        // Phase 1: 6-Column Differential 2T1C Refresh (12 x 85.00 us = 1.020 ms)
+                        // ---------------------------------------------------------
+                        HWF_REF_STEP: begin
+                            if (hw_sub_cnt == 16'd6) begin
+                                hw_dac_load <= (hw_col_step == 4'd0) ? 4'b1111 : 4'b1110;
+                            end else if (hw_sub_cnt == 16'd550) begin
+                                // After 5.4 us DAC shift + 5.6 us op-amp settle: pulse T20 column gates!
+                                hw_sbus_hdr   <= 32'h05_04_0004;
+                                hw_sbus_pay0  <= {8'd0, r_hw_gate_clk9,
+                                                  (cur_ref_is_pos ? 8'h07 : 8'h70),
+                                                  (8'h01 << cur_ref_col)};
+                                hw_sbus_start <= 1'b1;
+                            end
+
+                            if (hw_sub_cnt >= 16'd4499) begin
+                                hw_sub_cnt <= 16'd0;
+                                if (hw_col_step == 4'd11) begin
+                                    hw_refresh_cnt <= hw_refresh_cnt + 32'd1;
+                                    hw_stratum_cnt <= 24'd0;
+                                    if (dac2_pend_auto) begin
+                                        hw_dac_load      <= 4'b0001;
+                                        hw_dac2_clr_pend <= 1'b1;
+                                    end
+                                    hw_fsm_state <= HWF_STRATUM_WAIT;
+                                end else begin
+                                    hw_col_step <= hw_col_step + 4'd1;
+                                end
+                            end else begin
+                                hw_sub_cnt <= hw_sub_cnt + 16'd1;
+                            end
+                        end
+
+                        // ---------------------------------------------------------
+                        // Phase 2: Exact Hardware Stratum Settling Countdown
+                        // ---------------------------------------------------------
+                        HWF_STRATUM_WAIT: begin
+                            if (hw_stratum_cnt >= r_hw_stratum_cycles - 24'd1) begin
+                                hw_stratum_cnt <= 24'd0;
+                                for (fi = 0; fi < 6; fi = fi + 1) begin
+                                    fwd_acc45[fi] <= 20'sd0;
+                                    fwd_acc49[fi] <= 20'sd0;
+                                end
+                                hw_avg_cnt   <= 5'd0;
+                                hw_adc_armed <= 1'b1;
+                                hw_fsm_state <= HWF_FWD_ADC;
+                            end else begin
+                                hw_stratum_cnt <= hw_stratum_cnt + 24'd1;
+                            end
+                        end
+
+                        // ---------------------------------------------------------
+                        // Phase 3a: 16x Hardware-Averaged Quiet Forward-Pass ADC Read
+                        // ---------------------------------------------------------
+                        HWF_FWD_ADC: begin
+                            if (hw_adc_armed && adc_state == ADC_IDLE && !adc_busy && !hw_adc_trig) begin
+                                hw_adc_trig  <= 1'b1;
+                                hw_adc_armed <= 1'b0;
+                            end else if (adc_state == ADC_STORE) begin
+                                if (store_sub == 2'd1) begin
+                                    for (fi = 0; fi < 6; fi = fi + 1) begin
+                                        fwd_acc45[fi] <= fwd_acc45[fi] + {{4{adc45_sig_lat[fi][15]}}, adc45_sig_lat[fi]};
+                                        fwd_acc49[fi] <= fwd_acc49[fi] + {{4{adc49_sig_lat[fi][15]}}, adc49_sig_lat[fi]};
+                                    end
+                                end else if (store_sub == 2'd3) begin
+                                    if (hw_avg_cnt == 5'd15) begin
+                                        for (fi = 0; fi < 6; fi = fi + 1) begin
+                                            hw_fwd_adc45[fi] <= (fwd_acc45[fi] + 20'sd8) >>> 4;
+                                            hw_fwd_adc49[fi] <= (fwd_acc49[fi] + 20'sd8) >>> 4;
+                                        end
+                                        hw_sub_cnt   <= 16'd0;
+                                        hw_fsm_state <= r_hw_had_en ? HWF_M8_CFG : HWF_EXIT_SYNC;
+                                    end else begin
+                                        hw_avg_cnt   <= hw_avg_cnt + 5'd1;
+                                        hw_adc_armed <= 1'b1;
+                                    end
+                                end
+                            end
+                        end
+
+                        // ---------------------------------------------------------
+                        // Phase 3b: Configure T20 for Sub-Window A (Matrix 8 = 0x3F00)
+                        // ---------------------------------------------------------
+                        HWF_M8_CFG: begin
+                            if (hw_sub_cnt == 16'd0) begin
+                                // CH 0x02 OP 0x1 SET_EN = 0x3F00 (big endian: pay[0]=0x3F, pay[1]=0x00)
+                                hw_sbus_hdr   <= 32'h02_01_0002;
+                                hw_sbus_pay0  <= 32'h0000_003F;
+                                hw_sbus_start <= 1'b1;
+                            end else if (hw_sub_cnt == 16'd1250) begin
+                                // CH 0x02 OP 0x2 SET_STATIC (static_on=0, vec=0x8000)
+                                hw_sbus_hdr   <= 32'h02_02_0003;
+                                hw_sbus_pay0  <= 32'h0000_8000;
+                                hw_sbus_start <= 1'b1;
+                            end
+
+                            if (hw_sub_cnt >= 16'd2499) begin
+                                hw_sub_cnt    <= 16'd0;
+                                hw_clk9_10mhz <= 1'b1;
+                                hw_clk9_sync  <= 1'b1;
+                                hw_fsm_state  <= HWF_M8_BURST;
+                            end else begin
+                                hw_sub_cnt <= hw_sub_cnt + 16'd1;
+                            end
+                        end
+
+                        // ---------------------------------------------------------
+                        // Phase 3c: Sub-Window A Hadamard Burst (14 x 2.00 us on M8 -> cap49_ram)
+                        // ---------------------------------------------------------
+                        HWF_M8_BURST: begin
+                            if (hw_sub_cnt == 16'd2) begin
+                                hw_hbus_start <= 1'b1;
+                            end
+
+                            if (hw_sub_cnt >= 16'd1799 && !h_active && !adc_busy) begin
+                                hw_sub_cnt    <= 16'd0;
+                                hw_clk9_10mhz <= 1'b0;
+                                hw_clk9_sync  <= 1'b1;
+                                hw_fsm_state  <= HWF_GAP_20US;
+                            end else begin
+                                hw_sub_cnt <= hw_sub_cnt + 16'd1;
+                            end
+                        end
+
+                        // ---------------------------------------------------------
+                        // Phase 3d: 20.00 us Tri-State Hi-Z Separation Gap
+                        // ---------------------------------------------------------
+                        HWF_GAP_20US: begin
+                            if (hw_sub_cnt == 16'd0) begin
+                                // CH 0x02 OP 0x2 SET_STATIC (static_on=1, vec=0x8000 -> Hi-Z)
+                                hw_sbus_hdr   <= 32'h02_02_0003;
+                                hw_sbus_pay0  <= 32'h0000_8001;
+                                hw_sbus_start <= 1'b1;
+                            end
+
+                            if (hw_sub_cnt >= 16'd2249) begin
+                                hw_sub_cnt   <= 16'd0;
+                                hw_fsm_state <= HWF_M3_CFG;
+                            end else begin
+                                hw_sub_cnt <= hw_sub_cnt + 16'd1;
+                            end
+                        end
+
+                        // ---------------------------------------------------------
+                        // Phase 3e: Configure T20 for Sub-Window B (Matrix 3 = 0x003F)
+                        // ---------------------------------------------------------
+                        HWF_M3_CFG: begin
+                            if (hw_sub_cnt == 16'd0) begin
+                                // CH 0x02 OP 0x1 SET_EN = 0x003F (big endian: pay[0]=0x00, pay[1]=0x3F)
+                                hw_sbus_hdr   <= 32'h02_01_0002;
+                                hw_sbus_pay0  <= 32'h0000_3F00;
+                                hw_sbus_start <= 1'b1;
+                            end else if (hw_sub_cnt == 16'd1250) begin
+                                // CH 0x02 OP 0x2 SET_STATIC (static_on=0, vec=0x8000)
+                                hw_sbus_hdr   <= 32'h02_02_0003;
+                                hw_sbus_pay0  <= 32'h0000_8000;
+                                hw_sbus_start <= 1'b1;
+                            end
+
+                            if (hw_sub_cnt >= 16'd2499) begin
+                                hw_sub_cnt    <= 16'd0;
+                                hw_clk9_10mhz <= 1'b1;
+                                hw_clk9_sync  <= 1'b1;
+                                hw_fsm_state  <= HWF_M3_BURST;
+                            end else begin
+                                hw_sub_cnt <= hw_sub_cnt + 16'd1;
+                            end
+                        end
+
+                        // ---------------------------------------------------------
+                        // Phase 3f: Sub-Window B Hadamard Burst (14 x 2.00 us on M3 -> cap45_ram)
+                        // ---------------------------------------------------------
+                        HWF_M3_BURST: begin
+                            if (hw_sub_cnt == 16'd2) begin
+                                hw_hbus_start <= 1'b1;
+                            end
+
+                            if (hw_sub_cnt >= 16'd1799 && !h_active && !adc_busy) begin
+                                hw_sub_cnt    <= 16'd0;
+                                hw_clk9_10mhz <= 1'b0;
+                                hw_clk9_sync  <= 1'b1;
+                                hw_fsm_state  <= HWF_EXIT_SYNC;
+                            end else begin
+                                hw_sub_cnt <= hw_sub_cnt + 16'd1;
+                            end
+                        end
+
+                        // ---------------------------------------------------------
+                        // Phase 3g: Return to 3-State Hi-Z + Sync Heater/Watchdog & LEDs
+                        // ---------------------------------------------------------
+                        HWF_EXIT_SYNC: begin
+                            if (hw_sub_cnt == 16'd0) begin
+                                // CH 0x02 OP 0x2 SET_STATIC (static_on=1, vec=0x8000 -> Hi-Z)
+                                hw_sbus_hdr   <= 32'h02_02_0003;
+                                hw_sbus_pay0  <= 32'h0000_8001;
+                                hw_sbus_start <= 1'b1;
+                            end else if (hw_sub_cnt == 16'd1250) begin
+                                // CH 0x05 OP 0x1 SET_HEATER (refreshes T20 PWM & Watchdog!)
+                                hw_sbus_hdr   <= 32'h05_01_0005;
+                                hw_sbus_pay0  <= {r_hw_heater_cfg[31:8], 7'd0, r_hw_heater_cfg[0]};
+                                hw_sbus_pay1  <= {24'd0, r_hw_heater_led[7:0]};
+                                hw_sbus_start <= 1'b1;
+                            end else if (hw_sub_cnt == 16'd2500) begin
+                                // CH 0x05 OP 0x2 SET_LEDS
+                                hw_sbus_hdr   <= 32'h05_02_0002;
+                                hw_sbus_pay0  <= {16'd0, 7'd0, r_hw_heater_led[9], 7'd0, r_hw_heater_led[8]};
+                                hw_sbus_start <= 1'b1;
+                            end
+
+                            if (hw_sub_cnt >= 16'd3749) begin
+                                hw_sub_cnt   <= 16'd0;
+                                hw_frame_seq <= hw_frame_seq + 32'd1;
+                                hw_fsm_state <= HWF_IDLE;
+                            end else begin
+                                hw_sub_cnt <= hw_sub_cnt + 16'd1;
+                            end
+                        end
+
+                        default: begin // HWF_IDLE: wait for frame_timer == 0
+                            hw_sub_cnt <= 16'd0;
+                        end
+                    endcase
+                end
+            end
+        end
+    end
+
+    // Dedicated Dual-Port Block RAM Write & Read Ports (selective M8/M3 capture in Auto Mode)
     logic        cap_ram_we;
     logic [5:0]  cap_ram_waddr;
     logic [31:0] cap45_ram_wdata, cap49_ram_wdata;
@@ -672,13 +1109,14 @@ module t120_analog_io_ctrl (
         end
     end
 
+    wire cap45_we = cap_ram_we && (!hw_auto_active || hw_cap_m3_only);
+    wire cap49_we = cap_ram_we && (!hw_auto_active || hw_cap_m8_only);
+
     // Synchronous read and write port for Capture RAMs
     logic [31:0] cap45_rd_q, cap49_rd_q;
     always_ff @(posedge pclk) begin
-        if (cap_ram_we) begin
-            cap45_ram[cap_ram_waddr] <= cap45_ram_wdata;
-            cap49_ram[cap_ram_waddr] <= cap49_ram_wdata;
-        end
+        if (cap45_we) cap45_ram[cap_ram_waddr] <= cap45_ram_wdata;
+        if (cap49_we) cap49_ram[cap_ram_waddr] <= cap49_ram_wdata;
         cap45_rd_q <= cap45_ram[paddr[7:2]];
         cap49_rd_q <= cap49_ram[paddr[7:2]];
     end
@@ -727,6 +1165,20 @@ module t120_analog_io_ctrl (
                 6'h1D: prdata = {4'd0, adc49_raw_lat[1], 4'd0, adc49_raw_lat[0]};
                 6'h1E: prdata = {4'd0, adc49_raw_lat[3], 4'd0, adc49_raw_lat[2]};
                 6'h1F: prdata = {4'd0, adc49_raw_lat[5], 4'd0, adc49_raw_lat[4]};
+                // 0x080..0x0B0: Autonomous Hardware 10.000 ms Frame Engine Registers
+                6'h20: prdata = {16'd0, r_hw_gate_clk9, 6'd0, r_hw_had_en, r_hw_auto_en};
+                6'h21: prdata = {8'd0, r_hw_stratum_cycles};
+                6'h22: prdata = r_hw_heater_cfg;
+                6'h23: prdata = r_hw_heater_led;
+                6'h24: prdata = hw_frame_seq;
+                6'h25: prdata = {4'd0, hw_fsm_state, 5'd0, frame_timer};
+                6'h26: prdata = {hw_fwd_adc45[1], hw_fwd_adc45[0]};
+                6'h27: prdata = {hw_fwd_adc45[3], hw_fwd_adc45[2]};
+                6'h28: prdata = {hw_fwd_adc45[5], hw_fwd_adc45[4]};
+                6'h29: prdata = {hw_fwd_adc49[1], hw_fwd_adc49[0]};
+                6'h2A: prdata = {hw_fwd_adc49[3], hw_fwd_adc49[2]};
+                6'h2B: prdata = {hw_fwd_adc49[5], hw_fwd_adc49[4]};
+                6'h2C: prdata = hw_refresh_cnt;
                 default: prdata = 32'd0;
             endcase
         end

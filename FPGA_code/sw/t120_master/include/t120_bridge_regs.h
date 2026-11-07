@@ -112,8 +112,24 @@
 #define AIO_ADC49_RAW_23     0x078   /* Unsigned 12-bit (0..4095): {ch3, ch2} */
 #define AIO_ADC49_RAW_45     0x07C   /* Unsigned 12-bit (0..4095): {ch5, ch4} */
 
+/* Pure Verilog Crystal-Locked 10.000000 ms (500,000 cycles @ 50 MHz) Frame Engine */
+#define AIO_HW_FRAME_CTRL    0x080   /* [0] hw_auto_en [1] hw_had_en [15:8] gate_clk9 (default 100) */
+#define AIO_HW_STRATUM_CYC   0x084   /* [23:0] stratum settle cycles @ 50 MHz (250000 = 5.000 ms) */
+#define AIO_HW_HEATER_CFG    0x088   /* [0] armed [15:8] duty0 [23:16] duty1 [31:24] duty2 */
+#define AIO_HW_HEATER_LED    0x08C   /* [7:0] duty3 [8] comp_led [9] mat33_led */
+#define AIO_HW_FRAME_SEQ     0x090   /* RO: Completed 10.0 ms hardware frame sequence counter */
+#define AIO_HW_FRAME_TIMER   0x094   /* RO: [18:0] frame_timer (0..499999) [27:24] hw_fsm_state */
+#define AIO_HW_FWD45_01      0x098   /* RO: 16x-averaged quiet forward ADC_45 {ch1, ch0} */
+#define AIO_HW_FWD45_23      0x09C   /* RO: 16x-averaged quiet forward ADC_45 {ch3, ch2} */
+#define AIO_HW_FWD45_45      0x0A0   /* RO: 16x-averaged quiet forward ADC_45 {ch5, ch4} */
+#define AIO_HW_FWD49_01      0x0A4   /* RO: 16x-averaged quiet forward ADC_49 {ch1, ch0} */
+#define AIO_HW_FWD49_23      0x0A8   /* RO: 16x-averaged quiet forward ADC_49 {ch3, ch2} */
+#define AIO_HW_FWD49_45      0x0AC   /* RO: 16x-averaged quiet forward ADC_49 {ch5, ch4} */
+#define AIO_HW_REFRESH_CNT   0x0B0   /* RO: Total autonomous hardware 6-column refresh cycles */
+
 #define AIO_CAP_ADC45_BASE   0x100   /* 16 steps * 16 bytes (4 words/step), already un-permuted via pi_inv! */
 #define AIO_CAP_ADC49_BASE   0x200   /* 16 steps * 16 bytes (4 words/step), already un-permuted via pi_inv! */
+#define AIO_SHADOW_W_BASE    0x400   /* 12 half-cols * 8 words (32 bytes/step): w15_lo/hi, w12_lo/hi, w34_lo/hi */
 
 #endif /* T120_BRIDGE_REGS_H */
 

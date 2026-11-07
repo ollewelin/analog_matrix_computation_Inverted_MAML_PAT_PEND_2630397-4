@@ -81,7 +81,18 @@ module t120_inter_fpga_bridge #(
     output wire [3:0]   h_step_idx,
     output wire         h_active,
     input  wire         h_hold_busy,
-    input  wire         quiet_bus_freeze
+    input  wire         quiet_bus_freeze,
+
+    // Pure Verilog Hardware Autonomous 10.0 ms Refresh & Hadamard Engine Interface
+    input  wire         hw_auto_active,
+    input  wire         hw_clk9_sync,
+    input  wire         hw_clk9_10mhz,
+    input  wire         hw_sbus_start,
+    input  wire [31:0]  hw_sbus_hdr,
+    input  wire [31:0]  hw_sbus_pay0,
+    input  wire [31:0]  hw_sbus_pay1,
+    input  wire         hw_hbus_start,
+    output wire         hw_hbus_done
 );
     assign pready  = 1'b1;
     assign pslverr = 1'b0;
@@ -172,16 +183,41 @@ module t120_inter_fpga_bridge #(
     // CLK9 generator (frozen cleanly LOW while h_hold_busy / quiet_bus_freeze active)
     // ------------------------------------------------------------------
     wire clk9, rise_ev, fall_ev;
+    wire [11:0] eff_clk_period = hw_auto_active ? (hw_clk9_10mhz ? 12'd5 : 12'd25) : r_period;
     t120_bridge_clkgen u_clkgen (
-        .clk(pclk), .rstn(presetn), .enable(r_clk_en && !r_manual),
+        .clk(pclk), .rstn(presetn), .enable((r_clk_en && !r_manual) || hw_auto_active),
+        .sync_p(hw_auto_active && hw_clk9_sync),
         .freeze_low(h_hold_busy || quiet_bus_freeze),
-        .period(r_period), .clk9(clk9), .rise_ev(rise_ev), .fall_ev(fall_ev)
+        .period(eff_clk_period), .clk9(clk9), .rise_ev(rise_ev), .fall_ev(fall_ev)
     );
 
     // RX sampling strobe = rise_ev delayed by rx_dly sys cycles
     logic [6:0] rise_dly;
     always_ff @(posedge pclk) rise_dly <= {rise_dly[5:0], rise_ev};
     wire smp_ev = (r_rx_dly == 3'd0) ? rise_ev : rise_dly[r_rx_dly - 3'd1];
+
+    // ------------------------------------------------------------------
+    // Hardwired 14-Pulse (2x7 Interleaved Sylvester H_8 Simplex) ROM for Autonomous Mode
+    // ------------------------------------------------------------------
+    function automatic [31:0] hw_hadamard_rom(input [3:0] idx);
+        case (idx)
+            4'd0:  hw_hadamard_rom = 32'h0000_2AAA; // +H_8[1]
+            4'd1:  hw_hadamard_rom = 32'h0000_5555; // -H_8[1]
+            4'd2:  hw_hadamard_rom = 32'h0000_1999; // +H_8[2]
+            4'd3:  hw_hadamard_rom = 32'h0000_6666; // -H_8[2]
+            4'd4:  hw_hadamard_rom = 32'h0000_4CCC; // +H_8[3]
+            4'd5:  hw_hadamard_rom = 32'h0000_3333; // -H_8[3]
+            4'd6:  hw_hadamard_rom = 32'h0000_0787; // +H_8[4]
+            4'd7:  hw_hadamard_rom = 32'h0000_7878; // -H_8[4]
+            4'd8:  hw_hadamard_rom = 32'h0000_52D2; // +H_8[5]
+            4'd9:  hw_hadamard_rom = 32'h0000_2D2D; // -H_8[5]
+            4'd10: hw_hadamard_rom = 32'h0000_61E1; // +H_8[6]
+            4'd11: hw_hadamard_rom = 32'h0000_1E1E; // -H_8[6]
+            4'd12: hw_hadamard_rom = 32'h0000_34B4; // +H_8[7]
+            4'd13: hw_hadamard_rom = 32'h0000_4B4B; // -H_8[7]
+            default: hw_hadamard_rom = 32'h0000_8000; // Step 14 & 15: 3-State Hi-Z (OE=0)
+        endcase
+    endfunction
 
     // ------------------------------------------------------------------
     // S-bus: buffers, TX, RX, transaction FSM
@@ -202,7 +238,7 @@ module t120_inter_fpga_bridge #(
         if (apb_wr && paddr[11:10] == 2'b11) h_tab[paddr[9:2]]  <= pwdata;
         if (rx_we) rx_ram[rx_waddr] <= rx_wdata;
         tx_rd_q <= tx_ram[sb_tx_addr];
-        h_rd_q  <= h_tab[h_rd_addr];
+        h_rd_q  <= hw_auto_active ? hw_hadamard_rom(h_rd_addr[3:0]) : h_tab[h_rd_addr];
         rx_rd_q <= rx_ram[paddr[9:2]];
     end
 
@@ -214,17 +250,23 @@ module t120_inter_fpga_bridge #(
     wire        fr_ok, fr_err, fr_ovf;
     logic       rx_valid;
 
+    wire        eff_sb_tx_start = hw_auto_active ? hw_sbus_start      : sb_tx_start;
+    wire [7:0]  eff_sb_hdr_ch   = hw_auto_active ? hw_sbus_hdr[31:24] : r_s_tx_hdr[31:24];
+    wire [7:0]  eff_sb_hdr_seq  = hw_auto_active ? hw_sbus_hdr[23:16] : r_s_tx_hdr[23:16];
+    wire [15:0] eff_sb_hdr_len  = hw_auto_active ? hw_sbus_hdr[15:0]  : r_s_tx_hdr[15:0];
+    wire [31:0] eff_sb_tx_rdata = hw_auto_active ? ((sb_tx_addr == 8'd0) ? hw_sbus_pay0 : hw_sbus_pay1) : tx_rd_q;
+
     t120_sbus_tx u_sbus_tx (
         .clk(pclk), .rstn(presetn), .fall_ev(fall_ev),
-        .start(sb_tx_start),
-        .hdr_ch(r_s_tx_hdr[31:24]), .hdr_seq(r_s_tx_hdr[23:16]), .hdr_len(r_s_tx_hdr[15:0]),
-        .ram_addr(sb_tx_addr), .ram_rdata(tx_rd_q),
+        .start(eff_sb_tx_start),
+        .hdr_ch(eff_sb_hdr_ch), .hdr_seq(eff_sb_hdr_seq), .hdr_len(eff_sb_hdr_len),
+        .ram_addr(sb_tx_addr), .ram_rdata(eff_sb_tx_rdata),
         .busy(sb_tx_busy), .done(sb_tx_done), .sym(sb_sym)
     );
 
     t120_sbus_rx u_sbus_rx (
         .clk(pclk), .rstn(presetn), .smp_ev(smp_ev), .nib(rx_s2[7:4]),
-        .buf_busy(rx_valid),
+        .buf_busy(hw_auto_active ? 1'b0 : rx_valid),
         .ram_we(rx_we), .ram_waddr(rx_waddr), .ram_wdata(rx_wdata),
         .rx_resp(rx_resp), .rx_ch(rx_ch), .rx_seq(rx_seq), .rx_len(rx_len),
         .frame_ok(fr_ok), .frame_err(fr_err), .frame_ovf(fr_ovf)
@@ -269,9 +311,9 @@ module t120_inter_fpga_bridge #(
     t120_hbus_seq #(.W(H_WIDTH), .DL(8)) u_hbus (
         .clk(pclk), .rstn(presetn), .fall_ev(fall_ev), .rise_ev(rise_ev),
         .rd_addr(h_rd_addr), .rd_data(h_rd_q),
-        .start(p_h_start), .stop(p_h_stop), .clr(p_h_clr),
-        .loop_en(r_h_loop), .ack_en(r_h_ack_en),
-        .count(r_h_count), .period(r_h_period),
+        .start(hw_auto_active ? hw_hbus_start : p_h_start), .stop(p_h_stop), .clr(p_h_clr),
+        .loop_en(hw_auto_active ? 1'b0 : r_h_loop), .ack_en(hw_auto_active ? 1'b1 : r_h_ack_en),
+        .count(hw_auto_active ? 16'd15 : r_h_count), .period(hw_auto_active ? 16'd20 : r_h_period),
         .ack_min(r_h_ack_win[7:0]), .ack_max(r_h_ack_win[15:8]),
         .h_sync(h_sync), .h_data(h_data), .ack_in(rx_s2[0]),
         .ext_hold_busy(h_hold_busy),
@@ -282,7 +324,8 @@ module t120_inter_fpga_bridge #(
         .latch_strobe(h_latch_strobe),
         .sample_step(h_step_idx)
     );
-    assign h_active   = h_running;
+    assign h_active     = h_running;
+    assign hw_hbus_done = h_done;
 
     // ------------------------------------------------------------------
     // T20 CRESET_N

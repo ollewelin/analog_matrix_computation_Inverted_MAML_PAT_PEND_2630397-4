@@ -346,6 +346,16 @@ module top_level
     wire        h_hold_busy;
     wire        quiet_bus_freeze;
 
+    wire        hw_auto_active;
+    wire        hw_clk9_sync;
+    wire        hw_clk9_10mhz;
+    wire        hw_sbus_start;
+    wire [31:0] hw_sbus_hdr;
+    wire [31:0] hw_sbus_pay0;
+    wire [31:0] hw_sbus_pay1;
+    wire        hw_hbus_start;
+    wire        hw_hbus_done;
+
     // H-bus: TX11_P = H_SYNC, TX11_N = H_DATA (hardware-synchronous Hadamard)
     // S-bus: TX12_P/N = 2-bit service TX (C-code driven)
     assign TX11_T20_P1 = t20_tx_wires[0];
@@ -376,7 +386,17 @@ module top_level
         .h_step_idx       (h_step_idx),
         .h_active         (h_active),
         .h_hold_busy      (h_hold_busy),
-        .quiet_bus_freeze (quiet_bus_freeze)
+        .quiet_bus_freeze (quiet_bus_freeze),
+
+        .hw_auto_active   (hw_auto_active),
+        .hw_clk9_sync     (hw_clk9_sync),
+        .hw_clk9_10mhz    (hw_clk9_10mhz),
+        .hw_sbus_start    (hw_sbus_start),
+        .hw_sbus_hdr      (hw_sbus_hdr),
+        .hw_sbus_pay0     (hw_sbus_pay0),
+        .hw_sbus_pay1     (hw_sbus_pay1),
+        .hw_hbus_start    (hw_hbus_start),
+        .hw_hbus_done     (hw_hbus_done)
     );
 
     // =========================================================================
@@ -402,6 +422,16 @@ module top_level
         .h_active         (h_active),
         .h_hold_busy      (h_hold_busy),
         .quiet_bus_freeze (quiet_bus_freeze),
+
+        .hw_auto_active   (hw_auto_active),
+        .hw_clk9_sync     (hw_clk9_sync),
+        .hw_clk9_10mhz    (hw_clk9_10mhz),
+        .hw_sbus_start    (hw_sbus_start),
+        .hw_sbus_hdr      (hw_sbus_hdr),
+        .hw_sbus_pay0     (hw_sbus_pay0),
+        .hw_sbus_pay1     (hw_sbus_pay1),
+        .hw_hbus_start    (hw_hbus_start),
+        .hw_hbus_done     (hw_hbus_done),
 
         // Bank 0: DAC_2 (6 channels)
         .si_dac_2         ({SI_DAC6_DAC_2, SI_DAC5_DAC_2, SI_DAC4_DAC_2, SI_DAC3_DAC_2, SI_DAC2_DAC_2, SI_DAC1_DAC_2}),
