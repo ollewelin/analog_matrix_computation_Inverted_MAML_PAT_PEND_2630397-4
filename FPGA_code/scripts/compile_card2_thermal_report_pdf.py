@@ -157,6 +157,14 @@ def build_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
         parent=table_cell,
         fontName="Helvetica-Bold",
     )
+    table_header = ParagraphStyle(
+        "TableHeader",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.8,
+        leading=10,
+        textColor=colors.white,
+    )
 
     class NumberedCanvas(canvas.Canvas):
         def __init__(self, *args, **kwargs):
@@ -233,13 +241,13 @@ def build_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
     story.append(Paragraph("2x2 Factorial Performance Accounting", h1_style))
     tbl_data = [
         [
-            Paragraph("<b>Factorial Condition</b>", table_cell_bold),
-            Paragraph("<b>Thermal State</b>", table_cell_bold),
-            Paragraph("<b>Regulation State</b>", table_cell_bold),
-            Paragraph("<b>Mean Loss</b>", table_cell_bold),
-            Paragraph("<b>Window ENOB</b>", table_cell_bold),
-            Paragraph("<b>5.2ms Center ENOB</b>", table_cell_bold),
-            Paragraph("<b>W8 Dynamic Envelope</b>", table_cell_bold),
+            Paragraph("<b>Factorial Condition</b>", table_header),
+            Paragraph("<b>Thermal State</b>", table_header),
+            Paragraph("<b>Regulation State</b>", table_header),
+            Paragraph("<b>Mean Loss</b>", table_header),
+            Paragraph("<b>Window ENOB</b>", table_header),
+            Paragraph("<b>5.2ms Center ENOB</b>", table_header),
+            Paragraph("<b>W8 Dynamic Envelope</b>", table_header),
         ],
         [
             Paragraph("1. Warm Closed-Loop", table_cell_bold),
@@ -545,9 +553,9 @@ def build_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
     # Manifest Table
     manifest_data = [
         [
-            Paragraph("<b>Parameter</b>", table_cell_bold),
-            Paragraph("<b>Hardware / Software Specification</b>", table_cell_bold),
-            Paragraph("<b>Verification Status</b>", table_cell_bold),
+            Paragraph("<b>Parameter</b>", table_header),
+            Paragraph("<b>Hardware / Software Specification</b>", table_header),
+            Paragraph("<b>Verification Status</b>", table_header),
         ],
         [
             Paragraph("Hardware Platform", table_cell),
