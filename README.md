@@ -194,12 +194,49 @@ Working with analog computing is an act of balancing physics and precision. Very
   - **5. Planned Oscilloscope Bench Verification:**  
     As with the previous runs, this shifted-window dataset was collected via differential ADC telemetry (`XC2361A`, $\text{ADC}_{45}$) over Ethernet. Direct physical oscilloscope verification of the analog circuit nodes across this shifted 5.0–6.0 ms range will be conducted separately in a dedicated bench session.
 
+- **2026-11-08 (Continuous 20-Minute Thermal Stress & Real-Time Mode A Drift Rejection on Card 2 Silicon):**
+  - **1. Objective & Physical Thermal Excitation:**  
+    Conducted an intensive 20-minute physical thermal stress validation on Card 2 live silicon (PCBA v1.3.2 | Trion T120 Master SoC + Trion T20 Coprocessor, Mode A, 1k/3.3k attenuator) across the focused temporal window **[5.0 ms .. 5.4 ms]** (5 strata @ 100 µs step, center 5.2 ms). Thermal stress was physically applied via 4 on-board power resistors driven at **30% duty cycle pulsed at 1.0 Hz PWM** (300 ms ON / 700 ms OFF) in an **8.0 min ON / 8.0 min OFF** thermal cycle, interleaved with a **2.0 min ON / 2.0 min OFF** Mode A online SGD regulation cycle ($K=2$, $\text{LR}=0.02$, $\lambda=768$).
+  
+  - **2. Core Results: 2x2 Factorial Performance Summary (3,331 Epochs):**
+
+    | Factorial Condition | Thermal State | Regulation State | Mean Loss (LSB²) | Window ENOB | 5.2 ms Center ENOB | Matrix 8 Dynamic Envelope | Performance Delta |
+    | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+    | **1. Warm Closed-Loop** | Heaters ON (30% @ 1Hz) | Comp ON (SGD, K=2, λ=768) | **22,067.4 L²** | **4.62 b** | **5.01 b** | [-51, +72] LSB | Baseline Reference |
+    | **2. Warm Open-Loop** | Heaters ON (30% @ 1Hz) | Comp OFF (Ablation W8=0) | **30,557.5 L²** | **4.36 b** | **4.69 b** | [0, 0] LSB | Warm Uncompensated |
+    | **3. Cold Closed-Loop** | Heaters OFF (Cooling) | Comp ON (SGD, K=2, λ=768) | **22,753.5 L²** | **4.69 b** | **5.00 b** | **[-32, +117] LSB** | **-69.9% Error Reduction** (+1.00 b Gain) |
+    | **4. Cold Open-Loop** | Heaters OFF (Cooling) | Comp OFF (Ablation W8=0) | **75,637.8 L²** | **3.70 b** | **3.72 b** | [0, 0] LSB | **+2.48x Error Surge** (Severe Degradation) |
+
+  - **3. Empirical Visualizations & Real-Time Hardware Telemetry:**
+
+    ![Real-Time Thermal Monitor GUI: Complete 20-Minute Run](FPGA_code/docs/figures/fig_card2_thermal_gui_full_run.jpg)
+    *Figure: Real-time GUI monitor capturing the complete 20-minute (3,331-epoch) execution on Card 2 silicon. Notice the catastrophic loss spike up to 75,638 LSB² (ENOB collapsing to 3.70 b) when regulation is turned OFF during the cooling phase, and the instantaneous recovery to ~13,600 LSB² (5.11 b) when Mode A SGD re-engages.*
+
+    ![Matrix 8 & Matrix 3 2D Weight Trajectories Across Epochs](FPGA_code/docs/figures/fig_card2_thermal_2d_matrices.png)
+    *Figure: 2D dynamic weight trajectories across all 3,331 epochs. (Top 6 Panels) Individual weight trajectories for the 7 rows of Matrix 8 plotted in 7 distinct colors across each of the 6 physical columns (Col 0..5, ColTIA summing junctions). Background shading denotes Heater ON (30% duty @ 1 Hz, amber) vs. Cooling (blue). The adaptive weights actively track thermal expansion, flatline to 0 during ablation intervals (W8=0), and expand up to +117 LSB during cooling regulation to neutralize cold transistor drift. (Bottom 3 Panels) Matrix 3 reference clock trajectories, showing the frozen staircase patterns on Row 6 ([-40..+40] LSB) and Row 7 ([+40..-40] LSB) while data rows remain at zero.*
+
+    ![Temporal Strata Profiles across Window [5.0 - 5.4 ms]](FPGA_code/docs/figures/fig_card2_thermal_strata_profiles.png)
+    *Figure: 5-Strata profiles across [5.0 – 5.4 ms] for all four factorial conditions. Active online Mode A compensation (amber and green curves) elevates precision across the entire window by +1.00 bit relative to the uncompensated cold drift baseline (blue dashed curve).*
+
+    ![Card 2 Hardware Photograph Operating Under Active Thermal Stress](FPGA_code/docs/figures/fig_card2_pcb_thermal_heaters.jpg)
+    *Figure: Photograph of Inverted MAML Proof-of-Concept PCB v1.3.2 (Card 2) operating on the lab bench during active thermal stress. The 4 on-board point heaters glow red across the Dual-2T1C analog matrix array.*
+
+  - **4. Key Physical & Engineering Insights:**
+    - **Thermal DC Calibration Epoch vs. Weight Baseline:** Hardware DC zero-calibration (`g_adc49_zero_cal`) measures physical quiescent op-amp offsets at $t=0$, freezing the digital supervisor target $Z_{\text{target}}$. Because calibration occurred on warm silicon, $Z_{\text{target}}$ was anchored to the warm operating point. When heaters were turned off at minute 8, cooling silicon drifted far from this warm target, causing open-loop ablation error ($W_8=0$) to surge to **$75\,638\text{ LSB}^2$ ($3.70\text{ b}$)**.
+    - **L2 Restoring Force ($\lambda \cdot W_8$) & Dynamic Headroom:** L2 regularization acts as a mechanical spring pulling weights toward $W_{\text{null}}=0$ ($\text{decay} = \lambda \cdot W_8$). In the cold phase, the compensator expanded up to **$+117\text{ LSB}$** (98% of the $\pm 120\text{ LSB}$ clamping rail), with the Hadamard gradient continuously overcoming this L2 spring force ($\approx 1.37\text{ LSB/step}$) to maintain $\approx 5\text{ bit}$ resolution.
+    - **Spatial Thermal Gradients (Discrete PCBA vs. Monolithic ASIC):** The 4 discrete point heaters create steep, uneven spatial thermal gradients across the low-conductivity FR-4 board ($\kappa \approx 0.3\text{ W/m}\cdot\text{K}$). On a future monolithic CMOS ASIC, the compact die area and >500x higher thermal conductivity of silicon ($\kappa \approx 150\text{ W/m}\cdot\text{K}$) ensure nearly isothermal coupling. Inverted MAML's proven ability to handle severe, uneven spatial point-heater hotspots on a discrete PCB demonstrates that closed-loop compensation on an ASIC will be even more uniform, stable, and precise.
+
+  - **5. Official Comprehensive Report:**
+    - [📄 `INVERTED_MAML_CARD2_THERMAL_STRESS_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_THERMAL_STRESS_COMPREHENSIVE_REPORT.pdf) (Complete 11-page publication report in English, with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD2_THERMAL_STRESS_COMPREHENSIVE_REPORT.md))
+
 ---
 
 ### 📦 Verified Release Archives & Reproducibility Packages
 
 Release packages containing synthesized bitstreams (`*.bit`), flash hex (`*.hex`), open-source SystemVerilog HDL, RISC-V C-firmware, and test scripts are archived in [`FPGA_code/releases/`](FPGA_code/releases/):
 
+- [**`Release_20261108_ModeA_Card2_ThermalStress_Cycling_30pctDuty_1Hz`**](FPGA_code/releases/Release_20261108_ModeA_Card2_ThermalStress_Cycling_30pctDuty_1Hz/): **Complete 20-minute physical thermal stress and active drift rejection benchmark package on Card 2 silicon.** 4 on-board heaters driven at 30% duty cycle (1.0 Hz PWM) in 8.0m ON / 8.0m OFF cycles interleaved with 2.0m ON / 2.0m OFF Mode A SGD across [5.0..5.4 ms] (3,331 epochs). Proves -69.9% error reduction (+1.00 b resolution gain) under cold drift, dynamic headroom expansion to +117 LSB, BJT saturation guard, complete 11-page publication report, full 3,331-epoch dataset, bitstreams, and live monitoring GUI.
+- [**`Release_20261107_ModeA_Card2_TimingSolid_VerilogEngine_Comprehensive`**](FPGA_code/releases/Release_20261107_ModeA_Card2_TimingSolid_VerilogEngine_Comprehensive/): Verified crystal-locked 10.000000 ms Verilog Frame Engine benchmark on Card 2 silicon across both [4.5..5.5 ms] and [4.9..5.9 ms] windows. Contains T120/T20 bitstreams, firmware, HDL, and 10-page reports.
 - [**`Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K1_PairedAblation`**](FPGA_code/releases/Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K1_PairedAblation/): Verified 1000-epoch benchmark on Card 2 live silicon with crystal-locked 10.0 ms timing, W(3) staircase dynamic calibration, and 1:1 paired-ablation control ($K=1$ Online SGD). Contains clean RISC-V firmware, T120/T20 bitstreams, HDL, Python runner, and 10-page report.
 - [**`Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K4_Addon`**](FPGA_code/releases/Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K4_Addon/): Mini-batch $K=4$ variant add-on package (same bitstream & firmware, host batch averaging parameter `--k-batch 4`) with full 1000-epoch dataset, 10-page report, and figures.
 - [**`Release_20261106_ModeA_Card2_1000ep_ShiftedWindow_5to6ms_W3_Staircase_K1`**](FPGA_code/releases/Release_20261106_ModeA_Card2_1000ep_ShiftedWindow_5to6ms_W3_Staircase_K1/): 1000-epoch benchmark archive for the shifted temporal window `[5.0 .. 6.0 ms]` on Card 2 silicon ($K=1$ Online SGD). Includes execution script `run_card2_5to6ms.sh`, telemetry dataset, 10-page report, and figures.
