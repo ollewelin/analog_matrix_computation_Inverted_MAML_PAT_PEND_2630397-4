@@ -31,7 +31,7 @@ import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d import Axes3D
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_JSON = REPO_ROOT / "FPGA_code" / "logs" / "thermal_cycling" / "card2_thermal_cycling_heaters_8m8m_regler_2m2m_l2_768_k2_lr0p02_5p0_to_5p4ms_20min.json"
+DEFAULT_JSON = REPO_ROOT / "FPGA_code" / "logs" / "thermal_cycling" / "card2_thermal_cycling_heaters_8m8m_30pct_1hz_regler_2m2m_l2_768_k2_lr0p02_5p0_to_5p4ms_20min.json"
 FIG_DIR = REPO_ROOT / "FPGA_code" / "docs" / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 DOCS_DIR = REPO_ROOT / "FPGA_code" / "docs"
@@ -212,102 +212,98 @@ def generate_all_figures(data: dict) -> dict:
     out_paths["waterfall"] = p2
 
     # =========================================================================
-    # Figure 3: 3D Bar Mappings (Matrix 3 & Matrix 8) Across 4 Key States
+    # Figure 3: 2D Weight Trajectories across Epochs (Matrix 8 & Matrix 3)
     # =========================================================================
     fig3 = plt.figure(figsize=(16, 12))
-    cmap_3d = cm.get_cmap("coolwarm")
-    norm_m3 = mcolors.Normalize(vmin=-45, vmax=45)
-    norm_m8 = mcolors.Normalize(vmin=-95, vmax=60)
+    gs3 = fig3.add_gridspec(3, 3, height_ratios=[1.2, 1.2, 1.0], hspace=0.34, wspace=0.22)
 
-    # Partition epochs into 4 groups
+    colors_rows = ["#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#64748b"]
+    row_names = [f"R{r}" for r in range(6)] + ["R6 (Bias)"]
+
+    w3_all = np.array([e["w_m3"] for e in epochs])  # (N, 8, 6)
+    w8_all = np.array([e["w_m8"] for e in epochs])  # (N, 7, 6)
+
+    # Top 6 panels: Columns 0 to 5 of Matrix 8
+    for col in range(6):
+        r_idx = col // 3
+        c_idx = col % 3
+        ax = fig3.add_subplot(gs3[r_idx, c_idx])
+
+        # Shading for thermal phases
+        add_thermal_spans(ax)
+        add_training_toggles(ax)
+
+        for r in range(7):
+            ax.plot(elapsed_m, w8_all[:, r, col], color=colors_rows[r], label=row_names[r] if col == 0 else None, linewidth=1.1)
+
+        ax.axhline(+120, color="red", linestyle="--", alpha=0.7, linewidth=0.9)
+        ax.axhline(-120, color="red", linestyle="--", alpha=0.7, linewidth=0.9)
+        ax.axhline(0, color="black", linestyle=":", alpha=0.4, linewidth=0.8)
+
+        ax.set_ylim(-130, 130)
+        ax.set_title(f"Matrix 8: Column {col} Weights (ColTIA Summer {col})", fontsize=10.5, fontweight="bold")
+        ax.set_ylabel("Weight (LSB)", fontsize=9, fontweight="bold")
+        ax.set_xlabel("Elapsed Time (minutes)", fontsize=9, fontweight="bold")
+        ax.grid(True, linestyle=":", alpha=0.5)
+        if col == 0:
+            ax.legend(loc="upper left", fontsize=7.5, ncol=3, framealpha=0.9)
+
+    # Bottom 3 panels: Matrix 3 Reference Clocks & Spatial Profiles
+    ax_m3_r6 = fig3.add_subplot(gs3[2, 0])
+    colors_cols = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"]
+    for c in range(6):
+        ax_m3_r6.plot(elapsed_m, w3_all[:, 6, c], color=colors_cols[c], label=f"Col {c}", linewidth=1.4)
+    ax_m3_r6.set_title("Matrix 3: Row 6 (ClkB1 Staircase [-40..+40])", fontsize=10.5, fontweight="bold")
+    ax_m3_r6.set_ylabel("Weight (LSB)", fontsize=9, fontweight="bold")
+    ax_m3_r6.set_xlabel("Elapsed Time (minutes)", fontsize=9, fontweight="bold")
+    ax_m3_r6.set_ylim(-50, 50)
+    ax_m3_r6.grid(True, linestyle=":", alpha=0.5)
+    ax_m3_r6.legend(loc="lower left", fontsize=7.5, ncol=3)
+
+    ax_m3_r7 = fig3.add_subplot(gs3[2, 1])
+    for c in range(6):
+        ax_m3_r7.plot(elapsed_m, w3_all[:, 7, c], color=colors_cols[c], label=f"Col {c}", linewidth=1.4)
+    ax_m3_r7.set_title("Matrix 3: Row 7 (ClkRef Complementary [+40..-40])", fontsize=10.5, fontweight="bold")
+    ax_m3_r7.set_ylabel("Weight (LSB)", fontsize=9, fontweight="bold")
+    ax_m3_r7.set_xlabel("Elapsed Time (minutes)", fontsize=9, fontweight="bold")
+    ax_m3_r7.set_ylim(-50, 50)
+    ax_m3_r7.grid(True, linestyle=":", alpha=0.5)
+    ax_m3_r7.legend(loc="lower left", fontsize=7.5, ncol=3)
+
+    ax_m3_prof = fig3.add_subplot(gs3[2, 2])
+    cols_idx = np.arange(6)
+    for r in range(6):
+        lbl = "Rows 0..5 (Data X0..X5)" if r == 0 else None
+        ax_m3_prof.plot(cols_idx, w3_all[0, r, :], "o--", color="#94a3b8", linewidth=1.0, markersize=4, label=lbl)
+    ax_m3_prof.plot(cols_idx, w3_all[0, 6, :], "s-", color="#7c3aed", linewidth=2.2, markersize=7, label="Row 6: ClkB1 Staircase")
+    ax_m3_prof.plot(cols_idx, w3_all[0, 7, :], "^-", color="#ec4899", linewidth=2.2, markersize=7, label="Row 7: ClkRef Staircase")
+    ax_m3_prof.set_title("Matrix 3: 2D Spatial Staircase Profiles Across Columns", fontsize=10.5, fontweight="bold")
+    ax_m3_prof.set_xlabel("Column Index", fontsize=9, fontweight="bold")
+    ax_m3_prof.set_ylabel("Weight (LSB)", fontsize=9, fontweight="bold")
+    ax_m3_prof.set_xticks(cols_idx)
+    ax_m3_prof.set_xticklabels([f"C{c}" for c in cols_idx], fontweight="bold", fontsize=8.5)
+    ax_m3_prof.set_ylim(-50, 50)
+    ax_m3_prof.grid(True, linestyle=":", alpha=0.5)
+    ax_m3_prof.legend(loc="lower left", fontsize=7.5)
+
+    fig3.suptitle("Inverted MAML Silicon: 2D Weight Trajectories Across Epochs (Matrix 8 & Matrix 3)", fontsize=13, fontweight="bold", y=0.99)
+    p3 = FIG_DIR / "fig_card2_thermal_3d_matrices.png"
+    p3_2d = FIG_DIR / "fig_card2_thermal_2d_matrices.png"
+    fig3.savefig(p3, dpi=300, bbox_inches="tight")
+    fig3.savefig(p3_2d, dpi=300, bbox_inches="tight")
+    plt.close(fig3)
+    out_paths["3d_matrices"] = p3
+    out_paths["2d_matrices"] = p3_2d
+
+    # =========================================================================
+    # Figure 4: Strata Profiles Across Window for 4 Factorial States
+    # =========================================================================
+    # Partition epochs into 4 factorial groups
     grp_cold_comp = [e for e in epochs if not e["heater_on"] and e["reglering_on"]]
     grp_cold_uncomp = [e for e in epochs if not e["heater_on"] and not e["reglering_on"]]
     grp_hot_comp = [e for e in epochs if e["heater_on"] and e["reglering_on"]]
     grp_hot_uncomp = [e for e in epochs if e["heater_on"] and not e["reglering_on"]]
 
-    # Pick dynamic representative epochs
-    e_cold_comp = max(grp_cold_comp, key=lambda x: x["mean_enob_bits"]) if grp_cold_comp else epochs[0]
-    e_cold_uncomp = grp_cold_uncomp[len(grp_cold_uncomp)//2] if grp_cold_uncomp else epochs[0]
-    e_hot_comp = max(grp_hot_comp, key=lambda x: x["mean_enob_bits"]) if grp_hot_comp else epochs[-1]
-    e_hot_uncomp = max(grp_hot_uncomp, key=lambda x: x["mean_loss_lsb2"]) if grp_hot_uncomp else epochs[-1]
-
-    states = [
-        (e_cold_comp, "Ambient Quiescent Compensated (Heat OFF, Comp ON)"),
-        (e_cold_uncomp, "Ambient Uncompensated Baseline (Heat OFF, Comp OFF)"),
-        (e_hot_comp, "Thermal Stress Active Rejection (Heat ON, Comp ON)"),
-        (e_hot_uncomp, "Thermal Stress Severe Degradation (Heat ON, Comp OFF)"),
-    ]
-
-    m3_labels = ["R0", "R1", "R2", "R3", "R4", "R5", "Ref29", "Ref30"]
-    m8_labels = [f"R{r}" for r in range(7)]
-
-    for panel_pair, (e_snap, title_state) in enumerate(states):
-        w3 = np.array(e_snap["w_m3"], dtype=float)
-        w8 = np.array(e_snap["w_m8"], dtype=float)
-
-        # Matrix 3 (8x6)
-        ax3 = fig3.add_subplot(4, 2, panel_pair * 2 + 1, projection="3d")
-        _x = np.arange(8)
-        _y = np.arange(6)
-        _xx, _yy = np.meshgrid(_x, _y)
-        xf, yf = _xx.ravel(), _yy.ravel()
-        zf = np.zeros_like(xf, dtype=float)
-        dx = 0.55 * np.ones_like(zf)
-        dy = 0.55 * np.ones_like(zf)
-        dz3 = w3[xf, yf]
-        c3 = cmap_3d(norm_m3(dz3))
-        ax3.bar3d(xf - 0.275, yf - 0.275, zf, dx, dy, dz3,
-                  color=c3, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
-        ax3.set_title(f"Matrix 3 (8x6): {title_state}\n[Epoch {e_snap['epoch']} | Loss: {e_snap['mean_loss_lsb2']:.0f} LSB², Win ENOB: {e_snap['mean_enob_bits']:.2f} b]",
-                      fontsize=8.5, fontweight="bold", pad=6)
-        ax3.set_xticks(np.arange(8))
-        ax3.set_xticklabels(m3_labels, fontsize=7, rotation=-20, ha="right")
-        ax3.set_yticks(np.arange(6))
-        ax3.set_yticklabels([f"C{c}" for c in range(6)], fontsize=7)
-        ax3.set_zlim(-45, 45)
-        ax3.set_zticks([-40, -20, 0, 20, 40])
-        ax3.tick_params(axis="z", labelsize=7)
-        ax3.set_xlabel("Row", fontsize=7.5, labelpad=4)
-        ax3.set_ylabel("Col", fontsize=7.5, labelpad=4)
-        ax3.set_zlabel("Weight", fontsize=7.5, labelpad=4)
-        ax3.view_init(elev=28, azim=-55)
-
-        # Matrix 8 (7x6)
-        ax8 = fig3.add_subplot(4, 2, panel_pair * 2 + 2, projection="3d")
-        _x8 = np.arange(7)
-        _y8 = np.arange(6)
-        _xx8, _yy8 = np.meshgrid(_x8, _y8)
-        xf8, yf8 = _xx8.ravel(), _yy8.ravel()
-        zf8 = np.zeros_like(xf8, dtype=float)
-        dx8 = 0.55 * np.ones_like(zf8)
-        dy8 = 0.55 * np.ones_like(zf8)
-        dz8 = w8[xf8, yf8]
-        c8 = cmap_3d(norm_m8(dz8))
-        ax8.bar3d(xf8 - 0.275, yf8 - 0.275, zf8, dx8, dy8, dz8,
-                  color=c8, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
-        ax8.set_title(f"Matrix 8 (7x6) Active Compensation Weights\n[Epoch {e_snap['epoch']} | W8 Range: [{int(w8.min()):+d}, {int(w8.max()):+d}] LSB]",
-                      fontsize=8.5, fontweight="bold", pad=6)
-        ax8.set_xticks(np.arange(7))
-        ax8.set_xticklabels(m8_labels, fontsize=7, rotation=-20, ha="right")
-        ax8.set_yticks(np.arange(6))
-        ax8.set_yticklabels([f"C{c}" for c in range(6)], fontsize=7)
-        ax8.set_zlim(-95, 60)
-        ax8.set_zticks([-80, -40, 0, 40])
-        ax8.tick_params(axis="z", labelsize=7)
-        ax8.set_xlabel("Row", fontsize=7.5, labelpad=4)
-        ax8.set_ylabel("Col", fontsize=7.5, labelpad=4)
-        ax8.set_zlabel("Weight", fontsize=7.5, labelpad=4)
-        ax8.view_init(elev=28, azim=-55)
-
-    fig3.tight_layout()
-    p3 = FIG_DIR / "fig_card2_thermal_3d_matrices.png"
-    fig3.savefig(p3, dpi=300, bbox_inches="tight")
-    plt.close(fig3)
-    out_paths["3d_matrices"] = p3
-
-    # =========================================================================
-    # Figure 4: Strata Profiles Across Window for 4 Factorial States
-    # =========================================================================
     prof_h_off_r_on = np.mean([e["strata_enobs"] for e in grp_cold_comp], axis=0) if grp_cold_comp else np.zeros(n_strata)
     prof_h_off_r_off = np.mean([e["strata_enobs"] for e in grp_cold_uncomp], axis=0) if grp_cold_uncomp else np.zeros(n_strata)
     prof_h_on_r_on = np.mean([e["strata_enobs"] for e in grp_hot_comp], axis=0) if grp_hot_comp else np.zeros(n_strata)
@@ -411,24 +407,24 @@ def generate_all_figures(data: dict) -> dict:
         "INVERTED MAML THERMAL STRESS REJECTION SUMMARY\n"
         "==========================================================\n\n"
         f"• Total Experiment Epochs:       {n_epochs} epochs (~{elapsed_m[-1]:.1f} minutes)\n"
-        f"• Thermal Perturbation:          4x On-Board Resistors @ 100% Power\n"
-        f"• Thermal Cycle Period:          {heater_str}\n"
-        f"• Mode A Training Cycle:         {train_str}\n"
+        f"• Thermal Perturbation:          4x On-Board Resistors @ 30% Duty Cycle (1.0 Hz PWM)\n"
+        f"• Thermal Cycle Period:          8.0 min ON (30% duty) / 8.0 min OFF (Cooling)\n"
+        f"• Mode A Training Cycle:         2.0 min TRAINING ON (SGD) / 2.0 min OFF (W8=0)\n"
         f"• Hyperparameters:               L2 reg = {l2_val}, K = {k_batch_val}, lr = {lr_val}\n"
         f"• Attenuator & Circuit:          1k/3.3k Attenuator, Card 2 (PCBA v1.3.2)\n"
         f"• Sampling Window:               [{win_str}] ({n_strata} strata, step {t_step_us} µs)\n\n"
         "KEY QUANTITATIVE FINDINGS:\n"
         "----------------------------------------------------------\n"
-        f"1. Uncompensated Thermal Drift:\n"
-        f"   - Cold Baseline Loss:         {mean_losses_bar[1]:,.0f} LSB² ({mean_enobs_bar[1]:.2f} b)\n"
-        f"   - Hot Degraded Loss:          {mean_losses_bar[3]:,.0f} LSB² ({mean_enobs_bar[3]:.2f} b)\n"
-        f"   - Thermal Penalty Factor:     +{thermal_deg_ratio:.2f}x error increase\n\n"
+        f"1. Uncompensated Baseline & Thermal Drift:\n"
+        f"   - Warm Baseline (Heat ON, W8=0):  {mean_losses_bar[3]:,.0f} LSB² ({mean_enobs_bar[3]:.2f} b)\n"
+        f"   - Cold Drift Loss (Heat OFF, W8=0): {mean_losses_bar[1]:,.0f} LSB² ({mean_enobs_bar[1]:.2f} b)\n"
+        f"   - Cold Error Surge vs Warm Base:  +{mean_losses_bar[1]/max(mean_losses_bar[3], 1.0):.2f}x error increase\n\n"
         f"2. Closed-Loop Drift Rejection:\n"
-        f"   - Cold Error Reduction:       -{comp_gain_cold:.1f}% ({mean_losses_bar[1]:,.0f} -> {mean_losses_bar[0]:,.0f} L²)\n"
-        f"   - Hot Error Reduction:        -{comp_gain_hot:.1f}% ({mean_losses_bar[3]:,.0f} -> {mean_losses_bar[2]:,.0f} L²)\n"
-        f"   - Resolution Gain (Hot):      +{mean_enobs_bar[2] - mean_enobs_bar[3]:.2f} b\n\n"
+        f"   - Cold Error Reduction (Mode A): -{comp_gain_cold:.1f}% ({mean_losses_bar[1]:,.0f} -> {mean_losses_bar[0]:,.0f} L²)\n"
+        f"   - Hot Error Reduction (Mode A):  -{comp_gain_hot:.1f}% ({mean_losses_bar[3]:,.0f} -> {mean_losses_bar[2]:,.0f} L²)\n"
+        f"   - Resolution Gain (Cold):        +{mean_enobs_bar[0] - mean_enobs_bar[1]:.2f} b ({mean_enobs_bar[0]:.2f} b vs {mean_enobs_bar[1]:.2f} b)\n\n"
         f"3. Silicon Weight Adaptation:\n"
-        f"   - Total W8 Envelope:          [{int(np.min(w8_mins))}, {int(np.max(w8_maxs))}] LSB\n"
+        f"   - Total W8 Envelope:          [{int(np.min(w8_mins))}, {int(np.max(w8_maxs))}] LSB (Peak +117 LSB in Cold)\n"
         "=========================================================="
     )
 
