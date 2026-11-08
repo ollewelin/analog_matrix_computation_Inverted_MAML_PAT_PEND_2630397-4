@@ -417,14 +417,19 @@ class ThermalLiveGui(QtWidgets.QMainWindow):
 
         # 1. Update HUD
         h_on = cur_e.get("heater_on", False)
+        h_duty = cur_e.get("heater_duty_pct", 30)
+        h_cont = cur_e.get("continuous_heater", False)
         h_left = cur_e.get("heater_time_left_s", 0)
         h_min = int(h_left // 60)
         h_sec = int(h_left % 60)
         if h_on:
             self.heater_card.setStyleSheet("background-color: #fff7ed; border: 1.5px solid #ea580c; border-radius: 6px; padding: 6px;")
-            self.heater_status_lbl.setText("🔥 ON (100% POWER)")
+            self.heater_status_lbl.setText(f"🔥 ON ({h_duty:.0f}% DUTY @ 1Hz)")
             self.heater_status_lbl.setStyleSheet("color: #c2410c; font-size: 15px; font-weight: bold;")
-            self.heater_timer_lbl.setText(f"Remaining in Heating Phase: {h_min:02d}:{h_sec:02d}")
+            if h_cont:
+                self.heater_timer_lbl.setText(f"Continuous {h_duty:.0f}% Thermal Load (1Hz PWM)")
+            else:
+                self.heater_timer_lbl.setText(f"Remaining in Heating Phase: {h_min:02d}:{h_sec:02d}")
         else:
             self.heater_card.setStyleSheet("background-color: #f0f9ff; border: 1.5px solid #0284c7; border-radius: 6px; padding: 6px;")
             self.heater_status_lbl.setText("❄️ OFF (0% POWER)")

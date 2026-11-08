@@ -172,9 +172,12 @@ def main():
     global client_global, baseline_payload_global, running
 
     parser = argparse.ArgumentParser(description="Inverted MAML Card 2 Long-Term Thermal Stress Experiment")
-    parser.add_argument("--duration-minutes", type=float, default=20.0, help="Total experiment duration in minutes (default: 20.0)")
+    parser.add_argument("--duration-minutes", type=float, default=120.0, help="Total experiment duration in minutes (default: 120.0)")
     parser.add_argument("--heater-on", type=float, default=8.0, help="Heater ON duration in minutes (default: 8.0)")
     parser.add_argument("--heater-off", type=float, default=8.0, help="Heater OFF duration in minutes (default: 8.0)")
+    parser.add_argument("--heater-duty-pct", type=float, default=30.0, help="Heater duty cycle percentage (default: 30.0)")
+    parser.add_argument("--heater-pwm-hz", type=float, default=1.0, help="Heater PWM frequency in Hz (default: 1.0)")
+    parser.add_argument("--continuous-heater", action="store_true", default=False, help="Continuous heater without OFF cycles")
     parser.add_argument("--regler-on", type=float, default=2.0, help="Training ON duration in minutes (default: 2.0)")
     parser.add_argument("--regler-off", type=float, default=2.0, help="Training OFF duration in minutes (default: 2.0)")
     parser.add_argument("--l2-reg", type=int, default=768, help="L2 regularization lambda (default: 768)")
@@ -214,13 +217,14 @@ def main():
     lr_inner_q16 = max(1, min(4096, int(round(1024 * lr_nominal))))
 
     print("=" * 105)
-    print("INVERTED MAML: 20-MINUTE LONG-TERM THERMAL CYCLING & MODE A REGULATION EXPERIMENT")
+    print("INVERTED MAML: THERMAL DRIFT & MODE A REGULATION EXPERIMENT")
     print(f"Hardware: Card 2 (PCBA v1.3.2, T120 SoC @ {host}:{port}) | Mode: Mode A")
     print(f"Total Duration: {args.duration_minutes:.1f} minutes ({total_duration_s:.0f} seconds)")
     print(f"Temporal Window: [{t_min/1000:.2f} .. {t_max/1000:.2f} ms] ({num_strata} strata @ 100us step, center {target_center_us/1000:.1f} ms)")
     print(f"Input Vector: White Noise (COLOR_WHITE) | Swing: ±40 LSB (d_line=2)")
     print(f"Hyperparameters: L2 reg = {reg_lambda_nominal} (stratum reg = {stratum_reg_nominal}), K = {k_batch}, lr = {lr_nominal:.2f} (Q16={lr_inner_q16})")
-    print(f"Thermal Cycle: {args.heater_on:.1f} min HEATER ON (100%) <-> {args.heater_off:.1f} min HEATER OFF (0%) [Period: {heater_period_s/60:.1f} min]")
+    h_mode_str = "CONTINUOUS" if args.continuous_heater else f"{args.heater_on:.1f}m ON / {args.heater_off:.1f}m OFF"
+    print(f"Heater Control: Duty = {args.heater_duty_pct:.0f}%, PWM Frequency = {args.heater_pwm_hz:.1f} Hz ({h_mode_str})")
     print(f"Training Cycle: {args.regler_on:.1f} min TRAINING ON (SGD) <-> {args.regler_off:.1f} min TRAINING OFF (W8=0) [Period: {regler_period_s/60:.1f} min]")
     print(f"Live Ring Buffer: Rolling 30 minutes in {RING_BUFFER_JSON}")
     print(f"Final Output: {args.out_json}")
@@ -273,10 +277,11 @@ def main():
     ring_history: deque[dict] = deque(maxlen=7200)
     t_start = time.time()
     last_heater_state = None
+    last_physical_heater_state = None
     last_regler_state = None
     epoch = 0
 
-    print("\n[+] STARTING 20-MINUTE CONTINUOUS EXPERIMENTAL RUN:")
+    print(f"\n[+] STARTING EXPERIMENTAL RUN (HEATER {args.heater_duty_pct:.0f}% DUTY @ {args.heater_pwm_hz:.1f} Hz):")
     print("    Live telemetry streaming to GUI and ring buffer.\n")
 
     while running:
@@ -287,13 +292,38 @@ def main():
             print(f"\n[✓] Target experiment duration reached: {elapsed/60:.2f} / {args.duration_minutes:.2f} minutes.")
             break
 
-        # Calculate Heater phase
-        heater_time_in_period = elapsed % heater_period_s
-        heater_on = heater_time_in_period < heater_on_s
-        if heater_on:
-            heater_time_left = heater_on_s - heater_time_in_period
+        # Calculate Heater macro phase
+        if args.continuous_heater:
+            heater_on = True
+            heater_time_left = total_duration_s - elapsed
         else:
-            heater_time_left = heater_period_s - heater_time_in_period
+            heater_time_in_period = elapsed % heater_period_s
+            heater_on = heater_time_in_period < heater_on_s
+            if heater_on:
+                heater_time_left = heater_on_s - heater_time_in_period
+            else:
+                heater_time_left = heater_period_s - heater_time_in_period
+
+        # High-frequency software PWM for heater duty cycle (>= 1.0 Hz)
+        pwm_period_s = 1.0 / max(0.1, args.heater_pwm_hz)
+        pwm_on_s = pwm_period_s * (args.heater_duty_pct / 100.0)
+        time_in_pwm_cycle = elapsed % pwm_period_s
+        physical_heater_on = heater_on and (time_in_pwm_cycle < pwm_on_s)
+
+        # Handle physical heater switching
+        if physical_heater_on != last_physical_heater_state:
+            last_physical_heater_state = physical_heater_on
+            if physical_heater_on:
+                client.set_heaters(True, [100, 100, 100, 100])
+            else:
+                client.set_heaters(False, [0, 0, 0, 0])
+
+        if heater_on != last_heater_state:
+            last_heater_state = heater_on
+            if heater_on:
+                print(f"\n>>> [T={elapsed/60:.2f} min]: HEATER ACTIVE! ({args.heater_duty_pct:.0f}% duty @ {args.heater_pwm_hz:.1f}Hz) <<<")
+            else:
+                print(f"\n>>> [T={elapsed/60:.2f} min]: HEATER OFF! (0% duty) <<<")
 
         # Calculate Training phase
         regler_time_in_period = elapsed % regler_period_s
@@ -302,17 +332,6 @@ def main():
             regler_time_left = regler_on_s - regler_time_in_period
         else:
             regler_time_left = regler_period_s - regler_time_in_period
-
-        # Handle heater toggle
-        if heater_on != last_heater_state:
-            last_heater_state = heater_on
-            if heater_on:
-                print(f"\n>>> [T={elapsed/60:.2f} min]: HEATER ON! (All 4 on-board heating elements @ 100%) <<<")
-                client.set_heaters(True, [100, 100, 100, 100])
-            else:
-                print(f"\n>>> [T={elapsed/60:.2f} min]: HEATER OFF! (All 4 on-board heating elements @ 0%) <<<")
-                client.set_heaters(False, [0, 0, 0, 0])
-            time.sleep(0.02)
 
         # Handle training toggle
         if regler_on != last_regler_state:
@@ -387,6 +406,9 @@ def main():
             "elapsed_s": round(elapsed, 1),
             "epoch": epoch,
             "heater_on": heater_on,
+            "heater_duty_pct": args.heater_duty_pct,
+            "heater_pwm_hz": args.heater_pwm_hz,
+            "continuous_heater": args.continuous_heater,
             "heater_time_left_s": round(heater_time_left, 1),
             "reglering_on": regler_on,
             "reglering_time_left_s": round(regler_time_left, 1),
@@ -408,6 +430,9 @@ def main():
             "epoch": epoch,
             "elapsed_s": round(elapsed, 1),
             "heater_on": heater_on,
+            "heater_duty_pct": args.heater_duty_pct,
+            "heater_pwm_hz": args.heater_pwm_hz,
+            "continuous_heater": args.continuous_heater,
             "heater_time_left_s": round(heater_time_left, 1),
             "reglering_on": regler_on,
             "reglering_time_left_s": round(regler_time_left, 1),
@@ -422,7 +447,12 @@ def main():
         write_latest_status_atomic(status_export)
 
         # Terminal logging
-        h_str = f"ON (100%) [{int(heater_time_left//60):02d}:{int(heater_time_left%60):02d}]" if heater_on else f"OFF (  0%) [{int(heater_time_left//60):02d}:{int(heater_time_left%60):02d}]"
+        if args.continuous_heater:
+            h_str = f"ON ({args.heater_duty_pct:.0f}% @ {args.heater_pwm_hz:.1f}Hz CONT)"
+        elif heater_on:
+            h_str = f"ON ({args.heater_duty_pct:.0f}% @ {args.heater_pwm_hz:.1f}Hz) [{int(heater_time_left//60):02d}:{int(heater_time_left%60):02d}]"
+        else:
+            h_str = f"OFF (  0%) [{int(heater_time_left//60):02d}:{int(heater_time_left%60):02d}]"
         r_str = f"ON (SGD ) [{int(regler_time_left//60):02d}:{int(regler_time_left%60):02d}]" if regler_on else f"OFF( W8=0) [{int(regler_time_left//60):02d}:{int(regler_time_left%60):02d}]"
         print(
             f"Ep {epoch:5d} [{int(elapsed//3600):02d}:{int((elapsed%3600)//60):02d}:{int(elapsed%60):02d}] | "
