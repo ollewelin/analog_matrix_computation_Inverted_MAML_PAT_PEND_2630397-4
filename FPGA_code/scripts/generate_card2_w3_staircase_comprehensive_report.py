@@ -1622,10 +1622,16 @@ def generate_comprehensive_markdown(data: dict, out_md: Path, fig_dict: dict, da
     key_delays_str = ", ".join([f"{d/1000.0:.1f}" for d in key_delays]) + " ms"
 
     doc_k_tag = f"K{meta.get('k_batch', 1)}_" if meta.get('k_batch', 1) > 1 else ""
-    doc_win_tag = "5000TO6000US_" if "5000to6000us" in data_name else ""
+    t_min = min(delays_us)
+    t_max = max(delays_us)
+    doc_win_tag = ""
+    if not (t_min == 4500 and t_max == 5500):
+        doc_win_tag = f"{t_min}TO{t_max}US_"
+    reg_lambda_val = meta.get("reg_lambda", 2048)
+    doc_reg_tag = f"REG{reg_lambda_val}_" if reg_lambda_val != 2048 else ""
     is_mode_b = check_is_mode_b(data) or "mode_b" in data_name
     doc_mode_tag = "MODE_B_" if is_mode_b else ""
-    doc_id = f"INVERTED_MAML_CARD2_1000EP_{doc_mode_tag}{doc_win_tag}{doc_k_tag}W3_STAIRCASE_COMPREHENSIVE_REPORT"
+    doc_id = f"INVERTED_MAML_CARD2_1000EP_{doc_mode_tag}{doc_win_tag}{doc_reg_tag}{doc_k_tag}W3_STAIRCASE_COMPREHENSIVE_REPORT"
 
     mode_b_alert = ""
     if is_mode_b:
