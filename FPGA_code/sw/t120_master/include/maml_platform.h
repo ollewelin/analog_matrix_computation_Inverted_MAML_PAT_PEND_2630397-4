@@ -53,7 +53,9 @@
  * Measured physical maximum Hadamard perturbation step swing = 243 LSB on ADC45.
  * We enforce a safety headroom margin of 250 LSB from the 12-bit ADC rails (+/-2047 LSB): */
 #define HADAMARD_MAX_SWING_LSB        250
-#define COLTIA_CLIP_THRESHOLD_LSB     (2047 - HADAMARD_MAX_SWING_LSB)  /* 1797 LSB */
+#define COLTIA_CLIP_THRESHOLD_LSB     (2047 - HADAMARD_MAX_SWING_LSB)  /* 1797 LSB (bypassed ADC rail) */
+#define SIG4_CLIP_THRESHOLD_LSB       1415                             /* Sigmoid 4 BJT rail (~1440 LSB) */
+#define SIG10_CLIP_THRESHOLD_LSB      1680                             /* Sigmoid 10 BJT rail (~1728 LSB - 48 LSB margin) */
 
 /* Run Modes */
 #define MAML_MODE_IDLE          0

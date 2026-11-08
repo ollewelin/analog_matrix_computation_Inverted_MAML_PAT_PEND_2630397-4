@@ -22,6 +22,7 @@ joint 11-strata loss/ENOB plots, 2D spectrogram heatmaps, discrete 3D bar topogr
 """
 
 from __future__ import annotations
+import os
 import argparse
 import sys
 import json
@@ -45,7 +46,7 @@ if str(REPO_ROOT) not in sys.path:
 DATA_FILE = REPO_ROOT / "FPGA_code" / "logs" / "mode_a_extended_training" / "mode_a_1000ep_broadened_4500to5500us_white_reg2048_lr0p02_swing40_var5_k1_1k_3p3k_w3staircase_ablation.json"
 DOCS_DIR = REPO_ROOT / "FPGA_code" / "docs"
 FIGURES_DIR = DOCS_DIR / "figures"
-ARTIFACTS_DIR = Path("/home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a")
+ARTIFACTS_DIR = Path(os.environ.get("AGY_ARTIFACTS_DIR", "/home/olle/.gemini/antigravity/brain/fa59cd2e-8c8b-41e2-add0-77ffdf2fe431"))
 
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)

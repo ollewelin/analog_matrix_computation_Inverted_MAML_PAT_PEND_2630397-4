@@ -3,7 +3,7 @@
 generate_card2_thermal_cycling_report.py
 Inverted MAML (Patent Pending SE 2630397-4) - Open Science Hardware
 
-Comprehensive Publication Report Generator in English:
+Comprehensive Publication Report Figure Generator in English:
 Physical Thermal Stress & Real-Time Mode A Active Drift Rejection on Card 2
 - Hardware: Card 2 (Trion T120 Master SoC + T20 Coprocessor, Mode A, 1k/3.3k attenuator)
 - Temporal Window: [4.9 ms .. 5.9 ms] (11 strata, center 5.4 ms)
@@ -19,7 +19,7 @@ import os
 import time
 import json
 import math
-import subprocess
+import argparse
 from pathlib import Path
 import numpy as np
 
@@ -31,21 +31,21 @@ import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d import Axes3D
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DATA_JSON = REPO_ROOT / "FPGA_code" / "logs" / "thermal_cycling" / "card2_thermal_cycling_heaters_on_off_w3_staircase_1955ep.json"
+DEFAULT_JSON = REPO_ROOT / "FPGA_code" / "logs" / "thermal_cycling" / "card2_thermal_cycling_heaters_8m8m_regler_2m2m_l2_768_k2_lr0p02_5p0_to_5p4ms_20min.json"
 FIG_DIR = REPO_ROOT / "FPGA_code" / "docs" / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 DOCS_DIR = REPO_ROOT / "FPGA_code" / "docs"
 DOCS_DIR.mkdir(parents=True, exist_ok=True)
-ARTIFACT_DIR = Path("/home/olle/.gemini/antigravity/brain/bb0ca3ae-bf6b-4ffc-b55f-59fb0dae056a")
 
 
-def load_data():
-    with open(DATA_JSON, "r") as f:
+def load_data(json_path: Path):
+    with open(json_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def generate_all_figures(data: dict) -> dict:
     epochs = data["epochs"]
+    meta = data.get("metadata", {})
     n_epochs = len(epochs)
     ep_nums = np.array([e["epoch"] for e in epochs])
     elapsed_m = np.array([e["elapsed_s"] / 60.0 for e in epochs])
@@ -61,10 +61,23 @@ def generate_all_figures(data: dict) -> dict:
     w8_mins = np.array([min([val for row in e["w_m8"] for val in row]) for e in epochs])
     w8_maxs = np.array([max([val for row in e["w_m8"] for val in row]) for e in epochs])
 
-    strata_delays = epochs[0].get("strata_delays", list(range(4900, 6000, 100)))
+    t_min_us = meta.get("t_min_us", 5000)
+    t_max_us = meta.get("t_max_us", 5400)
+    t_step_us = meta.get("t_step_us", 100)
+    center_us = meta.get("center_delay_us", 5200)
+    strata_delays = epochs[0].get("strata_delays", list(range(t_min_us, t_max_us + 1, t_step_us)))
+    n_strata = len(strata_delays)
     delays_ms = np.array([d / 1000.0 for d in strata_delays])
-    strata_enobs = np.array([e["strata_enobs"] for e in epochs])  # (N, 11)
+    strata_enobs = np.array([e["strata_enobs"] for e in epochs])
     strata_losses = np.array([e["strata_losses"] for e in epochs])
+    win_str = f"{t_min_us/1000:.1f}–{t_max_us/1000:.1f} ms"
+    c_str = f"{center_us/1000:.1f} ms"
+
+    lr_val = meta.get("lr", 0.02)
+    l2_val = meta.get("reg_lambda", 768)
+    k_batch_val = meta.get("k_batch", 2)
+    heater_str = meta.get("heater_cycle", "8.0 min ON / 8.0 min OFF")
+    train_str = meta.get("training_cycle", "2.0 min ON / 2.0 min OFF")
 
     out_paths = {}
 
@@ -83,67 +96,61 @@ def generate_all_figures(data: dict) -> dict:
                 cur_h = heater_on[i]
                 start_idx = i
 
-    # Helper function for drawing regulation state markers along the top
-    def add_regler_strip(ax, y_pos):
-        start_idx = 0
-        cur_r = regler_on[0]
+    # Helper function for drawing distinct dashed vertical lines on Training toggles
+    def add_training_toggles(ax):
+        added_on = False
+        added_off = False
         for i in range(1, n_epochs):
-            if regler_on[i] != cur_r or i == n_epochs - 1:
-                end_x = elapsed_m[i]
-                start_x = elapsed_m[start_idx]
-                color = "#059669" if cur_r else "#94a3b8"
-                ax.plot([start_x, end_x], [y_pos, y_pos], color=color, linewidth=4.5, solid_capstyle="butt")
-                cur_r = regler_on[i]
-                start_idx = i
+            if regler_on[i] != regler_on[i-1]:
+                x_pos = elapsed_m[i]
+                if regler_on[i]:
+                    lbl = "Training ON (SGD)" if not added_on else None
+                    ax.axvline(x_pos, color="#059669", linestyle="--", linewidth=1.6, alpha=0.9, zorder=3, label=lbl)
+                    added_on = True
+                else:
+                    lbl = "Training OFF (Ablation)" if not added_off else None
+                    ax.axvline(x_pos, color="#dc2626", linestyle="--", linewidth=1.6, alpha=0.9, zorder=3, label=lbl)
+                    added_off = True
 
     # =========================================================================
-    # Figure 1: Full 28-Minute Timeline (Loss, ENOB, W8 Dynamics)
+    # Figure 1: Full 20-Minute Timeline (Loss, ENOB, W8 Dynamics)
     # =========================================================================
     fig1, (ax1a, ax1b, ax1c) = plt.subplots(3, 1, figsize=(14, 11), sharex=True,
-                                            gridspec_kw={"height_ratios": [1.2, 1.2, 1.0], "hspace": 0.14})
+                                            gridspec_kw={"height_ratios": [1.2, 1.2, 1.0], "hspace": 0.16})
 
     # Subplot A: Loss (LSB^2)
     add_thermal_spans(ax1a)
-    ax1a.plot(elapsed_m, mean_loss, color="#dc2626", linewidth=1.8, label="Window Mean Loss [4.9–5.9 ms] (LSB²)")
-    ax1a.plot(elapsed_m, center_loss, color="#b91c1c", linewidth=1.4, linestyle="--", label="5.4 ms Center Loss (LSB²)")
+    add_training_toggles(ax1a)
+    ax1a.plot(elapsed_m, mean_loss, color="#dc2626", linewidth=1.8, label=f"Window Mean Loss [{win_str}] (LSB²)")
+    ax1a.plot(elapsed_m, center_loss, color="#b91c1c", linewidth=1.4, linestyle="--", label=f"{c_str} Center Loss (LSB²)")
     ax1a.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
     ax1a.set_yscale("log")
-    ax1a.set_ylim(2e4, 1.5e6)
+    ax1a.set_ylim(min(1e4, np.min(mean_loss) * 0.7), max(1.5e6, np.max(mean_loss) * 1.5))
     ax1a.grid(True, linestyle=":", alpha=0.6)
-    ax1a.legend(loc="upper left", fontsize=9.5, framealpha=0.92)
-    ax1a.set_title("Inverted MAML Physical Silicon: 28-Minute Thermal Stress & Mode A Active Drift Rejection\n"
-                   "Card 2 Hardware | [4.9 – 5.9 ms] Window | White Noise | W(3) Staircase [-40..+40] LSB",
+    ax1a.legend(loc="upper left", fontsize=9, framealpha=0.92)
+    ax1a.set_title(f"Inverted MAML Physical Silicon: 20-Minute Thermal Stress & Mode A Active Drift Rejection\n"
+                   f"Card 2 Hardware (PCBA v1.3.2) | [{win_str}] Window ({n_strata} Strata) | White Noise | W(3) Staircase | K={k_batch_val}, LR={lr_val}, λ={l2_val}",
                    fontsize=12, fontweight="bold", pad=10)
 
     # Shading Legend Proxy
     from matplotlib.patches import Patch
     legend_elements = [
-        Patch(facecolor="#fee2e2", edgecolor="#ef4444", label="Heater ON (100% Power, 10 min)"),
-        Patch(facecolor="#e0f2fe", edgecolor="#0284c7", label="Heater OFF (Cooling, 10 min)"),
-        plt.Line2D([0], [0], color="#059669", linewidth=4, label="Regulation ON (FHP SGD LR=0.02, λ=2048)"),
-        plt.Line2D([0], [0], color="#94a3b8", linewidth=4, label="Regulation OFF (Ablation W8=0)"),
+        Patch(facecolor="#fee2e2", edgecolor="#ef4444", label=f"Heater ON (100% Power, {heater_str})"),
+        Patch(facecolor="#e0f2fe", edgecolor="#0284c7", label=f"Heater OFF (Cooling, {heater_str})"),
+        plt.Line2D([0], [0], color="#059669", linestyle="--", linewidth=2.0, label=f"Training ON Toggle (SGD LR={lr_val}, λ={l2_val})"),
+        plt.Line2D([0], [0], color="#dc2626", linestyle="--", linewidth=2.0, label="Training OFF Toggle (Ablation W8=0)"),
     ]
     ax1a.legend(handles=legend_elements, loc="upper right", fontsize=8.5, framealpha=0.92)
 
     # Subplot B: ENOB (bits)
     add_thermal_spans(ax1b)
-    ax1b.plot(elapsed_m, mean_enob, color="#2563eb", linewidth=2.0, label="Window Mean ENOB (4.9–5.9 ms)")
-    ax1b.plot(elapsed_m, center_enob, color="#059669", linewidth=2.0, linestyle="--", label="5.4 ms Center ENOB")
+    add_training_toggles(ax1b)
+    ax1b.plot(elapsed_m, mean_enob, color="#2563eb", linewidth=2.0, label=f"Window Mean ENOB ({win_str})")
+    ax1b.plot(elapsed_m, center_enob, color="#059669", linewidth=2.0, linestyle="--", label=f"{c_str} Center ENOB")
     ax1b.set_ylabel("ENOB (bits)", fontsize=11, fontweight="bold")
-    ax1b.set_ylim(1.5, 6.5)
+    ax1b.set_ylim(max(0.0, np.min(mean_enob) - 0.5), min(10.0, np.max(center_enob) + 0.8))
     ax1b.grid(True, linestyle=":", alpha=0.6)
-    ax1b.legend(loc="lower left", fontsize=9.5, framealpha=0.92)
-
-    # Annotate key peaks and collapses
-    ax1b.annotate("Quiescent Peak\nENOB = 5.13 b", xy=(16.8, 5.13), xytext=(15.2, 5.75),
-                  arrowprops=dict(facecolor="#059669", shrink=0.08, width=1.5, headwidth=6),
-                  fontsize=8.5, fontweight="bold", color="#065f46")
-    ax1b.annotate("Thermal Collapse (Uncompensated)\nENOB = 2.05 b (Loss 653k L²)", xy=(27.5, 2.05), xytext=(21.5, 1.8),
-                  arrowprops=dict(facecolor="#dc2626", shrink=0.08, width=1.5, headwidth=6),
-                  fontsize=8.5, fontweight="bold", color="#991b1b")
-    ax1b.annotate("Active Thermal Rejection\n+1.31 b Recovery (-68% Loss)", xy=(5.2, 3.8), xytext=(3.0, 4.8),
-                  arrowprops=dict(facecolor="#2563eb", shrink=0.08, width=1.5, headwidth=6),
-                  fontsize=8.5, fontweight="bold", color="#1e40af")
+    ax1b.legend(loc="lower left", fontsize=9, framealpha=0.92)
 
     # Subplot C: Compensation Weights W8 Dynamic Range
     add_thermal_spans(ax1c)
@@ -153,9 +160,9 @@ def generate_all_figures(data: dict) -> dict:
     ax1c.axhline(0, color="#64748b", linestyle=":", linewidth=1.0)
     ax1c.set_ylabel("W8 Range (LSB)", fontsize=11, fontweight="bold")
     ax1c.set_xlabel("Elapsed Experiment Time (minutes)", fontsize=11, fontweight="bold")
-    ax1c.set_ylim(-105, 70)
+    ax1c.set_ylim(min(-110, np.min(w8_mins) - 10), max(70, np.max(w8_maxs) + 10))
     ax1c.grid(True, linestyle=":", alpha=0.6)
-    ax1c.legend(loc="lower left", fontsize=9.5, framealpha=0.92)
+    ax1c.legend(loc="lower left", fontsize=9, framealpha=0.92)
 
     p1 = FIG_DIR / "fig_card2_thermal_timeline.png"
     fig1.savefig(p1, dpi=300, bbox_inches="tight")
@@ -174,30 +181,25 @@ def generate_all_figures(data: dict) -> dict:
         origin="lower",
         extent=extent,
         cmap="turbo",
-        vmin=2.0,
-        vmax=5.5,
+        vmin=max(1.5, np.percentile(strata_enobs, 2)),
+        vmax=min(6.5, np.percentile(strata_enobs, 98) + 0.5),
         interpolation="bilinear"
     )
 
-    # Overlay horizontal boundary lines for state transitions
     prev_h = heater_on[0]
-    prev_r = regler_on[0]
     for i in range(1, n_epochs):
         if heater_on[i] != prev_h:
-            ax2.axhline(elapsed_m[i], color="#ffffff", linestyle="-", linewidth=1.5, alpha=0.95)
+            ax2.axhline(elapsed_m[i], color="#ffffff", linestyle="-", linewidth=1.6, alpha=0.95)
             lbl = "HEATER OFF" if not heater_on[i] else "HEATER ON (100%)"
             ax2.text(delays_ms[0] + 0.02, elapsed_m[i] + 0.15, f">>> {lbl} <<<",
                      color="#ffffff", fontsize=9, fontweight="bold",
                      bbox=dict(boxstyle="round,pad=0.2", facecolor="#0f172a", alpha=0.85, edgecolor="#ffffff"))
             prev_h = heater_on[i]
-        elif regler_on[i] != prev_r:
-            ax2.axhline(elapsed_m[i], color="#fbbf24", linestyle="--", linewidth=1.0, alpha=0.7)
-            prev_r = regler_on[i]
 
     ax2.set_xlabel("Temporal Snapshot Delay (ms)", fontsize=11, fontweight="bold")
     ax2.set_ylabel("Elapsed Experiment Time (minutes)", fontsize=11, fontweight="bold")
-    ax2.set_title("Inverted MAML Silicon: Spatio-Temporal Waterfall Heatmap across Broadened Window [4.9 – 5.9 ms]\n"
-                  "Real-Time Thermal Drift Wavefront & FHP Active Stochastic Gradient Compensation",
+    ax2.set_title(f"Inverted MAML Silicon: Spatio-Temporal Waterfall Heatmap across Window [{win_str}] ({n_strata} Strata)\n"
+                  f"Real-Time Thermal Drift Wavefront & Mode A Closed-Loop Regulation (K={k_batch_val}, LR={lr_val}, λ={l2_val})",
                   fontsize=12, fontweight="bold", pad=12)
 
     cb2 = fig2.colorbar(im, ax=ax2, pad=0.02, fraction=0.04)
@@ -217,25 +219,29 @@ def generate_all_figures(data: dict) -> dict:
     norm_m3 = mcolors.Normalize(vmin=-45, vmax=45)
     norm_m8 = mcolors.Normalize(vmin=-95, vmax=60)
 
-    # 4 Key Snapshots
-    # 1. Ep 1380: Ambient / Quiescent Compensated (Heat OFF, Comp ON)
-    # 2. Ep 1500: Ambient Uncompensated (Heat OFF, Comp OFF)
-    # 3. Ep 750 : Thermal Stress Active Rejection (Heat ON, Comp ON)
-    # 4. Ep 1940: Thermal Stress Peak Ablated (Heat ON, Comp OFF)
+    # Partition epochs into 4 groups
+    grp_cold_comp = [e for e in epochs if not e["heater_on"] and e["reglering_on"]]
+    grp_cold_uncomp = [e for e in epochs if not e["heater_on"] and not e["reglering_on"]]
+    grp_hot_comp = [e for e in epochs if e["heater_on"] and e["reglering_on"]]
+    grp_hot_uncomp = [e for e in epochs if e["heater_on"] and not e["reglering_on"]]
+
+    # Pick dynamic representative epochs
+    e_cold_comp = max(grp_cold_comp, key=lambda x: x["mean_enob_bits"]) if grp_cold_comp else epochs[0]
+    e_cold_uncomp = grp_cold_uncomp[len(grp_cold_uncomp)//2] if grp_cold_uncomp else epochs[0]
+    e_hot_comp = max(grp_hot_comp, key=lambda x: x["mean_enob_bits"]) if grp_hot_comp else epochs[-1]
+    e_hot_uncomp = max(grp_hot_uncomp, key=lambda x: x["mean_loss_lsb2"]) if grp_hot_uncomp else epochs[-1]
+
     states = [
-        (1380, "Ambient Quiescent Compensated (Heat OFF, Comp ON)"),
-        (1500, "Ambient Uncompensated Baseline (Heat OFF, Comp OFF)"),
-        (750,  "Thermal Stress Active Rejection (Heat ON, Comp ON)"),
-        (1940, "Thermal Stress Severe Degradation (Heat ON, Comp OFF)"),
+        (e_cold_comp, "Ambient Quiescent Compensated (Heat OFF, Comp ON)"),
+        (e_cold_uncomp, "Ambient Uncompensated Baseline (Heat OFF, Comp OFF)"),
+        (e_hot_comp, "Thermal Stress Active Rejection (Heat ON, Comp ON)"),
+        (e_hot_uncomp, "Thermal Stress Severe Degradation (Heat ON, Comp OFF)"),
     ]
 
     m3_labels = ["R0", "R1", "R2", "R3", "R4", "R5", "Ref29", "Ref30"]
     m8_labels = [f"R{r}" for r in range(7)]
 
-    for panel_pair, (ep_target, title_state) in enumerate(states):
-        # Find closest epoch
-        idx_match = int(np.argmin(np.abs(ep_nums - ep_target)))
-        e_snap = epochs[idx_match]
+    for panel_pair, (e_snap, title_state) in enumerate(states):
         w3 = np.array(e_snap["w_m3"], dtype=float)
         w8 = np.array(e_snap["w_m8"], dtype=float)
 
@@ -252,7 +258,7 @@ def generate_all_figures(data: dict) -> dict:
         c3 = cmap_3d(norm_m3(dz3))
         ax3.bar3d(xf - 0.275, yf - 0.275, zf, dx, dy, dz3,
                   color=c3, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
-        ax3.set_title(f"Matrix 3 (8x6): {title_state}\n[Loss: {e_snap['mean_loss_lsb2']:.0f} LSB², Win ENOB: {e_snap['mean_enob_bits']:.2f} b]",
+        ax3.set_title(f"Matrix 3 (8x6): {title_state}\n[Epoch {e_snap['epoch']} | Loss: {e_snap['mean_loss_lsb2']:.0f} LSB², Win ENOB: {e_snap['mean_enob_bits']:.2f} b]",
                       fontsize=8.5, fontweight="bold", pad=6)
         ax3.set_xticks(np.arange(8))
         ax3.set_xticklabels(m3_labels, fontsize=7, rotation=-20, ha="right")
@@ -279,7 +285,7 @@ def generate_all_figures(data: dict) -> dict:
         c8 = cmap_3d(norm_m8(dz8))
         ax8.bar3d(xf8 - 0.275, yf8 - 0.275, zf8, dx8, dy8, dz8,
                   color=c8, shade=True, edgecolor="#333333", linewidth=0.35, alpha=0.92)
-        ax8.set_title(f"Matrix 8 (7x6) Active Compensation Weights\n[W8 Range: [{int(w8.min()):+d}, {int(w8.max()):+d}] LSB]",
+        ax8.set_title(f"Matrix 8 (7x6) Active Compensation Weights\n[Epoch {e_snap['epoch']} | W8 Range: [{int(w8.min()):+d}, {int(w8.max()):+d}] LSB]",
                       fontsize=8.5, fontweight="bold", pad=6)
         ax8.set_xticks(np.arange(7))
         ax8.set_xticklabels(m8_labels, fontsize=7, rotation=-20, ha="right")
@@ -300,23 +306,17 @@ def generate_all_figures(data: dict) -> dict:
     out_paths["3d_matrices"] = p3
 
     # =========================================================================
-    # Figure 4: Strata Profiles Across [4.9..5.9 ms] for 4 Factorial States
+    # Figure 4: Strata Profiles Across Window for 4 Factorial States
     # =========================================================================
-    # Partition epochs into 4 groups
-    grp_h_off_r_on = [e for e in epochs if not e["heater_on"] and e["reglering_on"]]
-    grp_h_off_r_off = [e for e in epochs if not e["heater_on"] and not e["reglering_on"]]
-    grp_h_on_r_on = [e for e in epochs if e["heater_on"] and e["reglering_on"]]
-    grp_h_on_r_off = [e for e in epochs if e["heater_on"] and not e["reglering_on"]]
+    prof_h_off_r_on = np.mean([e["strata_enobs"] for e in grp_cold_comp], axis=0) if grp_cold_comp else np.zeros(n_strata)
+    prof_h_off_r_off = np.mean([e["strata_enobs"] for e in grp_cold_uncomp], axis=0) if grp_cold_uncomp else np.zeros(n_strata)
+    prof_h_on_r_on = np.mean([e["strata_enobs"] for e in grp_hot_comp], axis=0) if grp_hot_comp else np.zeros(n_strata)
+    prof_h_on_r_off = np.mean([e["strata_enobs"] for e in grp_hot_uncomp], axis=0) if grp_hot_uncomp else np.zeros(n_strata)
 
-    prof_h_off_r_on = np.mean([e["strata_enobs"] for e in grp_h_off_r_on], axis=0)
-    prof_h_off_r_off = np.mean([e["strata_enobs"] for e in grp_h_off_r_off], axis=0)
-    prof_h_on_r_on = np.mean([e["strata_enobs"] for e in grp_h_on_r_on], axis=0)
-    prof_h_on_r_off = np.mean([e["strata_enobs"] for e in grp_h_on_r_off], axis=0)
-
-    loss_h_off_r_on = np.mean([e["strata_losses"] for e in grp_h_off_r_on], axis=0)
-    loss_h_off_r_off = np.mean([e["strata_losses"] for e in grp_h_off_r_off], axis=0)
-    loss_h_on_r_on = np.mean([e["strata_losses"] for e in grp_h_on_r_on], axis=0)
-    loss_h_on_r_off = np.mean([e["strata_losses"] for e in grp_h_on_r_off], axis=0)
+    loss_h_off_r_on = np.mean([e["strata_losses"] for e in grp_cold_comp], axis=0) if grp_cold_comp else np.zeros(n_strata)
+    loss_h_off_r_off = np.mean([e["strata_losses"] for e in grp_cold_uncomp], axis=0) if grp_cold_uncomp else np.zeros(n_strata)
+    loss_h_on_r_on = np.mean([e["strata_losses"] for e in grp_hot_comp], axis=0) if grp_hot_comp else np.zeros(n_strata)
+    loss_h_on_r_off = np.mean([e["strata_losses"] for e in grp_hot_uncomp], axis=0) if grp_hot_uncomp else np.zeros(n_strata)
 
     fig4, (ax4a, ax4b) = plt.subplots(1, 2, figsize=(15, 6))
 
@@ -330,11 +330,11 @@ def generate_all_figures(data: dict) -> dict:
     ax4a.plot(delays_ms, prof_h_on_r_off, "D--", color="#dc2626", linewidth=2.4, markersize=8,
               label=f"Thermal Stress Uncompensated (Heat ON, Comp OFF) [Mean: {np.mean(prof_h_on_r_off):.2f} b]")
 
-    ax4a.axvline(5.4, color="#64748b", linestyle=":", linewidth=1.2, label="Nominal Snapshot Delay (5.4 ms)")
-    ax4a.set_title("Effective Resolution (ENOB) Across Temporal Window [4.9 – 5.9 ms]", fontsize=11, fontweight="bold")
+    ax4a.axvline(center_us / 1000.0, color="#64748b", linestyle=":", linewidth=1.2, label=f"Nominal Snapshot Delay ({c_str})")
+    ax4a.set_title(f"Effective Resolution (ENOB) Across Temporal Window [{win_str}]", fontsize=11, fontweight="bold")
     ax4a.set_xlabel("Snapshot Sampling Delay (ms)", fontsize=10.5, fontweight="bold")
     ax4a.set_ylabel("ENOB (bits)", fontsize=10.5, fontweight="bold")
-    ax4a.set_ylim(1.8, 5.8)
+    ax4a.set_ylim(max(0.0, np.min([prof_h_on_r_off, prof_h_off_r_off]) - 0.5), min(8.0, np.max([prof_h_off_r_on, prof_h_on_r_on]) + 0.8))
     ax4a.grid(True, linestyle=":", alpha=0.6)
     ax4a.legend(loc="upper right", fontsize=8.5, framealpha=0.92)
 
@@ -348,7 +348,7 @@ def generate_all_figures(data: dict) -> dict:
     ax4b.plot(delays_ms, loss_h_on_r_off, "D--", color="#dc2626", linewidth=2.4, markersize=8,
               label=f"Thermal Stress Uncompensated (Mean: {np.mean(loss_h_on_r_off):,.0f} L²)")
 
-    ax4b.axvline(5.4, color="#64748b", linestyle=":", linewidth=1.2)
+    ax4b.axvline(center_us / 1000.0, color="#64748b", linestyle=":", linewidth=1.2)
     ax4b.set_yscale("log")
     ax4b.set_title("Mean Squared Error Loss Across Temporal Window (LSB²)", fontsize=11, fontweight="bold")
     ax4b.set_xlabel("Snapshot Sampling Delay (ms)", fontsize=10.5, fontweight="bold")
@@ -356,7 +356,7 @@ def generate_all_figures(data: dict) -> dict:
     ax4b.grid(True, linestyle=":", alpha=0.6)
     ax4b.legend(loc="upper right", fontsize=8.5, framealpha=0.92)
 
-    fig4.suptitle("Inverted MAML Silicon: 2x2 Factorial Strata Profiles (Card 2 Hardware)",
+    fig4.suptitle(f"Inverted MAML Silicon: 2x2 Factorial Strata Profiles (Card 2, K={k_batch_val}, LR={lr_val}, λ={l2_val})",
                   fontsize=12.5, fontweight="bold", y=0.98)
     fig4.tight_layout()
     p4 = FIG_DIR / "fig_card2_thermal_strata_profiles.png"
@@ -369,7 +369,6 @@ def generate_all_figures(data: dict) -> dict:
     # =========================================================================
     fig5, (ax5a, ax5b) = plt.subplots(1, 2, figsize=(14, 6))
 
-    # Panel A: Factorial Bar Chart
     categories = [
         "Ambient\nCompensated\n(Cold, Comp ON)",
         "Ambient\nUncompensated\n(Cold, Comp OFF)",
@@ -377,16 +376,16 @@ def generate_all_figures(data: dict) -> dict:
         "Thermal Stress\nUncompensated\n(Hot, Comp OFF)",
     ]
     mean_losses_bar = [
-        np.mean([e["mean_loss_lsb2"] for e in grp_h_off_r_on]),
-        np.mean([e["mean_loss_lsb2"] for e in grp_h_off_r_off]),
-        np.mean([e["mean_loss_lsb2"] for e in grp_h_on_r_on]),
-        np.mean([e["mean_loss_lsb2"] for e in grp_h_on_r_off]),
+        float(np.mean([e["mean_loss_lsb2"] for e in grp_cold_comp])) if grp_cold_comp else 1.0,
+        float(np.mean([e["mean_loss_lsb2"] for e in grp_cold_uncomp])) if grp_cold_uncomp else 1.0,
+        float(np.mean([e["mean_loss_lsb2"] for e in grp_hot_comp])) if grp_hot_comp else 1.0,
+        float(np.mean([e["mean_loss_lsb2"] for e in grp_hot_uncomp])) if grp_hot_uncomp else 1.0,
     ]
     mean_enobs_bar = [
-        np.mean([e["mean_enob_bits"] for e in grp_h_off_r_on]),
-        np.mean([e["mean_enob_bits"] for e in grp_h_off_r_off]),
-        np.mean([e["mean_enob_bits"] for e in grp_h_on_r_on]),
-        np.mean([e["mean_enob_bits"] for e in grp_h_on_r_off]),
+        float(np.mean([e["mean_enob_bits"] for e in grp_cold_comp])) if grp_cold_comp else 0.0,
+        float(np.mean([e["mean_enob_bits"] for e in grp_cold_uncomp])) if grp_cold_uncomp else 0.0,
+        float(np.mean([e["mean_enob_bits"] for e in grp_hot_comp])) if grp_hot_comp else 0.0,
+        float(np.mean([e["mean_enob_bits"] for e in grp_hot_uncomp])) if grp_hot_uncomp else 0.0,
     ]
     colors_bar = ["#059669", "#2563eb", "#f59e0b", "#dc2626"]
 
@@ -397,40 +396,39 @@ def generate_all_figures(data: dict) -> dict:
                   ha="center", va="bottom", fontsize=9.5, fontweight="bold")
 
     ax5a.set_yscale("log")
-    ax5a.set_ylim(2e4, 1.2e6)
+    ax5a.set_ylim(min(1e4, min(mean_losses_bar) * 0.5), max(1.5e6, max(mean_losses_bar) * 2.0))
     ax5a.set_ylabel("Mean Squared Error Loss (LSB²)", fontsize=11, fontweight="bold")
     ax5a.set_title("2x2 Factorial Loss Comparison (Card 2 Silicon)", fontsize=11.5, fontweight="bold")
     ax5a.grid(True, linestyle=":", alpha=0.5, axis="y")
 
-    # Panel B: Summary Metrics & Rejection Metrics Box
+    # Summary Metrics Box
     ax5b.axis("off")
-    thermal_deg_ratio = mean_losses_bar[3] / mean_losses_bar[1]
-    comp_gain_cold = (1.0 - mean_losses_bar[0] / mean_losses_bar[1]) * 100.0
-    comp_gain_hot = (1.0 - mean_losses_bar[2] / mean_losses_bar[3]) * 100.0
+    thermal_deg_ratio = mean_losses_bar[3] / max(mean_losses_bar[1], 1.0)
+    comp_gain_cold = (1.0 - mean_losses_bar[0] / max(mean_losses_bar[1], 1.0)) * 100.0
+    comp_gain_hot = (1.0 - mean_losses_bar[2] / max(mean_losses_bar[3], 1.0)) * 100.0
 
     summary_text = (
         "INVERTED MAML THERMAL STRESS REJECTION SUMMARY\n"
         "==========================================================\n\n"
         f"• Total Experiment Epochs:       {n_epochs} epochs (~{elapsed_m[-1]:.1f} minutes)\n"
         f"• Thermal Perturbation:          4x On-Board Resistors @ 100% Power\n"
-        f"• Thermal Cycle Period:          10 min ON (100%) / 10 min OFF (0%)\n"
-        f"• Mode A Regulation Period:      2 min ON (SGD) / 2 min OFF (Ablation)\n"
-        f"• Attenuator & Circuit:          1k/3.3k Attenuator, Card 2 Silicon\n"
-        f"• Sampling Window:               [4.9 .. 5.9 ms] (11 strata, step 100 µs)\n\n"
+        f"• Thermal Cycle Period:          {heater_str}\n"
+        f"• Mode A Training Cycle:         {train_str}\n"
+        f"• Hyperparameters:               L2 reg = {l2_val}, K = {k_batch_val}, lr = {lr_val}\n"
+        f"• Attenuator & Circuit:          1k/3.3k Attenuator, Card 2 (PCBA v1.3.2)\n"
+        f"• Sampling Window:               [{win_str}] ({n_strata} strata, step {t_step_us} µs)\n\n"
         "KEY QUANTITATIVE FINDINGS:\n"
         "----------------------------------------------------------\n"
         f"1. Uncompensated Thermal Drift:\n"
-        f"   - Cold Baseline Loss:         {mean_losses_bar[1]:,.0f} LSB² (3.33 b)\n"
-        f"   - Hot Degraded Loss:          {mean_losses_bar[3]:,.0f} LSB² (2.49 b)\n"
-        f"   - Peak Degradation:           653,480 LSB² (2.05 b, Ep 1940)\n"
+        f"   - Cold Baseline Loss:         {mean_losses_bar[1]:,.0f} LSB² ({mean_enobs_bar[1]:.2f} b)\n"
+        f"   - Hot Degraded Loss:          {mean_losses_bar[3]:,.0f} LSB² ({mean_enobs_bar[3]:.2f} b)\n"
         f"   - Thermal Penalty Factor:     +{thermal_deg_ratio:.2f}x error increase\n\n"
         f"2. Closed-Loop Drift Rejection:\n"
         f"   - Cold Error Reduction:       -{comp_gain_cold:.1f}% ({mean_losses_bar[1]:,.0f} -> {mean_losses_bar[0]:,.0f} L²)\n"
         f"   - Hot Error Reduction:        -{comp_gain_hot:.1f}% ({mean_losses_bar[3]:,.0f} -> {mean_losses_bar[2]:,.0f} L²)\n"
-        f"   - Effective Resolution Gain:  +0.91 b (Mean), +1.31 b (5.4 ms)\n\n"
+        f"   - Resolution Gain (Hot):      +{mean_enobs_bar[2] - mean_enobs_bar[3]:.2f} b\n\n"
         f"3. Silicon Weight Adaptation:\n"
-        f"   - Ambient W8 Dynamic Range:   [-25, +49] LSB\n"
-        f"   - Thermal W8 Dynamic Range:   [-90, +52] LSB (Significant Vth offset push!)\n"
+        f"   - Total W8 Envelope:          [{int(np.min(w8_mins))}, {int(np.max(w8_maxs))}] LSB\n"
         "=========================================================="
     )
 
@@ -448,8 +446,13 @@ def generate_all_figures(data: dict) -> dict:
 
 
 if __name__ == "__main__":
-    d = load_data()
-    print(f"Loaded {len(d['epochs'])} epochs from {DATA_JSON}.")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json", type=str, default=str(DEFAULT_JSON))
+    args = parser.parse_args()
+
+    json_path = Path(args.json)
+    d = load_data(json_path)
+    print(f"Loaded {len(d['epochs'])} epochs from {json_path}.")
     print("Generating publication figures...")
     paths = generate_all_figures(d)
     for k, p in paths.items():

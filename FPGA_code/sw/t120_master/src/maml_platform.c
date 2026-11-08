@@ -172,6 +172,7 @@ static uint32_t g_wdog_refresh_cnt = 0;
 static int16_t  g_adc45_zero_cal[6] = {0, 0, 0, 0, 0, 0};
 static int16_t  g_adc49_zero_cal[6] = {0, 0, 0, 0, 0, 0};
 static uint8_t  g_comp_is_centered  = 0;
+static uint8_t  g_zero_cal_done     = 0u;
 
 /* ============================================================================
  * S-Bus Transaction Helper to T20
@@ -976,8 +977,9 @@ static void aio_trigger_settled_adc_read(int16_t adc45_out[6], int16_t adc49_out
  *       raw_c[6] = -2 * sum_{r=0..5} y_r.
  *       Therefore: raw_c[b] - raw_c[6] = 16 * y_b (100% zero cross-talk!).
  * ============================================================================ */
-static void maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6]) {
+static uint8_t maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6]) {
     int32_t buf[14][6];
+    uint8_t rail_clip_mask = 0u;
 
     for (int k = 0; k < 14; k++) {
         uint32_t addr = cap_base_off + (uint32_t)(k * 16);
@@ -990,6 +992,11 @@ static void maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6
         buf[k][3] = (int16_t)(w23 >> 16);
         buf[k][4] = (int16_t)(w45 & 0xFFFFu);
         buf[k][5] = (int16_t)(w45 >> 16);
+        for (int c = 0; c < 6; c++) {
+            if (buf[k][c] <= -2040 || buf[k][c] >= 2040) {
+                rail_clip_mask |= (uint8_t)(1u << c);
+            }
+        }
     }
 
     /* k = 0: DC average across the 14 samples */
@@ -1032,6 +1039,7 @@ static void maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6
         }
         sens_out[15][c] = 0;
     }
+    return rail_clip_mask;
 }
 
 /* ============================================================================
@@ -1073,20 +1081,21 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
         aio_trigger_settled_adc_read(g_tel.adc45_sig, g_tel.adc49_sig);
     }
 
-    /* 1b. Check physical headroom against ADC rails (+/-2047 LSB).
-     *     Physical maximum Hadamard perturbation step swing measured on physical silicon is 243 LSB.
-     *     If |ADC| >= COLTIA_CLIP_THRESHOLD_LSB (1797 LSB), the Hadamard perturbation will hit the
-     *     op-amp/ADC rail and clip, destroying orthogonality and generating phantom gradient bursts.
-     *     We detect any clipping column, log alarms in telemetry, and set g_col_clip_mask. */
+    /* 1b. Check physical headroom against analog BJT sigmoid / ADC rails.
+     *     When Sigmoid 4 (ADC_45, ~1440 LSB rail) and Sigmoid 10 (ADC_49, ~1728 LSB rail) are active
+     *     (JUMPER_USE_SIG2), the analog BJT differential pairs saturate BEFORE the 1797 LSB digital ADC threshold!
+     *     Detecting BJT rail saturation prevents asymmetric Hadamard pulse clipping and phantom bursts. */
+    int16_t thr45 = (g_tel.jumper_mode == JUMPER_USE_SIG2) ? SIG4_CLIP_THRESHOLD_LSB  : COLTIA_CLIP_THRESHOLD_LSB;
+    int16_t thr49 = (g_tel.jumper_mode == JUMPER_USE_SIG2) ? SIG10_CLIP_THRESHOLD_LSB : COLTIA_CLIP_THRESHOLD_LSB;
     g_col_clip_mask = 0u;
     for (int c = 0; c < 6; c++) {
         int16_t v45 = g_tel.adc45_sig[c];
         int16_t v49 = g_tel.adc49_sig[c];
-        if (v45 <= -COLTIA_CLIP_THRESHOLD_LSB || v45 >= COLTIA_CLIP_THRESHOLD_LSB) {
+        if (v45 <= -thr45 || v45 >= thr45) {
             g_col_clip_mask |= (1u << c);
             g_last_clip_adc_id = 45u;
         }
-        if (v49 <= -COLTIA_CLIP_THRESHOLD_LSB || v49 >= COLTIA_CLIP_THRESHOLD_LSB) {
+        if (v49 <= -thr49 || v49 >= thr49) {
             g_col_clip_mask |= (1u << c);
             g_last_clip_adc_id = 49u;
         }
@@ -1097,14 +1106,16 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
         }
     }
 
+    uint8_t rail_clip_49 = 0u;
+    uint8_t rail_clip_45 = 0u;
     if (g_hw_auto_mode) {
-        maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
-        maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
+        rail_clip_49 = maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
+        rail_clip_45 = maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
     } else {
         /* 2. Sub-Window A: Perturb Matrix 8 FIRST (active rows 0..5 = 0x3F00, M3 3-stated Hi-Z)
          *    Per NON_BACKPROP_HADAMARD_GRADIENT_RULES.md §2: M8 is perturbed first while M3 is quiet! */
         maml_run_permuted_hadamard_sweep(0x3F00u);
-        maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
+        rail_clip_49 = maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
 
         /* 20 us quiet Tri-State separation between M8 table and M3 table */
         t20_hadamard_tristate_center();
@@ -1112,10 +1123,19 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
 
         /* 3. Sub-Window B: Perturb Matrix 3 SECOND (active rows 0..5 = 0x003F, M8 3-stated Hi-Z) */
         maml_run_permuted_hadamard_sweep(0x003Fu);
-        maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
+        rail_clip_45 = maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
 
         /* 4. Return Hadamard carrier to 3-State (0x8000 Hi-Z) immediately after burst */
         t20_hadamard_tristate_center();
+    }
+    if ((rail_clip_45 | rail_clip_49) != 0u) {
+        uint8_t prev_mask = g_col_clip_mask;
+        g_col_clip_mask |= (rail_clip_45 | rail_clip_49);
+        if (rail_clip_45 != 0u) g_last_clip_adc_id = 45u;
+        if (rail_clip_49 != 0u) g_last_clip_adc_id = 49u;
+        if (prev_mask == 0u && g_clip_events_cnt < 0xFFFFu) {
+            g_clip_events_cnt++;
+        }
     }
 
     int16_t sens_m8[7][6];
@@ -1346,9 +1366,9 @@ static void maml_center_compensation_weights(void) {
     maml_load_default_m33();
 
     /* Calibrate quiescent zero-input baseline at W_M3=0, W_M8=0, DAC_2=128 at 100 Hz (10.0 ms) cadence.
-     * IMPORTANT: Only calibrate zero baseline when g_baseline_mode == 0 (or on initial boot when !g_comp_is_centered),
-     * so switching to g_baseline_mode == 1 at Epoch 100 NEVER shifts g_adc49_zero_cal! */
-    if (g_baseline_mode == 0u || !g_comp_is_centered) {
+     * IMPORTANT: Only calibrate zero baseline when g_baseline_mode == 0 (or on initial boot when !g_zero_cal_done),
+     * so switching to g_baseline_mode == 1 after active training NEVER shifts g_adc49_zero_cal on hot silicon! */
+    if (g_baseline_mode == 0u || !g_zero_cal_done) {
         maml_calibrate_zero_baseline();
     }
 
@@ -1564,6 +1584,7 @@ static void maml_calibrate_zero_baseline(void) {
         g_adc45_zero_cal[c] = (int16_t)rshift_rne(acc45[c], 3);
         g_adc49_zero_cal[c] = (int16_t)rshift_rne(acc49[c], 3);
     }
+    g_zero_cal_done = 1u;
 }
 
 /* ============================================================================
@@ -1882,6 +1903,8 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
     memset(batch_acc_m8, 0, sizeof(batch_acc_m8));
 
     uint32_t total_samples = (uint32_t)k_batch * (uint32_t)num_strata;
+    uint32_t valid_samples = 0u;
+    uint8_t  batch_clip_mask = 0u;
     uint32_t period_ticks  = g_refresh_period_us * 50u;
     int16_t gm3[8][6], gm8[7][6];
     uint64_t loss_accum = 0;
@@ -1925,44 +1948,75 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
             /* Measure and extract gradients on physical silicon while holding x_ref constant! */
             maml_measure_and_extract_gradients(si, gm3, gm8);
             loss_accum += (uint64_t)g_tel.loss_total_milli;
+            batch_clip_mask |= g_col_clip_mask;
 
-            /* Accumulate gradients into 32-bit batch buffers (NO WEIGHT UPDATES HERE!) */
-            for (int r = 0; r < 8; r++) {
-                for (int c = 0; c < 6; c++) {
-                    batch_acc_m3[r][c] += (int32_t)gm3[r][c];
+            /* ColTIA Saturation Guard (Rule 2):
+             * Only accumulate Hadamard gradients when all columns are inside linear headroom.
+             * Clipped samples (|ADC| >= 1797 LSB or rail hit) break Walsh orthogonality and
+             * inject violent wrong-sign phantom gradient bursts! */
+            if (g_col_clip_mask == 0u) {
+                valid_samples++;
+                for (int r = 0; r < 8; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        batch_acc_m3[r][c] += (int32_t)gm3[r][c];
+                    }
                 }
-            }
-            for (int r = 0; r < 7; r++) {
-                for (int c = 0; c < 6; c++) {
-                    batch_acc_m8[r][c] += (int32_t)gm8[r][c];
+                for (int r = 0; r < 7; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        batch_acc_m8[r][c] += (int32_t)gm8[r][c];
+                    }
                 }
             }
         }
     }
 
+    g_col_clip_mask = batch_clip_mask;
+
     /* Perform EXACTLY ONE weight update using the batch-averaged gradient when lr > 0 or reg > 0.
-     * When g_lr_inner_q16 == 0 and g_reg_lambda_q16 == 0 (Baseline Phases 0..99 and 100..199),
+     * When g_lr_inner_q16 == 0 and g_reg_lambda_q16 == 0 (Baseline / Ablation Phases),
      * the exact same K * num_strata Hadamard-active measurements and gradient extractions run
-     * for 100% identical EMC, timing, and statistical evaluation, while weights stay locked! */
-    if (g_lr_inner_q16 > 0u || g_reg_lambda_q16 > 0u) {
+     * for 100% identical EMC, timing, and statistical evaluation, while weights stay locked!
+     * Per ColTIA Saturation Guard Rule 2, if g_lr_inner_q16 > 0 and valid_samples == 0 (all
+     * samples in the batch clipped), weight mutation is strictly suppressed (dW == 0). */
+    if (g_lr_inner_q16 > 0u) {
+        g_comp_is_centered = 0u;
+        if (valid_samples > 0u) {
+            for (int r = 0; r < 6; r++) {
+                for (int c = 0; c < 6; c++) {
+                    int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)valid_samples);
+                    int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
+                    /* L2 weight-decay toward centered W_null: dW -= lambda * (W - W_null) */
+                    int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
+                                               (int32_t)g_reg_lambda_q16, 16);
+                    g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - step_w - decay);
+                    g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
+                }
+            }
+            for (int r = 0; r < 6; r++) {
+                for (int c = 0; c < 6; c++) {
+                    int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)valid_samples);
+                    int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
+                    int32_t decay = rshift_rne(((int32_t)g_w_m8_q14[r][c] - maml_wnull_m8_q14(r, c)) *
+                                               (int32_t)g_reg_lambda_q16, 16);
+                    g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - step_w - decay);
+                    g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
+                }
+            }
+        }
+    } else if (g_reg_lambda_q16 > 0u) {
         for (int r = 0; r < 6; r++) {
             for (int c = 0; c < 6; c++) {
-                int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)total_samples);
-                int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
-                /* L2 weight-decay toward centered W_null: dW -= lambda * (W - W_null) */
                 int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
                                            (int32_t)g_reg_lambda_q16, 16);
-                g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - step_w - decay);
+                g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - decay);
                 g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
             }
         }
         for (int r = 0; r < 6; r++) {
             for (int c = 0; c < 6; c++) {
-                int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)total_samples);
-                int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
                 int32_t decay = rshift_rne(((int32_t)g_w_m8_q14[r][c] - maml_wnull_m8_q14(r, c)) *
                                            (int32_t)g_reg_lambda_q16, 16);
-                g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - step_w - decay);
+                g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - decay);
                 g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
             }
         }
