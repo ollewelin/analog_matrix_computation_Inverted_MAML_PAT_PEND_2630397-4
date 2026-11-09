@@ -36,8 +36,8 @@ This 20-minute physical benchmark on Card 2 (PCBA v1.3.2) demonstrates **100% ph
    When the board cooled down without compensation ($W_8 = 0$), mean squared error loss surged to **75,638 LSB²**, with resolution falling to **3.70 bits** (3.72 b at 5.2 ms center).
 2. **Robust Mode A Closed-Loop Rejection (-69.9% Error Reduction):**  
    Under active Mode A SGD regulation during the cooling phase, the compensator drove loss straight down to **22,753 LSB²**, elevating effective resolution to **4.69 bits** (5.00 b at center), yielding a net gain of **+0.99 bits**.
-3. **Dynamic Headroom Deployment (+117 LSB):**  
-   Matrix 8 autonomously deployed an asymmetric positive bias reaching **+117 LSB** (98% of the &plusmn;120 LSB clamping limit) to counteract the cooling of the n-channel triode cells.
+3. **Dynamic Headroom Deployment (+117 LSB on M8, -73 LSB on M3):**  
+   Matrix 8 autonomously deployed an asymmetric positive bias reaching **+117 LSB** (98% of the &plusmn;120 LSB clamping limit) while Matrix 3 active data weights deployed an asymmetric negative compensation reaching **-73 LSB**, working in complementary synchrony to neutralize cooling drift.
 4. **Saturation-Free Telemetry:**  
    The differential BJT clip guard (`SIG4_CLIP_THRESHOLD_LSB=1415`) completely eliminated phantom gradient bursts, ensuring smooth and monotonic convergence across all 3,331 epochs.
 
@@ -45,13 +45,13 @@ This 20-minute physical benchmark on Card 2 (PCBA v1.3.2) demonstrates **100% ph
 
 ## 3. Publication Figures
 
-### Figure 1: Full 20-Minute Performance Timeline (Loss & ENOB 2D Curves)
+### Figure 1: Full 20-Minute Performance Timeline & Active Weight Envelopes (Loss, ENOB, W8 & W3)
 ![Timeline](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_card2_thermal_timeline.png)
 
 ### Figure 2: Spatio-Temporal Waterfall Heatmap [5.0 – 5.4 ms]
 ![Waterfall](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_card2_thermal_waterfall.png)
 
-### Figure 3: 2D Dynamic Weight Trajectories across Epochs (Matrix 8 & Matrix 3)
+### Figure 3: 2D Dynamic Weight Trajectories across Epochs (Matrix 8 & Matrix 3 Active Weights)
 ![2D Weights](file:///home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/FPGA_code/docs/figures/fig_card2_thermal_2d_matrices.png)
 
 ### Figure 4: Strata Profiles Across [5.0 – 5.4 ms]

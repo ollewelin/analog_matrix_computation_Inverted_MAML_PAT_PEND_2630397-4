@@ -113,21 +113,24 @@ def generate_all_figures(data: dict) -> dict:
                     added_off = True
 
     # =========================================================================
-    # Figure 1: Full 20-Minute Timeline (Loss, ENOB, W8 Dynamics)
+    # Figure 1: Full 20-Minute Timeline (Loss, ENOB, W8 & W3 Dynamics)
     # =========================================================================
-    fig1, (ax1a, ax1b, ax1c) = plt.subplots(3, 1, figsize=(14, 11), sharex=True,
-                                            gridspec_kw={"height_ratios": [1.2, 1.2, 1.0], "hspace": 0.16})
+    w3_active = np.array([e["w_m3"] for e in epochs])[:, :6, :]
+    w3_mins = np.min(w3_active, axis=(1, 2))
+    w3_maxs = np.max(w3_active, axis=(1, 2))
+
+    fig1, (ax1a, ax1b, ax1c, ax1d) = plt.subplots(4, 1, figsize=(14, 12), sharex=True,
+                                                  gridspec_kw={"height_ratios": [1.1, 1.1, 0.9, 0.9], "hspace": 0.16})
 
     # Subplot A: Loss (LSB^2)
     add_thermal_spans(ax1a)
     add_training_toggles(ax1a)
     ax1a.plot(elapsed_m, mean_loss, color="#dc2626", linewidth=1.8, label=f"Window Mean Loss [{win_str}] (LSB²)")
     ax1a.plot(elapsed_m, center_loss, color="#b91c1c", linewidth=1.4, linestyle="--", label=f"{c_str} Center Loss (LSB²)")
-    ax1a.set_ylabel("Loss (LSB²)", fontsize=11, fontweight="bold")
+    ax1a.set_ylabel("Loss (LSB²)", fontsize=10.5, fontweight="bold")
     ax1a.set_yscale("log")
     ax1a.set_ylim(min(1e4, np.min(mean_loss) * 0.7), max(1.5e6, np.max(mean_loss) * 1.5))
     ax1a.grid(True, linestyle=":", alpha=0.6)
-    ax1a.legend(loc="upper left", fontsize=9, framealpha=0.92)
     ax1a.set_title(f"Inverted MAML Physical Silicon: 20-Minute Thermal Stress & Mode A Active Drift Rejection\n"
                    f"Card 2 Hardware (PCBA v1.3.2) | [{win_str}] Window ({n_strata} Strata) | White Noise | W(3) Staircase | K={k_batch_val}, LR={lr_val}, λ={l2_val}",
                    fontsize=12, fontweight="bold", pad=10)
@@ -135,10 +138,10 @@ def generate_all_figures(data: dict) -> dict:
     # Shading Legend Proxy
     from matplotlib.patches import Patch
     legend_elements = [
-        Patch(facecolor="#fee2e2", edgecolor="#ef4444", label=f"Heater ON (100% Power, {heater_str})"),
+        Patch(facecolor="#fee2e2", edgecolor="#ef4444", label=f"Heater ON (30% Duty @ 1 Hz, {heater_str})"),
         Patch(facecolor="#e0f2fe", edgecolor="#0284c7", label=f"Heater OFF (Cooling, {heater_str})"),
         plt.Line2D([0], [0], color="#059669", linestyle="--", linewidth=2.0, label=f"Training ON Toggle (SGD LR={lr_val}, λ={l2_val})"),
-        plt.Line2D([0], [0], color="#dc2626", linestyle="--", linewidth=2.0, label="Training OFF Toggle (Ablation W8=0)"),
+        plt.Line2D([0], [0], color="#dc2626", linestyle="--", linewidth=2.0, label="Training OFF Toggle (Ablation W=0)"),
     ]
     ax1a.legend(handles=legend_elements, loc="upper right", fontsize=8.5, framealpha=0.92)
 
@@ -147,22 +150,36 @@ def generate_all_figures(data: dict) -> dict:
     add_training_toggles(ax1b)
     ax1b.plot(elapsed_m, mean_enob, color="#2563eb", linewidth=2.0, label=f"Window Mean ENOB ({win_str})")
     ax1b.plot(elapsed_m, center_enob, color="#059669", linewidth=2.0, linestyle="--", label=f"{c_str} Center ENOB")
-    ax1b.set_ylabel("ENOB (bits)", fontsize=11, fontweight="bold")
+    ax1b.axhline(5.0, color="#64748b", linestyle=":", linewidth=1.0, label="5.0-bit Resolution Target")
+    ax1b.set_ylabel("ENOB (bits)", fontsize=10.5, fontweight="bold")
     ax1b.set_ylim(max(0.0, np.min(mean_enob) - 0.5), min(10.0, np.max(center_enob) + 0.8))
     ax1b.grid(True, linestyle=":", alpha=0.6)
-    ax1b.legend(loc="lower left", fontsize=9, framealpha=0.92)
+    ax1b.legend(loc="lower left", fontsize=8.5, framealpha=0.92)
 
     # Subplot C: Compensation Weights W8 Dynamic Range
     add_thermal_spans(ax1c)
     ax1c.fill_between(elapsed_m, w8_mins, w8_maxs, color="#8b5cf6", alpha=0.35, label="Matrix 8 Weight Envelope [Min, Max]")
-    ax1c.plot(elapsed_m, w8_maxs, color="#6d28d9", linewidth=1.4)
-    ax1c.plot(elapsed_m, w8_mins, color="#6d28d9", linewidth=1.4)
+    ax1c.plot(elapsed_m, w8_maxs, color="#6d28d9", linewidth=1.3)
+    ax1c.plot(elapsed_m, w8_mins, color="#6d28d9", linewidth=1.3)
     ax1c.axhline(0, color="#64748b", linestyle=":", linewidth=1.0)
-    ax1c.set_ylabel("W8 Range (LSB)", fontsize=11, fontweight="bold")
-    ax1c.set_xlabel("Elapsed Experiment Time (minutes)", fontsize=11, fontweight="bold")
-    ax1c.set_ylim(min(-110, np.min(w8_mins) - 10), max(70, np.max(w8_maxs) + 10))
+    ax1c.axhline(+120, color="red", linestyle="--", alpha=0.6, linewidth=0.8)
+    ax1c.axhline(-120, color="red", linestyle="--", alpha=0.6, linewidth=0.8)
+    ax1c.set_ylabel("W8 Range (LSB)", fontsize=10.5, fontweight="bold")
+    ax1c.set_ylim(-65, 130)
     ax1c.grid(True, linestyle=":", alpha=0.6)
-    ax1c.legend(loc="lower left", fontsize=9, framealpha=0.92)
+    ax1c.legend(loc="lower left", fontsize=8.5, framealpha=0.92)
+
+    # Subplot D: Compensation Weights W3 Dynamic Range (Rows 0..5 Active Data Inputs)
+    add_thermal_spans(ax1d)
+    ax1d.fill_between(elapsed_m, w3_mins, w3_maxs, color="#10b981", alpha=0.35, label="Matrix 3 Active Data Weight Envelope [Min, Max] (Rows 0..5)")
+    ax1d.plot(elapsed_m, w3_maxs, color="#047857", linewidth=1.3)
+    ax1d.plot(elapsed_m, w3_mins, color="#047857", linewidth=1.3)
+    ax1d.axhline(0, color="#64748b", linestyle=":", linewidth=1.0)
+    ax1d.set_ylabel("W3 Range (LSB)", fontsize=10.5, fontweight="bold")
+    ax1d.set_xlabel("Elapsed Experiment Time (minutes)", fontsize=11, fontweight="bold")
+    ax1d.set_ylim(-85, 75)
+    ax1d.grid(True, linestyle=":", alpha=0.6)
+    ax1d.legend(loc="lower left", fontsize=8.5, framealpha=0.92)
 
     p1 = FIG_DIR / "fig_card2_thermal_timeline.png"
     fig1.savefig(p1, dpi=300, bbox_inches="tight")
@@ -214,83 +231,78 @@ def generate_all_figures(data: dict) -> dict:
     # =========================================================================
     # Figure 3: 2D Weight Trajectories across Epochs (Matrix 8 & Matrix 3)
     # =========================================================================
-    fig3 = plt.figure(figsize=(16, 12))
-    gs3 = fig3.add_gridspec(3, 3, height_ratios=[1.2, 1.2, 1.0], hspace=0.34, wspace=0.22)
+    fig3 = plt.figure(figsize=(16, 13.5))
+    gs3 = fig3.add_gridspec(4, 3, height_ratios=[1.0, 1.0, 1.0, 1.0], hspace=0.36, wspace=0.20,
+                            top=0.96, bottom=0.04, left=0.06, right=0.97)
 
-    colors_rows = ["#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#64748b"]
-    row_names = [f"R{r}" for r in range(6)] + ["R6 (Bias)"]
+    colors_m8 = ["#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#64748b"]
+    row_names_m8 = [f"R{r}" for r in range(6)] + ["R6 (Bias)"]
+
+    colors_m3 = ["#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#ec4899", "#8b5cf6"]
+    row_names_m3 = [f"R{r}" for r in range(6)] + ["R6 (ClkB1)", "R7 (ClkRef)"]
 
     w3_all = np.array([e["w_m3"] for e in epochs])  # (N, 8, 6)
     w8_all = np.array([e["w_m8"] for e in epochs])  # (N, 7, 6)
 
-    # Top 6 panels: Columns 0 to 5 of Matrix 8
+    # Top 2 rows: Matrix 8 Columns 0 to 5
     for col in range(6):
         r_idx = col // 3
         c_idx = col % 3
         ax = fig3.add_subplot(gs3[r_idx, c_idx])
 
-        # Shading for thermal phases
+        # Shading for thermal phases & training toggles
         add_thermal_spans(ax)
         add_training_toggles(ax)
 
         for r in range(7):
-            ax.plot(elapsed_m, w8_all[:, r, col], color=colors_rows[r], label=row_names[r] if col == 0 else None, linewidth=1.1)
+            ax.plot(elapsed_m, w8_all[:, r, col], color=colors_m8[r],
+                    label=row_names_m8[r] if col == 0 else None, linewidth=1.1)
 
-        ax.axhline(+120, color="red", linestyle="--", alpha=0.7, linewidth=0.9)
-        ax.axhline(-120, color="red", linestyle="--", alpha=0.7, linewidth=0.9)
+        ax.axhline(+120, color="red", linestyle="--", alpha=0.7, linewidth=0.8)
+        ax.axhline(-120, color="red", linestyle="--", alpha=0.7, linewidth=0.8)
         ax.axhline(0, color="black", linestyle=":", alpha=0.4, linewidth=0.8)
 
         ax.set_ylim(-130, 130)
-        ax.set_title(f"Matrix 8: Column {col} Weights (ColTIA Summer {col})", fontsize=10.5, fontweight="bold")
-        ax.set_ylabel("Weight (LSB)", fontsize=9, fontweight="bold")
-        ax.set_xlabel("Elapsed Time (minutes)", fontsize=9, fontweight="bold")
+        ax.set_title(f"Matrix 8: Column {col} Weights (ColTIA Summer {col})", fontsize=10, fontweight="bold", pad=4)
+        ax.set_ylabel("Weight (LSB)", fontsize=8.5, fontweight="bold")
+        if r_idx == 1:
+            ax.set_xlabel("Elapsed Time (minutes)", fontsize=8.5, fontweight="bold")
         ax.grid(True, linestyle=":", alpha=0.5)
         if col == 0:
-            ax.legend(loc="upper left", fontsize=7.5, ncol=3, framealpha=0.9)
+            ax.legend(loc="upper left", fontsize=6.8, ncol=4, framealpha=0.9, handlelength=1.2)
 
-    # Bottom 3 panels: Matrix 3 Reference Clocks & Spatial Profiles
-    ax_m3_r6 = fig3.add_subplot(gs3[2, 0])
-    colors_cols = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"]
-    for c in range(6):
-        ax_m3_r6.plot(elapsed_m, w3_all[:, 6, c], color=colors_cols[c], label=f"Col {c}", linewidth=1.4)
-    ax_m3_r6.set_title("Matrix 3: Row 6 (ClkB1 Staircase [-40..+40])", fontsize=10.5, fontweight="bold")
-    ax_m3_r6.set_ylabel("Weight (LSB)", fontsize=9, fontweight="bold")
-    ax_m3_r6.set_xlabel("Elapsed Time (minutes)", fontsize=9, fontweight="bold")
-    ax_m3_r6.set_ylim(-50, 50)
-    ax_m3_r6.grid(True, linestyle=":", alpha=0.5)
-    ax_m3_r6.legend(loc="lower left", fontsize=7.5, ncol=3)
+    # Bottom 2 rows: Matrix 3 Columns 0 to 5 (Active Data Weights R0..R5 & Reference Clocks R6..R7)
+    for col in range(6):
+        r_idx = 2 + (col // 3)
+        c_idx = col % 3
+        ax = fig3.add_subplot(gs3[r_idx, c_idx])
 
-    ax_m3_r7 = fig3.add_subplot(gs3[2, 1])
-    for c in range(6):
-        ax_m3_r7.plot(elapsed_m, w3_all[:, 7, c], color=colors_cols[c], label=f"Col {c}", linewidth=1.4)
-    ax_m3_r7.set_title("Matrix 3: Row 7 (ClkRef Complementary [+40..-40])", fontsize=10.5, fontweight="bold")
-    ax_m3_r7.set_ylabel("Weight (LSB)", fontsize=9, fontweight="bold")
-    ax_m3_r7.set_xlabel("Elapsed Time (minutes)", fontsize=9, fontweight="bold")
-    ax_m3_r7.set_ylim(-50, 50)
-    ax_m3_r7.grid(True, linestyle=":", alpha=0.5)
-    ax_m3_r7.legend(loc="lower left", fontsize=7.5, ncol=3)
+        # Shading for thermal phases & training toggles
+        add_thermal_spans(ax)
+        add_training_toggles(ax)
 
-    ax_m3_prof = fig3.add_subplot(gs3[2, 2])
-    cols_idx = np.arange(6)
-    for r in range(6):
-        lbl = "Rows 0..5 (Data X0..X5)" if r == 0 else None
-        ax_m3_prof.plot(cols_idx, w3_all[0, r, :], "o--", color="#94a3b8", linewidth=1.0, markersize=4, label=lbl)
-    ax_m3_prof.plot(cols_idx, w3_all[0, 6, :], "s-", color="#7c3aed", linewidth=2.2, markersize=7, label="Row 6: ClkB1 Staircase")
-    ax_m3_prof.plot(cols_idx, w3_all[0, 7, :], "^-", color="#ec4899", linewidth=2.2, markersize=7, label="Row 7: ClkRef Staircase")
-    ax_m3_prof.set_title("Matrix 3: 2D Spatial Staircase Profiles Across Columns", fontsize=10.5, fontweight="bold")
-    ax_m3_prof.set_xlabel("Column Index", fontsize=9, fontweight="bold")
-    ax_m3_prof.set_ylabel("Weight (LSB)", fontsize=9, fontweight="bold")
-    ax_m3_prof.set_xticks(cols_idx)
-    ax_m3_prof.set_xticklabels([f"C{c}" for c in cols_idx], fontweight="bold", fontsize=8.5)
-    ax_m3_prof.set_ylim(-50, 50)
-    ax_m3_prof.grid(True, linestyle=":", alpha=0.5)
-    ax_m3_prof.legend(loc="lower left", fontsize=7.5)
+        for r in range(8):
+            lw = 1.6 if r >= 6 else 1.1
+            ls = "--" if r >= 6 else "-"
+            ax.plot(elapsed_m, w3_all[:, r, col], color=colors_m3[r],
+                    label=row_names_m3[r] if col == 0 else None, linewidth=lw, linestyle=ls)
 
-    fig3.suptitle("Inverted MAML Silicon: 2D Weight Trajectories Across Epochs (Matrix 8 & Matrix 3)", fontsize=13, fontweight="bold", y=0.99)
+        ax.axhline(0, color="black", linestyle=":", alpha=0.4, linewidth=0.8)
+        ax.set_ylim(-85, 85)
+        ax.set_title(f"Matrix 3: Column {col} Active Weights & Clocks (Input Col {col})", fontsize=10, fontweight="bold", pad=4)
+        ax.set_ylabel("Weight (LSB)", fontsize=8.5, fontweight="bold")
+        if r_idx == 3:
+            ax.set_xlabel("Elapsed Time (minutes)", fontsize=8.5, fontweight="bold")
+        ax.grid(True, linestyle=":", alpha=0.5)
+        if col == 0:
+            ax.legend(loc="lower left", fontsize=6.5, ncol=4, framealpha=0.9, handlelength=1.2)
+
+    fig3.suptitle("Inverted MAML Silicon: 2D Weight Trajectories Across Epochs (Matrix 8 & Matrix 3 Active Weights)",
+                  fontsize=12.5, fontweight="bold", y=0.995)
     p3 = FIG_DIR / "fig_card2_thermal_3d_matrices.png"
     p3_2d = FIG_DIR / "fig_card2_thermal_2d_matrices.png"
-    fig3.savefig(p3, dpi=300, bbox_inches="tight")
-    fig3.savefig(p3_2d, dpi=300, bbox_inches="tight")
+    fig3.savefig(p3, dpi=300)
+    fig3.savefig(p3_2d, dpi=300)
     plt.close(fig3)
     out_paths["3d_matrices"] = p3
     out_paths["2d_matrices"] = p3_2d

@@ -346,17 +346,18 @@ def build_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
     # =========================================================================
     # PAGE 3: Figure 1 - 2D Timeline (Loss, ENOB, Weights)
     # =========================================================================
-    story.append(Paragraph("Full 20-Minute Real-Time Performance Timeline (Loss & ENOB 2D Curves)", h1_style))
-    story.append(Image(str(fig_dict["timeline"]), width=530, height=390))
+    story.append(Paragraph("Full 20-Minute Real-Time Performance Timeline (Loss, ENOB & Active Weight Envelopes)", h1_style))
+    story.append(Image(str(fig_dict["timeline"]), width=530, height=425))
     story.append(Spacer(1, 4))
     story.append(Paragraph(
         "<b>Figure 1: Full 20-Minute Continuous Telemetry (2D Curves matching the Live GUI Monitor).</b> "
         "(Top) Mean squared error loss across the [5.0 – 5.4 ms] window (red) and at the 5.2 ms nominal center (dark red dashed). "
-        "(Middle) Effective resolution (ENOB) showing real-time Mode A active stabilization (blue) and peak center resolution (green). "
-        "(Bottom) Matrix 8 dynamic weight envelope [Min, Max] in LSB. "
+        "(Second) Effective resolution (ENOB) showing real-time Mode A active stabilization (blue) and peak center resolution (green). "
+        "(Third) Matrix 8 dynamic weight envelope [Min, Max] in LSB. "
+        "(Bottom) Matrix 3 active data weight envelope [Min, Max] (Rows 0..5) in LSB. "
         "Amber background bands denote Heater ON (30% duty @ 1 Hz); blue background bands denote Heater OFF (Cooling). "
-        "Green/red dashed vertical lines denote Training ON (SGD active) vs. Training OFF (Ablation W8=0) transitions. "
-        "Notice the dramatic loss spike up to 75,638 LSB² when training is disabled during the cold phase, and the instantaneous recovery to 22,753 LSB² when Mode A re-engages.",
+        "Green/red dashed vertical lines denote Training ON (SGD active) vs. Training OFF (Ablation W=0) transitions. "
+        "Notice the dramatic loss spike up to 75,638 LSB² when training is disabled during the cold phase, and the instantaneous recovery to 22,753 LSB² when Mode A re-engages, with both Matrix 8 and Matrix 3 active envelopes adapting in complementary synchrony.",
         callout_style
     ))
 
@@ -383,14 +384,14 @@ def build_pdf_report(data: dict, out_pdf: Path, fig_dict: dict):
     # PAGE 5: Figure 3 - 2D Weight Trajectories (M8 & M3)
     # =========================================================================
     story.append(Paragraph("2D Weight Trajectories of Matrix 8 and Matrix 3 across 3,331 Epochs", h1_style))
-    story.append(Image(str(fig_dict["2d_matrices"]), width=530, height=395))
+    story.append(Image(str(fig_dict["2d_matrices"]), width=530, height=450))
     story.append(Spacer(1, 4))
     story.append(Paragraph(
         "<b>Figure 3: 2D Dynamic Weight Trajectories for Matrix 8 (7x6) and Matrix 3 (8x6) across 3,331 Epochs.</b> "
-        "(Top 6 Panels) Individual weight trajectories for the 7 rows of Matrix 8 plotted in 7 distinct colors across each of the 6 physical columns (Col 0..5, ColTIA summing junctions). "
-        "Background shading denotes Heater ON (30% duty @ 1 Hz, amber) vs. Cooling (blue). The adaptive weights actively track thermal expansion, "
-        "flatline to 0 during ablation intervals (W8=0), and expand up to +117 LSB during cooling regulation to neutralize cold transistor drift. "
-        "(Bottom 3 Panels) Matrix 3 reference clock trajectories, showing the frozen staircase patterns on Row 6 ([-40..+40] LSB) and Row 7 ([+40..-40] LSB) while data rows remain at zero.",
+        "(Top 6 Panels) Dynamic weight trajectories for Matrix 8 across physical columns 0..5 (ColTIA summing junctions), showing the 7 rows (R0..R5 active inputs, R6 hardware bias) in 7 distinct colors with &plusmn;120 LSB clamping rails. "
+        "(Bottom 6 Panels) Dynamic weight trajectories for Matrix 3 across input columns 0..5, showing the active data weights (Rows 0..5, solid curves) and fixed reference clock staircases (Row 6 ClkB1 [-40..+40] LSB, Row 7 ClkRef [+40..-40] LSB, dashed curves). "
+        "Background shading denotes Heater ON (30% duty @ 1 Hz, amber) vs. Cooling (blue); vertical dashed lines denote Training ON (green) vs. Ablation W=0 (red). "
+        "Both matrices actively and synchronously adapt to reject thermal drift, flatline cleanly to zero during ablation intervals, and deploy asymmetric headroom (up to +117 LSB on M8, -73 LSB on M3) during cooling.",
         callout_style
     ))
 
@@ -696,8 +697,8 @@ This 20-minute physical benchmark on Card 2 (PCBA v1.3.2) demonstrates **100% ph
    When the board cooled down without compensation ($W_8 = 0$), mean squared error loss surged to **{loss_cold_uncomp:,.0f} LSB²**, with resolution falling to **{enob_cold_uncomp:.2f} bits** ({c_enob_cold_uncomp:.2f} b at 5.2 ms center).
 2. **Robust Mode A Closed-Loop Rejection (-{rejection_cold_pct:.1f}% Error Reduction):**  
    Under active Mode A SGD regulation during the cooling phase, the compensator drove loss straight down to **{loss_cold_comp:,.0f} LSB²**, elevating effective resolution to **{enob_cold_comp:.2f} bits** ({c_enob_cold_comp:.2f} b at center), yielding a net gain of **+{enob_gain_cold:.2f} bits**.
-3. **Dynamic Headroom Deployment (+117 LSB):**  
-   Matrix 8 autonomously deployed an asymmetric positive bias reaching **+117 LSB** (98% of the &plusmn;120 LSB clamping limit) to counteract the cooling of the n-channel triode cells.
+3. **Dynamic Headroom Deployment (+117 LSB on M8, -73 LSB on M3):**  
+   Matrix 8 autonomously deployed an asymmetric positive bias reaching **+117 LSB** (98% of the &plusmn;120 LSB clamping limit) while Matrix 3 active data weights deployed an asymmetric negative compensation reaching **-73 LSB**, working in complementary synchrony to neutralize cooling drift.
 4. **Saturation-Free Telemetry:**  
    The differential BJT clip guard (`SIG4_CLIP_THRESHOLD_LSB=1415`) completely eliminated phantom gradient bursts, ensuring smooth and monotonic convergence across all 3,331 epochs.
 
@@ -705,13 +706,13 @@ This 20-minute physical benchmark on Card 2 (PCBA v1.3.2) demonstrates **100% ph
 
 ## 3. Publication Figures
 
-### Figure 1: Full 20-Minute Performance Timeline (Loss & ENOB 2D Curves)
+### Figure 1: Full 20-Minute Performance Timeline & Active Weight Envelopes (Loss, ENOB, W8 & W3)
 ![Timeline](file://{fig_dict['timeline']})
 
 ### Figure 2: Spatio-Temporal Waterfall Heatmap [5.0 – 5.4 ms]
 ![Waterfall](file://{fig_dict['waterfall']})
 
-### Figure 3: 2D Dynamic Weight Trajectories across Epochs (Matrix 8 & Matrix 3)
+### Figure 3: 2D Dynamic Weight Trajectories across Epochs (Matrix 8 & Matrix 3 Active Weights)
 ![2D Weights](file://{fig_dict['2d_matrices']})
 
 ### Figure 4: Strata Profiles Across [5.0 – 5.4 ms]
