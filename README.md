@@ -112,16 +112,6 @@ Working with analog computing is an act of balancing physics and precision. Very
     A blocking UART debug print (`print_s("[IP] Proto=...")`) in `main.c` and a redundant software delay in `maml_platform.c` expanded the SoC main polling loop execution time to $\sim 14.5\text{ ms}$. During rapid UDP communication, the $10.0\text{ ms}$ refresh timer slipped, causing refresh cycles to skip and fire only every $20.0\text{ ms}$.
   - **3. The Physical Mechanism:**  
     At a $20\text{ ms}$ refresh interval, the 2T1C analog gate storage capacitors ($100\text{ nF}$) discharged for twice as long before snapshot sampling. The resulting gate voltage sag collapsed the analog multiplier transconductance, causing an artificial error surge ($\sim 38\text{k} – 146\text{k}\text{ LSB}^2$, corresponding to $3.3\text{ – }4.2\text{ bits}$). The apparent learning curves observed during training were an artifact of the compensation network injecting DC charge to fight this software-induced droop.
-  - **4. Empirical Verification on Clean Hardware:**  
-    When the firmware was corrected to phase-lock refreshes strictly to crystal-timed $10.0\text{ ms}$ CLINT tick boundaries with zero blocking UART prints, Card 2 was re-benchmarked under identical conditions:
-    - **Old Firmware (with jitter):** Phase 1 Baseline = $38\,224.9\text{ LSB}^2$ ($4.25\text{ b}$) $\to$ Phase 2 MAML = $6\,778.5\text{ LSB}^2$ ($5.64\text{ b}$) $\to$ Phase 4 Ablation = $55\,213.7\text{ LSB}^2$ ($3.97\text{ b}$) ($8.14\times$ apparent contrast).
-    - **New Firmware (crystal-locked 10.0 ms):** Phase 1 Baseline = $7\,392.3\text{ LSB}^2$ ($5.58\text{ b}$) $\to$ Phase 2 MAML = $6\,901.4\text{ LSB}^2$ ($5.62\text{ b}$) $\to$ Phase 4 Ablation = $7\,565.2\text{ LSB}^2$ ($5.54\text{ b}$).
-    - **Physical Reality:** The raw uncompensated silicon of Matrix 33 naturally achieves **$\sim 5.6\text{ bits}$ precision** at $5.0\text{ ms}$ snapshot delay without active compensation. The apparent contrast completely collapsed ($\Delta\text{ENOB} = +0.04\text{ bits}$).
-  - **5. Full Technical Retrospective Report:**  
-    See the comprehensive investigation document: [`FPGA_code/docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md`](FPGA_code/docs/INVESTIGATION_REPORT_TIMING_JITTER_AND_BASELINE_ARTIFACTS.md).
-
-  ![Inverted MAML Timing Jitter Post-Mortem Side-by-Side Comparison](FPGA_code/docs/figures/fig_timing_jitter_post_mortem_side_by_side.png)
-  *Figure: Live silicon empirical side-by-side comparison on Card 2. Left: Old firmware with 10/20 ms jitter creating an artificial 8.1x contrast against capacitor droop. Right: Corrected firmware with crystal-locked 10.0 ms refresh revealing the true, flat ~5.6-bit physical silicon baseline across all phases.*
 
 - **2026-11-06 (Card 2 Silicon Benchmark: W(3) Staircase Calibration & Definitive Paired-Ablation Control):**
   - **1. Addressing the Physical 100 nF Capacitor Droop Across the Broadened Temporal Window [4.5..5.5 ms]:**  
