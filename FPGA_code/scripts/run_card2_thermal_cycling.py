@@ -56,7 +56,7 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 RING_BUFFER_JSON = LOG_DIR / "thermal_ring_buffer_30min.json"
 RING_BUFFER_TMP = LOG_DIR / "thermal_ring_buffer_30min.json.tmp"
 LATEST_STATUS_JSON = LOG_DIR / "thermal_latest_status.json"
-DEFAULT_FINAL_JSON = LOG_DIR / "card2_thermal_cycling_heaters_8m8m_regler_2m2m_l2_768_k2_lr0p02_5p0_to_5p4ms_20min.json"
+DEFAULT_FINAL_JSON = LOG_DIR / "card2_thermal_cycling_heaters_8m8m_30pct_1hz_regler_2m2m_l2_768_k2_lr0p02_5p0_to_5p4ms_cold_start_20min.json"
 
 running = True
 client_global: MamlUdpClient | None = None
@@ -172,7 +172,8 @@ def main():
     global client_global, baseline_payload_global, running
 
     parser = argparse.ArgumentParser(description="Inverted MAML Card 2 Long-Term Thermal Stress Experiment")
-    parser.add_argument("--duration-minutes", type=float, default=120.0, help="Total experiment duration in minutes (default: 120.0)")
+    parser.add_argument("--duration-minutes", type=float, default=20.0, help="Total experiment duration in minutes (default: 20.0)")
+    parser.add_argument("--heater-start", choices=["off", "on"], default="off", help="Initial heater state: 'off' (default: Cold / Room temp first) or 'on' (Warm first)")
     parser.add_argument("--heater-on", type=float, default=8.0, help="Heater ON duration in minutes (default: 8.0)")
     parser.add_argument("--heater-off", type=float, default=8.0, help="Heater OFF duration in minutes (default: 8.0)")
     parser.add_argument("--heater-duty-pct", type=float, default=30.0, help="Heater duty cycle percentage (default: 30.0)")
@@ -298,11 +299,20 @@ def main():
             heater_time_left = total_duration_s - elapsed
         else:
             heater_time_in_period = elapsed % heater_period_s
-            heater_on = heater_time_in_period < heater_on_s
-            if heater_on:
-                heater_time_left = heater_on_s - heater_time_in_period
+            if args.heater_start == "off":
+                # Start with HEATER OFF (Cold Phase) first, then HEATER ON (Warm Phase)
+                heater_on = heater_time_in_period >= heater_off_s
+                if not heater_on:
+                    heater_time_left = heater_off_s - heater_time_in_period
+                else:
+                    heater_time_left = heater_period_s - heater_time_in_period
             else:
-                heater_time_left = heater_period_s - heater_time_in_period
+                # Start with HEATER ON (Warm Phase) first, then HEATER OFF (Cold Phase)
+                heater_on = heater_time_in_period < heater_on_s
+                if heater_on:
+                    heater_time_left = heater_on_s - heater_time_in_period
+                else:
+                    heater_time_left = heater_period_s - heater_time_in_period
 
         # High-frequency software PWM for heater duty cycle (>= 1.0 Hz)
         pwm_period_s = 1.0 / max(0.1, args.heater_pwm_hz)
@@ -480,7 +490,9 @@ def main():
             "lr": lr_nominal,
             "k_batch": k_batch,
             "reg_lambda": reg_lambda_nominal,
-            "heater_cycle": f"{args.heater_on:.1f} min ON / {args.heater_off:.1f} min OFF",
+            "heater_start": args.heater_start,
+            "dc_calibration_state": "Cold / Room Temp (Heaters OFF)" if args.heater_start == "off" else "Warm (Heaters Preheated)",
+            "heater_cycle": f"{args.heater_off:.1f} min OFF / {args.heater_on:.1f} min ON" if args.heater_start == "off" else f"{args.heater_on:.1f} min ON / {args.heater_off:.1f} min OFF",
             "training_cycle": f"{args.regler_on:.1f} min ON / {args.regler_off:.1f} min OFF",
             "t_min_us": t_min,
             "t_max_us": t_max,
