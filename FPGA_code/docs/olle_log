@@ -724,6 +724,7 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # - Logg: FPGA_code/logs/mode_a_extended_training/mode_a_1000ep_5ms_pure_toeplitz_reg1024_lr0p08_swing40_var3_k1_ablation.json
 # - Figur: FPGA_code/docs/figures/fig_mode_a_1000ep_5ms_pure_toeplitz_reg1024_lr0p08_swing40_var3_k1_ablation.png
 # - Rapport: INVERTED_MAML_CARD2_1000EP_5MS_PURE_TOEPLITZ_REG1024_LR0P08_SWING40_VAR3_K1_ABLATION_REPORT.pdf (2 sidor exakt).
+
 # ==============================================================================
 #
 # ==============================================================================
@@ -734,4 +735,10 @@ python3 FPGA_code/scripts/test_multiplier_time_dynamics.py --matrix M33 --row 0 
 # - Skapa en tydlig statistisk linje på sammanslagna körningar (medel, std dev, min/max).
 # ==============================================================================
 
+Terminal 1: Starta Live GUI-övervakaren
+cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4
+./FPGA_code/scripts/run_thermal_gui.sh
 
+Terminal 2: Starta testet (KALL start: Heater OFF först)
+cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4
+./FPGA_code/scripts/run_card2_thermal_cold_start.sh

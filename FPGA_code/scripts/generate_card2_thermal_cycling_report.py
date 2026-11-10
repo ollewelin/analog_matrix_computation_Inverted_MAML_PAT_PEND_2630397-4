@@ -43,7 +43,7 @@ def load_data(json_path: Path):
         return json.load(f)
 
 
-def generate_all_figures(data: dict) -> dict:
+def generate_all_figures(data: dict, fig_prefix: str = "fig_card2_thermal") -> dict:
     epochs = data["epochs"]
     meta = data.get("metadata", {})
     n_epochs = len(epochs)
@@ -181,7 +181,7 @@ def generate_all_figures(data: dict) -> dict:
     ax1d.grid(True, linestyle=":", alpha=0.6)
     ax1d.legend(loc="lower left", fontsize=8.5, framealpha=0.92)
 
-    p1 = FIG_DIR / "fig_card2_thermal_timeline.png"
+    p1 = FIG_DIR / f"{fig_prefix}_timeline.png"
     fig1.savefig(p1, dpi=300, bbox_inches="tight")
     plt.close(fig1)
     out_paths["timeline"] = p1
@@ -223,7 +223,7 @@ def generate_all_figures(data: dict) -> dict:
     cb2.set_label("Effective Number of Bits (ENOB, bits)", fontsize=11, fontweight="bold")
     cb2.ax.tick_params(labelsize=9.5)
 
-    p2 = FIG_DIR / "fig_card2_thermal_waterfall.png"
+    p2 = FIG_DIR / f"{fig_prefix}_waterfall.png"
     fig2.savefig(p2, dpi=300, bbox_inches="tight")
     plt.close(fig2)
     out_paths["waterfall"] = p2
@@ -299,8 +299,8 @@ def generate_all_figures(data: dict) -> dict:
 
     fig3.suptitle("Inverted MAML Silicon: 2D Weight Trajectories Across Epochs (Matrix 8 & Matrix 3 Active Weights)",
                   fontsize=12.5, fontweight="bold", y=0.995)
-    p3 = FIG_DIR / "fig_card2_thermal_3d_matrices.png"
-    p3_2d = FIG_DIR / "fig_card2_thermal_2d_matrices.png"
+    p3 = FIG_DIR / f"{fig_prefix}_3d_matrices.png"
+    p3_2d = FIG_DIR / f"{fig_prefix}_2d_matrices.png"
     fig3.savefig(p3, dpi=300)
     fig3.savefig(p3_2d, dpi=300)
     plt.close(fig3)
@@ -367,7 +367,7 @@ def generate_all_figures(data: dict) -> dict:
     fig4.suptitle(f"Inverted MAML Silicon: 2x2 Factorial Strata Profiles (Card 2, K={k_batch_val}, LR={lr_val}, λ={l2_val})",
                   fontsize=12.5, fontweight="bold", y=0.98)
     fig4.tight_layout()
-    p4 = FIG_DIR / "fig_card2_thermal_strata_profiles.png"
+    p4 = FIG_DIR / f"{fig_prefix}_strata_profiles.png"
     fig4.savefig(p4, dpi=300, bbox_inches="tight")
     plt.close(fig4)
     out_paths["strata_profiles"] = p4
@@ -411,32 +411,65 @@ def generate_all_figures(data: dict) -> dict:
 
     # Summary Metrics Box
     ax5b.axis("off")
-    thermal_deg_ratio = mean_losses_bar[3] / max(mean_losses_bar[1], 1.0)
     comp_gain_cold = (1.0 - mean_losses_bar[0] / max(mean_losses_bar[1], 1.0)) * 100.0
     comp_gain_hot = (1.0 - mean_losses_bar[2] / max(mean_losses_bar[3], 1.0)) * 100.0
+
+    is_cold_start = meta.get("heater_start") == "off"
+    if is_cold_start:
+        drift_surge = mean_losses_bar[3] / max(mean_losses_bar[1], 1.0)
+        drift_pct = (drift_surge - 1.0) * 100.0
+        findings_part1 = (
+            f"1. Uncompensated Baseline & Thermal Drift:\n"
+            f"   - Cold Baseline (Heat OFF, W=0):  {mean_losses_bar[1]:,.0f} LSB² ({mean_enobs_bar[1]:.2f} b)\n"
+            f"   - Hot Drift Loss (Heat ON, W=0):   {mean_losses_bar[3]:,.0f} LSB² ({mean_enobs_bar[3]:.2f} b)\n"
+            f"   - Hot Error Surge vs Cold Base:   +{drift_pct:.1f}% (+{drift_surge:.2f}x error increase)\n\n"
+        )
+        findings_part2 = (
+            f"2. Closed-Loop Drift Rejection:\n"
+            f"   - Hot Error Reduction (Mode A):   -{comp_gain_hot:.1f}% ({mean_losses_bar[3]:,.0f} -> {mean_losses_bar[2]:,.0f} L²)\n"
+            f"   - Cold Error Reduction (Mode A):  -{comp_gain_cold:.1f}% ({mean_losses_bar[1]:,.0f} -> {mean_losses_bar[0]:,.0f} L²)\n"
+            f"   - Resolution Gain (Hot Drift):    +{mean_enobs_bar[2] - mean_enobs_bar[3]:.2f} b ({mean_enobs_bar[2]:.2f} b vs {mean_enobs_bar[3]:.2f} b)\n\n"
+        )
+        findings_part3 = (
+            f"3. Silicon Weight Adaptation:\n"
+            f"   - Total W8 Envelope:          [{int(np.min(w8_mins))}, {int(np.max(w8_maxs))}] LSB (Compensates hot drift)\n"
+            f"   - Total W3 Active Envelope:   [{int(np.min(w3_mins))}, {int(np.max(w3_maxs))}] LSB (Peak +{int(np.max(w3_maxs))} LSB in Heat)\n"
+        )
+        cycle_str = f"{meta.get('heater_off', 8.0):.1f} min OFF (Cooling) / {meta.get('heater_on', 8.0):.1f} min ON (30% duty)"
+    else:
+        drift_surge = mean_losses_bar[1] / max(mean_losses_bar[3], 1.0)
+        drift_pct = (drift_surge - 1.0) * 100.0
+        findings_part1 = (
+            f"1. Uncompensated Baseline & Thermal Drift:\n"
+            f"   - Warm Baseline (Heat ON, W8=0):  {mean_losses_bar[3]:,.0f} LSB² ({mean_enobs_bar[3]:.2f} b)\n"
+            f"   - Cold Drift Loss (Heat OFF, W8=0): {mean_losses_bar[1]:,.0f} LSB² ({mean_enobs_bar[1]:.2f} b)\n"
+            f"   - Cold Error Surge vs Warm Base:  +{drift_pct:.1f}% (+{drift_surge:.2f}x error increase)\n\n"
+        )
+        findings_part2 = (
+            f"2. Closed-Loop Drift Rejection:\n"
+            f"   - Cold Error Reduction (Mode A): -{comp_gain_cold:.1f}% ({mean_losses_bar[1]:,.0f} -> {mean_losses_bar[0]:,.0f} L²)\n"
+            f"   - Hot Error Reduction (Mode A):  -{comp_gain_hot:.1f}% ({mean_losses_bar[3]:,.0f} -> {mean_losses_bar[2]:,.0f} L²)\n"
+            f"   - Resolution Gain (Cold):        +{mean_enobs_bar[0] - mean_enobs_bar[1]:.2f} b ({mean_enobs_bar[0]:.2f} b vs {mean_enobs_bar[1]:.2f} b)\n\n"
+        )
+        findings_part3 = (
+            f"3. Silicon Weight Adaptation:\n"
+            f"   - Total W8 Envelope:          [{int(np.min(w8_mins))}, {int(np.max(w8_maxs))}] LSB (Peak +117 LSB in Cold)\n"
+        )
+        cycle_str = f"{meta.get('heater_on', 8.0):.1f} min ON (30% duty) / {meta.get('heater_off', 8.0):.1f} min OFF (Cooling)"
 
     summary_text = (
         "INVERTED MAML THERMAL STRESS REJECTION SUMMARY\n"
         "==========================================================\n\n"
         f"• Total Experiment Epochs:       {n_epochs} epochs (~{elapsed_m[-1]:.1f} minutes)\n"
         f"• Thermal Perturbation:          4x On-Board Resistors @ 30% Duty Cycle (1.0 Hz PWM)\n"
-        f"• Thermal Cycle Period:          8.0 min ON (30% duty) / 8.0 min OFF (Cooling)\n"
-        f"• Mode A Training Cycle:         2.0 min TRAINING ON (SGD) / 2.0 min OFF (W8=0)\n"
+        f"• Thermal Cycle Period:          {cycle_str}\n"
+        f"• Mode A Training Cycle:         2.0 min TRAINING ON (SGD) / 2.0 min OFF (W=0)\n"
         f"• Hyperparameters:               L2 reg = {l2_val}, K = {k_batch_val}, lr = {lr_val}\n"
         f"• Attenuator & Circuit:          1k/3.3k Attenuator, Card 2 (PCBA v1.3.2)\n"
         f"• Sampling Window:               [{win_str}] ({n_strata} strata, step {t_step_us} µs)\n\n"
         "KEY QUANTITATIVE FINDINGS:\n"
         "----------------------------------------------------------\n"
-        f"1. Uncompensated Baseline & Thermal Drift:\n"
-        f"   - Warm Baseline (Heat ON, W8=0):  {mean_losses_bar[3]:,.0f} LSB² ({mean_enobs_bar[3]:.2f} b)\n"
-        f"   - Cold Drift Loss (Heat OFF, W8=0): {mean_losses_bar[1]:,.0f} LSB² ({mean_enobs_bar[1]:.2f} b)\n"
-        f"   - Cold Error Surge vs Warm Base:  +{mean_losses_bar[1]/max(mean_losses_bar[3], 1.0):.2f}x error increase\n\n"
-        f"2. Closed-Loop Drift Rejection:\n"
-        f"   - Cold Error Reduction (Mode A): -{comp_gain_cold:.1f}% ({mean_losses_bar[1]:,.0f} -> {mean_losses_bar[0]:,.0f} L²)\n"
-        f"   - Hot Error Reduction (Mode A):  -{comp_gain_hot:.1f}% ({mean_losses_bar[3]:,.0f} -> {mean_losses_bar[2]:,.0f} L²)\n"
-        f"   - Resolution Gain (Cold):        +{mean_enobs_bar[0] - mean_enobs_bar[1]:.2f} b ({mean_enobs_bar[0]:.2f} b vs {mean_enobs_bar[1]:.2f} b)\n\n"
-        f"3. Silicon Weight Adaptation:\n"
-        f"   - Total W8 Envelope:          [{int(np.min(w8_mins))}, {int(np.max(w8_maxs))}] LSB (Peak +117 LSB in Cold)\n"
+        + findings_part1 + findings_part2 + findings_part3 +
         "=========================================================="
     )
 
@@ -445,7 +478,7 @@ def generate_all_figures(data: dict) -> dict:
               bbox=dict(boxstyle="round,pad=0.8", facecolor="#f8fafc", edgecolor="#cbd5e1", linewidth=1.5))
 
     fig5.tight_layout()
-    p5 = FIG_DIR / "fig_card2_thermal_factorial_summary.png"
+    p5 = FIG_DIR / f"{fig_prefix}_factorial_summary.png"
     fig5.savefig(p5, dpi=300, bbox_inches="tight")
     plt.close(fig5)
     out_paths["factorial_summary"] = p5
@@ -456,12 +489,13 @@ def generate_all_figures(data: dict) -> dict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", type=str, default=str(DEFAULT_JSON))
+    parser.add_argument("--fig-prefix", type=str, default="fig_card2_thermal")
     args = parser.parse_args()
 
     json_path = Path(args.json)
     d = load_data(json_path)
     print(f"Loaded {len(d['epochs'])} epochs from {json_path}.")
     print("Generating publication figures...")
-    paths = generate_all_figures(d)
+    paths = generate_all_figures(d, fig_prefix=args.fig_prefix)
     for k, p in paths.items():
         print(f"  [+] {k}: {p}")
