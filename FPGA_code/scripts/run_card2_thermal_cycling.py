@@ -171,7 +171,8 @@ def write_latest_status_atomic(status_data: dict):
 def main():
     global client_global, baseline_payload_global, running
 
-    parser = argparse.ArgumentParser(description="Inverted MAML Card 2 Long-Term Thermal Stress Experiment")
+    parser = argparse.ArgumentParser(description="Inverted MAML Long-Term Thermal Stress Experiment")
+    parser.add_argument("--card", type=str, default="Card 1", help="Hardware card identifier (default: 'Card 1')")
     parser.add_argument("--duration-minutes", type=float, default=20.0, help="Total experiment duration in minutes (default: 20.0)")
     parser.add_argument("--heater-start", choices=["off", "on"], default="off", help="Initial heater state: 'off' (default: Cold / Room temp first) or 'on' (Warm first)")
     parser.add_argument("--heater-on", type=float, default=8.0, help="Heater ON duration in minutes (default: 8.0)")
@@ -219,7 +220,7 @@ def main():
 
     print("=" * 105)
     print("INVERTED MAML: THERMAL DRIFT & MODE A REGULATION EXPERIMENT")
-    print(f"Hardware: Card 2 (PCBA v1.3.2, T120 SoC @ {host}:{port}) | Mode: Mode A")
+    print(f"Hardware: {args.card} (PCBA v1.3.2, 1k/3.3k Attenuator, T120 SoC @ {host}:{port}) | Mode: Mode A")
     print(f"Total Duration: {args.duration_minutes:.1f} minutes ({total_duration_s:.0f} seconds)")
     print(f"Temporal Window: [{t_min/1000:.2f} .. {t_max/1000:.2f} ms] ({num_strata} strata @ 100us step, center {target_center_us/1000:.1f} ms)")
     print(f"Input Vector: White Noise (COLOR_WHITE) | Swing: ±40 LSB (d_line=2)")
@@ -480,8 +481,8 @@ def main():
 
     final_dataset = {
         "metadata": {
-            "title": "Inverted MAML Card 2 20-Minute Thermal Stress & Mode A Closed-Loop Regulation",
-            "card": "Card 2",
+            "title": f"Inverted MAML {args.card} 20-Minute Thermal Stress & Mode A Closed-Loop Regulation",
+            "card": args.card,
             "attenuator": "1k/3.3k",
             "reference_pattern": "W(3) Staircase on Rows 6 & 7 ([-40..+40] LSB)",
             "duration_minutes": args.duration_minutes,

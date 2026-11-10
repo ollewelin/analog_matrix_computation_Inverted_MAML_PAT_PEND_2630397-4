@@ -739,6 +739,39 @@ Terminal 1: Starta Live GUI-övervakaren
 cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4
 ./FPGA_code/scripts/run_thermal_gui.sh
 
-Terminal 2: Starta testet (KALL start: Heater OFF först)
+Terminal 2: Starta testet på Card 2 (Arkiv: KALL start)
 cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4
 ./FPGA_code/scripts/run_card2_thermal_cold_start.sh
+
+# ==============================================================================
+# DATUM: 2026-11-10 20:20 CET
+# HÅRDVARUBYTE & TESTLÄGE: Övergång till CARD 1 med Nya Motstånd (1k / 3.3k Attenuator)
+# ==============================================================================
+# - Hårdvarustatus & Modifiering:
+#   * Kretskort: Card 1 (PCBA v1.3.2)
+#   * Hårdvarumodifiering: Nya motstånd monterade - 1k / 3.3k ohm attenuator-nätverk
+#     (Ersätter äldre 1k / 5.1k attenuator för att ge identisk analog dynamik och
+#      auktoritet som Card 2: 23.3% kompensationsauktoritet).
+#   * FPGA: Efinix Trion T120F324 Master SoC (@ 192.168.1.50:5000) + T20F256 Coprocessor.
+#   * FPGA HW Logic: 0x20261030 (Subsystem MAM1), Status: T20 ONLINE [TAG= pd, S-bus ACK 0x06].
+#   * C-Firmware: v2.2-MAML (SW Build Nov 8 2026 19:13:24).
+#   * Driftläge: Mode A (Jumperläge 3: M3 -> ColTIA3 -> M8 -> ColTIA8).
+#
+# - Experimentellt Testläge (Identiskt med Card 2 Cold-Start Thermal Stress Run):
+#   * Testlängd: 20.0 minuter (1200 sekunder, ~3331 epoker).
+#   * Tidsfönster: [5.0 .. 5.4 ms] (5 strata @ 100 us intervall: 5000, 5100, 5200, 5300, 5400 us, centrum 5.2 ms).
+#   * Initial DC-kalibrering: KALL start (Heaters OFF i rumstemperatur vid t=0, g_adc49_zero_cal kalibreras vid kall krets).
+#   * Värmecykel: 8 minuter HEATER OFF (kylning/rumstemp) <-> 8 minuter HEATER ON (30% duty @ 1.0 Hz PWM).
+#   * Träningscykel: 2 minuter TRAINING ON (SGD aktiv, LR=0.02, L2=768, K=2) <-> 2 minuter TRAINING OFF (Ablation W8=0, LR=0).
+#   * Stimulus: Stokastiskt White Noise (d_line=2, swing ±40 LSB).
+#   * Referens: W(3) Staircase på rad 6 & 7 ([-40..+40] LSB).
+#   * Mätstorheter: MSE Loss (LSB²), ENOB (bitar), W8 dynamiskt kuvert, termisk driftneutralisering på Card 1 kisel.
+# ==============================================================================
+
+Terminal 1: Starta Live GUI-övervakaren
+cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4
+./FPGA_code/scripts/run_thermal_gui.sh
+
+Terminal 2: Starta testet på Card 1 (KALL start: Heater OFF först)
+cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4
+./FPGA_code/scripts/run_card1_thermal_cold_start.sh
