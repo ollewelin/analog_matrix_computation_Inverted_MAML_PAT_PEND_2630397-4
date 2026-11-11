@@ -185,6 +185,7 @@ def main():
     parser.add_argument("--l2-reg", type=int, default=768, help="L2 regularization lambda (default: 768)")
     parser.add_argument("--k-batch", type=int, default=2, help="K batch size per stratum (default: 2)")
     parser.add_argument("--lr", type=float, default=0.02, help="Learning rate (default: 0.02)")
+    parser.add_argument("--w33-max", type=int, default=0, help="Scale frozen M33 so max|W33| = this value (0 = factory default, max 84)")
     parser.add_argument("--out-json", type=str, default=str(DEFAULT_FINAL_JSON), help="Output final JSON path")
     args = parser.parse_args()
 
@@ -238,7 +239,22 @@ def main():
     client_global = client
 
     # 2. Reset M33 and configure regime
-    client.set_w33_matrix(None)  # Reset factory default
+    k_default_m33 = [
+        [+76, -20, +28,  -4, +44, -36],
+        [-20, +84, -12, +44,  -4, +36],
+        [+36,  -4, +80, -16, +32,  -4],
+        [ -4, +40,  -8, +72, -12, +44],
+        [+44, -12, +28, -12, +76,  -8],
+        [-28, +32,  -4, +40,  -8, +82],
+    ]
+    if args.w33_max and 0 < args.w33_max < 84:
+        sc = args.w33_max / 84.0
+        w33_used = [[int(round(v * sc)) for v in row] for row in k_default_m33]
+        client.set_w33_matrix(w33_used)  # Firmware recomputes z_target from these nominal weights
+        print(f"[*] Frozen M33 scaled to max |W| = {args.w33_max} LSB (factor {sc:.3f})")
+    else:
+        w33_used = k_default_m33
+        client.set_w33_matrix(None)  # Reset factory default
     client.clear_w33_hidden_offset()
     time.sleep(0.03)
 
@@ -484,6 +500,10 @@ def main():
             "title": f"Inverted MAML {args.card} 20-Minute Thermal Stress & Mode A Closed-Loop Regulation",
             "card": args.card,
             "attenuator": "1k/3.3k",
+            "w33_max": args.w33_max if args.w33_max else 84,
+            "w33_matrix": w33_used,
+            "heater_duty_pct": args.heater_duty_pct,
+            "d_line": d_line,
             "reference_pattern": "W(3) Staircase on Rows 6 & 7 ([-40..+40] LSB)",
             "duration_minutes": args.duration_minutes,
             "total_elapsed_s": round(time.time() - t_start, 2),

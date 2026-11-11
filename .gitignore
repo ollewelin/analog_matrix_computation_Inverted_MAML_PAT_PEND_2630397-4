@@ -110,5 +110,11 @@ FPGA_code/logs/mode_a_longterm_sweep/
 **/INVERTED_MAML_MILESTONE2_CARD2_1K3P9K_VERIFICATION_REPORT.*
 **/INVERTED_MAML_MILESTONE2_CARD1_VERIFICATION_REPORT.*
 
+# Logs and temp files
+*.log
+gui/*.log
 FPGA_code/logs/thermal_cycling/*.json
 FPGA_code/logs/thermal_cycling/*.tmp
+FPGA_code/logs/bit_slicing/*.json
+FPGA_code/logs/bit_slicing/*.tmp
+FPGA_code/logs/bit_slicing/*.log

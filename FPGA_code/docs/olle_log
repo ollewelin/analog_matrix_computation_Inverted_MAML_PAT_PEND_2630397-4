@@ -744,34 +744,94 @@ cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PA
 ./FPGA_code/scripts/run_card2_thermal_cold_start.sh
 
 # ==============================================================================
-# DATUM: 2026-11-10 20:20 CET
-# HÅRDVARUBYTE & TESTLÄGE: Övergång till CARD 1 med Nya Motstånd (1k / 3.3k Attenuator)
+# DATUM: 2026-11-10 20:20 – 21:10 CET
+# HÅRDVARUBYTE & BENCHMARK: CARD 1 med Nya Motstånd (1k / 3.3k Attenuator)
+# 2x Konsekutiva 20-minuters Termiska Stresstester (Körning 1 & Körning 2)
 # ==============================================================================
-# - Hårdvarustatus & Modifiering:
+# - Hårdvarustatus & Identifiering:
 #   * Kretskort: Card 1 (PCBA v1.3.2)
 #   * Hårdvarumodifiering: Nya motstånd monterade - 1k / 3.3k ohm attenuator-nätverk
-#     (Ersätter äldre 1k / 5.1k attenuator för att ge identisk analog dynamik och
-#      auktoritet som Card 2: 23.3% kompensationsauktoritet).
+#     (Identisk kretslösning och ~23.3% kompensationsauktoritet som Card 2).
 #   * FPGA: Efinix Trion T120F324 Master SoC (@ 192.168.1.50:5000) + T20F256 Coprocessor.
 #   * FPGA HW Logic: 0x20261030 (Subsystem MAM1), Status: T20 ONLINE [TAG= pd, S-bus ACK 0x06].
 #   * C-Firmware: v2.2-MAML (SW Build Nov 8 2026 19:13:24).
 #   * Driftläge: Mode A (Jumperläge 3: M3 -> ColTIA3 -> M8 -> ColTIA8).
 #
-# - Experimentellt Testläge (Identiskt med Card 2 Cold-Start Thermal Stress Run):
-#   * Testlängd: 20.0 minuter (1200 sekunder, ~3331 epoker).
-#   * Tidsfönster: [5.0 .. 5.4 ms] (5 strata @ 100 us intervall: 5000, 5100, 5200, 5300, 5400 us, centrum 5.2 ms).
-#   * Initial DC-kalibrering: KALL start (Heaters OFF i rumstemperatur vid t=0, g_adc49_zero_cal kalibreras vid kall krets).
-#   * Värmecykel: 8 minuter HEATER OFF (kylning/rumstemp) <-> 8 minuter HEATER ON (30% duty @ 1.0 Hz PWM).
-#   * Träningscykel: 2 minuter TRAINING ON (SGD aktiv, LR=0.02, L2=768, K=2) <-> 2 minuter TRAINING OFF (Ablation W8=0, LR=0).
-#   * Stimulus: Stokastiskt White Noise (d_line=2, swing ±40 LSB).
-#   * Referens: W(3) Staircase på rad 6 & 7 ([-40..+40] LSB).
-#   * Mätstorheter: MSE Loss (LSB²), ENOB (bitar), W8 dynamiskt kuvert, termisk driftneutralisering på Card 1 kisel.
+# - Sammanfattning av Resultat:
+#   * Körning 1 (3 536 epoker, 20 min):
+#     - Fas 1–4 (Kallt): Reglering PÅ ger 33.5k–39.9k LSB² (4.46–4.69 b), Träning AV ger 52.9k–55.8k LSB² (4.13–4.17 b).
+#     - Fas 5–8 (Värme): Vid värme drar okompenserat fel iväg till 84.1k LSB² (3.83 b).
+#     - Fas 9–10 (Avsvalning): Återgår till rumstemperatursbaslinjen runt 34.3k LSB² (4.81 b).
+#   * Körning 2 (3 355 epoker, 20 min):
+#     - Fas 1 (Kall, Train ON): 50.7k LSB² (4.26 b) -> Fas 2 (Kall, Train OFF): 74.5k LSB² (3.85 b) [+47% felsteg!]
+#     - Fas 3 (Kall, Train ON): 51.5k LSB² (4.22 b) -> Fas 4 (Kall, Train OFF): 74.9k LSB² (3.87 b)
+#     - Fas 5 (Varm, Train ON): 38.1k LSB² (4.71 b) -> Fas 6 (Varm, Train OFF): 45.3k LSB² (4.54 b)
+#     - Fas 7 (Varm, Train ON): 61.1k LSB² (4.17 b) -> Fas 8 (Varm, Train OFF): 70.4k LSB² (4.00 b)
+#     - Fas 9–10 (Avsvalning): 45.6k LSB² (4.54 b) -> 39.8k LSB² (4.68 b).
+#   * Mättnadsanalys:
+#     - Kolumn 3 (Col 3) är den enda kolumnen på Card 1 som når klampgränsen (-120 LSB på M8 och +118 LSB på M3).
+#     - Övriga 5 kolumner har stor marginal kvar till rail.
+#   * Slutsats:
+#     - Inverted MAML bevisar reell driftreducering och stabil reglering även på standard COTS switchtransistorer!
+# - Loggfiler:
+#   * Körning 1: FPGA_code/logs/thermal_cycling/card1_thermal_cycling_heaters_8m8m_30pct_1hz_regler_2m2m_l2_768_k2_lr0p02_5p0_to_5p4ms_cold_start_20min.json
+#   * Körning 2: FPGA_code/logs/thermal_cycling/card1_thermal_cycling_heaters_8m8m_30pct_1hz_regler_2m2m_l2_768_k2_lr0p02_5p0_to_5p4ms_cold_start_20min_run2.json
+# - Rapport (14 sidor exakt, separat för Card 1):
+#   * INVERTED_MAML_CARD1_COLD_START_THERMAL_STRESS_FHP_COMPREHENSIVE_REPORT.pdf
 # ==============================================================================
 
-Terminal 1: Starta Live GUI-övervakaren
-cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4
-./FPGA_code/scripts/run_thermal_gui.sh
 
-Terminal 2: Starta testet på Card 1 (KALL start: Heater OFF först)
-cd /home/olle/AnalogAI/git/git_test_c/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4
-./FPGA_code/scripts/run_card1_thermal_cold_start.sh
+
+# ==============================================================================
+# DATUM: 2026-11-10 20:20 – 21:10 CET
+# HÅRDVARUBYTE & BENCHMARK: CARD 1 med Nya Motstånd (1k / 3.3k Attenuator)
+# 2x Konsekutiva 20-minuters Termiska Stresstester (Körning 1 & Körning 2)
+# ==============================================================================
+# - Hårdvarustatus & Identifiering:
+#   * Kretskort: Card 1 (PCBA v1.3.2)
+#   * Hårdvarumodifiering: Nya motstånd monterade - 1k / 3.3k ohm attenuator-nätverk
+#     (Identisk kretslösning och ~23.3% kompensationsauktoritet som Card 2).
+#   * FPGA: Efinix Trion T120F324 Master SoC (@ 192.168.1.50:5000) + T20F256 Coprocessor.
+#   * FPGA HW Logic: 0x20261030 (Subsystem MAM1), Status: T20 ONLINE [TAG= pd, S-bus ACK 0x06].
+#   * C-Firmware: v2.2-MAML (SW Build Nov 8 2026 19:13:24).
+#   * Driftläge: Mode A (Jumperläge 3: M3 -> ColTIA3 -> M8 -> ColTIA8).
+#
+# - Sammanfattning av Resultat:
+#   * Körning 1 (3 536 epoker, 20 min):
+#     - Fas 1–4 (Kallt): Reglering PÅ ger 33.5k–39.9k LSB² (4.46–4.69 b), Träning AV ger 52.9k–55.8k LSB² (4.13–4.17 b).
+#     - Fas 5–8 (Värme): Vid värme drar okompenserat fel iväg till 84.1k LSB² (3.83 b).
+#     - Fas 9–10 (Avsvalning): Återgår till rumstemperatursbaslinjen runt 34.3k LSB² (4.81 b).
+#   * Körning 2 (3 355 epoker, 20 min):
+#     - Fas 1 (Kall, Train ON): 50.7k LSB² (4.26 b) -> Fas 2 (Kall, Train OFF): 74.5k LSB² (3.85 b) [+47% felsteg!]
+#     - Fas 3 (Kall, Train ON): 51.5k LSB² (4.22 b) -> Fas 4 (Kall, Train OFF): 74.9k LSB² (3.87 b)
+#     - Fas 5 (Varm, Train ON): 38.1k LSB² (4.71 b) -> Fas 6 (Varm, Train OFF): 45.3k LSB² (4.54 b)
+#     - Fas 7 (Varm, Train ON): 61.1k LSB² (4.17 b) -> Fas 8 (Varm, Train OFF): 70.4k LSB² (4.00 b)
+#     - Fas 9–10 (Avsvalning): 45.6k LSB² (4.54 b) -> 39.8k LSB² (4.68 b).
+#   * Mättnadsanalys:
+#     - Kolumn 3 (Col 3) är den enda kolumnen på Card 1 som når klampgränsen (-120 LSB på M8 och +118 LSB på M3).
+#     - Övriga 5 kolumner har stor marginal kvar till rail.
+#   * Slutsats:
+#     - Inverted MAML bevisar reell driftreducering och stabil reglering även på standard COTS switchtransistorer!
+# - Loggfiler:
+#   * Körning 1: FPGA_code/logs/thermal_cycling/card1_thermal_cycling_heaters_8m8m_30pct_1hz_regler_2m2m_l2_768_k2_lr0p02_5p0_to_5p4ms_cold_start_20min.json
+#   * Körning 2: FPGA_code/logs/thermal_cycling/card1_thermal_cycling_heaters_8m8m_30pct_1hz_regler_2m2m_l2_768_k2_lr0p02_5p0_to_5p4ms_cold_start_20min_run2.json
+# - Rapport (14 sidor exakt, separat för Card 1):
+#   * INVERTED_MAML_CARD1_COLD_START_THERMAL_STRESS_FHP_COMPREHENSIVE_REPORT.pdf
+# ==============================================================================
+
+================================================================================
+2026-11-11: ARKITEKTONISK STYRKA VID ANALOG BIT SLICING (SE 2630397-4)
+================================================================================
+Jämförelse mellan etablerade AIMC-metoder och Inverted MAML gällande offset/gain-stabilitet:
+
+1. Etablerade Metoder (Digital korrigering i full bandbredd):
+   - Applicerar extern digital korrigering (alpha*ADC + beta) efter ADC:n i full inferenshastighet (GHz).
+   - Detta drar betydande digital energi i datavägen och kan inte återställa information om signalen bottnat analogt.
+   - Vid bit slicing spricker ofta relationen mellan MSB och LSB på grund av oberoende förstärkningsdrift.
+
+2. Inverted MAML (SE 2630397-4):
+   - Intrinsic analog kompensation: Motfasström injiceras direkt på ColTIA:s virtuella jord före ADC:n.
+   - Förstärkaren och ADC:n hålls alltid i optimalt linjärt fönster utan mättnad.
+   - Sparse digital handledare: Mode A SGD körs enbart i låg bandbredd (sparse, 100 Hz vid refresh / K=1).
+   - Oberoende tillstånd (M8_MSB och M8_LSB) säkerställer att både MSB och LSB hålls stabila mot sina fysiska kiselnivåer, vilket möjliggör ren binär shift-and-add (16*Y_MSB + Y_LSB) utan adaptiva digitala filter.
+================================================================================
