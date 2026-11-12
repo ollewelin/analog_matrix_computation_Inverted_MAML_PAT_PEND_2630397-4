@@ -5,11 +5,20 @@ run_card1_thermal_bit_slicing.py
 Inverted MAML (Patent Pending SE 2630397-4) - Open Science Hardware
 
 Full Thermal Stress & Closed-Loop 2-Beat Interleaved Bit-Slicing on Card 1:
-- Thermal Stress: 30% PWM Heater Duty @ 1.0 Hz (4 min OFF / 4 min ON)
-- Mode A Regulation: 2 min ON (SGD active, LR=0.02, L2=768, K=1) <-> 2 min OFF (W8=0 ablation)
-- 2-Beat Interleaved Slicing:
-  * Beat 2k   (MSB Beat): Loads M33_MSB, dedicated MSB state (W_M3_MSB, W_M8_MSB)
-  * Beat 2k+1 (LSB Beat): Loads M33_LSB, dedicated LSB state (W_M3_LSB, W_M8_LSB)
+- Thermal Stress: 30% PWM Heater Duty @ 1.0 Hz
+- Phase Schedule (8 phases x 2 min = 16.0 min):
+  1. Cold / Regler ON   (Heater OFF, SGD ON,  LR=0.04, K=2, λ=96)
+  2. Cold / Regler OFF  (Heater OFF, SGD OFF, Ablation W8=0)
+  3. Warm / Regler ON   (Heater 30%, SGD ON,  LR=0.04, K=2, λ=96)
+  4. Warm / Regler OFF  (Heater 30%, SGD OFF, Ablation W8=0)
+  5. Warm / Regler ON   (Heater 30%, SGD ON,  LR=0.04, K=2, λ=96)
+  6. Warm / Regler OFF  (Heater 30%, SGD OFF, Ablation W8=0)
+  7. Cool / Regler ON   (Heater OFF, SGD ON,  LR=0.04, K=2, λ=96)
+  8. Cool / Regler OFF  (Heater OFF, SGD OFF, Ablation W8=0)
+- Fixed Startup DC Calibration:
+  * Fitted once on cold silicon (t=0, heaters OFF) per slice (MSB and LSB)
+  * Locks per-column alpha (gain) and beta (offset): Z_target = alpha * (X @ W) + beta
+  * 100% frozen during entire run (strictly NO moving digital DSP during inference)
 - Live Atomic Ring Buffer & Status Logging for Bit-Slicing GUI:
   * FPGA_code/logs/bit_slicing/slicing_ring_buffer.json
   * FPGA_code/logs/bit_slicing/slicing_latest_status.json
@@ -108,12 +117,54 @@ def build_custom_weights_payload(w_m3: list[list[int]], w_m8: list[list[int]], b
             
     return struct.pack("<B48b42b", baseline_mode, *flat_m3, *flat_m8)
 
+def calibrate_fixed_slice_params(
+    client: MamlUdpClient,
+    W_silicon: list[list[int]],
+    num_samples: int = 40,
+    delay_us: int = 5000
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Fits static column gain alpha and quiescent offset beta on cold silicon (heaters OFF, W8=0).
+    Model: Y_col = alpha_col * (X @ W)_col + beta_col
+    Locked permanently for the duration of the experiment.
+    """
+    client.set_w33_matrix(W_silicon)
+    time.sleep(0.05)
+    W_mat = np.array(W_silicon, dtype=np.float64)
+    xs, ys = [], []
+
+    for _ in range(num_samples):
+        pkt = struct.pack("<BBHHHH", 0, 1, delay_us, delay_us, 0, 0)
+        raw = client._send_binary(MAML_CMD_BATCH_STEP, pkt)
+        if raw is not None and len(raw) >= client.TELEM_SIZE:
+            telem = client._parse_hw_telemetry(raw)
+            x_vec = np.array(telem.x_ref, dtype=np.float64)
+            y_vec = np.array(telem.adc49_sig, dtype=np.float64)
+            xs.append(x_vec @ W_mat)
+            ys.append(y_vec)
+        time.sleep(0.015)
+
+    X_ideal = np.array(xs)
+    Y_meas = np.array(ys)
+    alphas = np.zeros(6, dtype=np.float64)
+    betas = np.zeros(6, dtype=np.float64)
+
+    for c in range(6):
+        p = np.polyfit(X_ideal[:, c], Y_meas[:, c], deg=1)
+        alphas[c] = float(p[0])
+        betas[c] = float(p[1])
+
+    return alphas, betas
+
 def execute_hardware_beat(
     client: MamlUdpClient,
     delay_us: int,
     lr_q16: int,
     reg_q16: int,
-    k_batch: int = 1
+    k_batch: int = 1,
+    W_mat: np.ndarray | None = None,
+    alpha: np.ndarray | None = None,
+    beta: np.ndarray | None = None
 ) -> dict:
     pkt = struct.pack(
         "<BBHHHH",
@@ -137,7 +188,14 @@ def execute_hardware_beat(
         raise RuntimeError(f"Could not receive telemetry from hardware for delay {delay_us} us.")
         
     telem = client._parse_hw_telemetry(raw)
-    err = np.array(telem.adc49_sig, dtype=np.float64) - np.array(telem.z_target, dtype=np.float64)
+    x = np.array(telem.x_ref, dtype=np.float64)
+    y = np.array(telem.adc49_sig, dtype=np.float64)
+    if alpha is not None and beta is not None and W_mat is not None:
+        target = (x @ W_mat) * alpha + beta
+        err = y - target
+    else:
+        err = y - np.array(telem.z_target, dtype=np.float64)
+
     loss_lsb2 = float(np.mean(err**2))
     rmse = float(np.sqrt(loss_lsb2))
     enob = max(0.0, 11.0 - math.log2(max(rmse, 1.0)))
@@ -170,28 +228,37 @@ def main():
     parser = argparse.ArgumentParser(description="Card 1 Thermal Stress 2-Beat Bit Slicing")
     parser.add_argument("--ip", type=str, default="192.168.1.50")
     parser.add_argument("--port", type=int, default=5000)
-    parser.add_argument("--duration-minutes", type=float, default=8.0, help="Experiment duration in minutes")
-    parser.add_argument("--heater-start", type=str, default="off", choices=["off", "on"])
-    parser.add_argument("--heater-off", type=float, default=4.0, help="Heater OFF period in minutes")
-    parser.add_argument("--heater-on", type=float, default=4.0, help="Heater ON period in minutes")
-    parser.add_argument("--heater-duty-pct", type=float, default=30.0, help="Heater PWM duty cycle pct (default 30%)")
+    parser.add_argument("--phase-duration", type=float, default=2.0, help="Duration of each phase in minutes (default 2.0 min)")
+    parser.add_argument("--heater-duty-pct", type=float, default=30.0, help="Heater PWM duty cycle pct (default 30%%)")
     parser.add_argument("--heater-pwm-hz", type=float, default=1.0, help="Heater PWM frequency in Hz")
-    parser.add_argument("--regler-on", type=float, default=2.0, help="Mode A ON duration in minutes")
-    parser.add_argument("--regler-off", type=float, default=2.0, help="Mode A OFF duration in minutes")
     parser.add_argument("--delay-us", type=int, default=5000, help="Delay in us (default 5000 = 5.0 ms)")
-    parser.add_argument("--k-batch", type=int, default=1, help="Mini-batch size K (default 1)")
+    parser.add_argument("--k-batch", type=int, default=2, help="Mini-batch size K (default 2)")
     parser.add_argument("--lr", type=float, default=0.04, help="Learning rate (default 0.04)")
     parser.add_argument("--l2-reg", type=int, default=96, help="L2 regularization (default 96)")
-    parser.add_argument("--out-json", type=str, default="FPGA_code/logs/bit_slicing/card1_thermal_slicing_30pct_8min.json")
+    parser.add_argument("--out-json", type=str, default="FPGA_code/logs/bit_slicing/card1_thermal_slicing_30pct_k2_lr0p04_16min.json")
     args = parser.parse_args()
 
     os.makedirs(os.path.dirname(args.out_json), exist_ok=True)
 
+    # 8-Phase Master Schedule (Olle protocol: 2 min cold -> 4 min warm -> 2 min cool)
+    phases = [
+        {"name": "Phase 1: Cold / Regler ON",  "heater": False, "regler": True},
+        {"name": "Phase 2: Cold / Regler OFF", "heater": False, "regler": False},
+        {"name": "Phase 3: Warm / Regler ON",  "heater": True,  "regler": True},
+        {"name": "Phase 4: Warm / Regler OFF", "heater": True,  "regler": False},
+        {"name": "Phase 5: Warm / Regler ON",  "heater": True,  "regler": True},
+        {"name": "Phase 6: Warm / Regler OFF", "heater": True,  "regler": False},
+        {"name": "Phase 7: Cool / Regler ON",  "heater": False, "regler": True},
+        {"name": "Phase 8: Cool / Regler OFF", "heater": False, "regler": False},
+    ]
+    phase_dur_s = args.phase_duration * 60.0
+    total_duration_s = len(phases) * phase_dur_s
+
     print("=" * 85)
     print("  INVERTED MAML: THERMAL CYCLING & 2-BEAT INTERLEAVED ANALOG BIT SLICING")
-    print(f"  Hardware: Card 1 @ {args.ip}:{args.port} | Total Duration: {args.duration_minutes:.1f} min")
-    print(f"  Thermal: {args.heater_duty_pct:.0f}% PWM @ {args.heater_pwm_hz:.1f} Hz ({args.heater_off:.1f}m OFF / {args.heater_on:.1f}m ON)")
-    print(f"  Regler: {args.regler_on:.1f}m ON (SGD) <-> {args.regler_off:.1f}m OFF (W8=0) | Max M33 = ±60 LSB")
+    print(f"  Hardware: Card 1 @ {args.ip}:{args.port} | Total Duration: {total_duration_s/60:.1f} min ({len(phases)} x {args.phase_duration:.1f}m)")
+    print(f"  Thermal Stress: {args.heater_duty_pct:.0f}% PWM @ {args.heater_pwm_hz:.1f} Hz")
+    print(f"  SGD Reglering : LR = {args.lr:.2f}, K-batch = {args.k_batch}, λ = {args.l2_reg} | Attenuator 1k/3.3k")
     print("=" * 85)
 
     ensure_version_guard(host=args.ip, port=args.port)
@@ -251,39 +318,51 @@ def main():
     client.set_heaters(False, [0, 0, 0, 0])
     time.sleep(0.03)
 
-    total_duration_s = args.duration_minutes * 60.0
-    heater_off_s = args.heater_off * 60.0
-    heater_on_s = args.heater_on * 60.0
-    heater_period_s = heater_off_s + heater_on_s
+    # -----------------------------------------------------------------
+    # FIXED COLD DC CALIBRATION (Fitted at t=0, Heaters OFF, Locked)
+    # -----------------------------------------------------------------
+    print("\n[*] Executing Fixed Cold DC Calibration (40 samples per slice, Heaters OFF)...")
+    alpha_msb, beta_msb = calibrate_fixed_slice_params(client, W_msb_silicon, num_samples=40, delay_us=args.delay_us)
+    alpha_lsb, beta_lsb = calibrate_fixed_slice_params(client, W_lsb_silicon, num_samples=40, delay_us=args.delay_us)
 
-    regler_on_s = args.regler_on * 60.0
-    regler_off_s = args.regler_off * 60.0
-    regler_period_s = regler_on_s + regler_off_s
+    print("  [+] MSB Slice Static Calib:")
+    print(f"      alpha: {[round(x, 4) for x in alpha_msb]}")
+    print(f"      beta : {[round(x, 1) for x in beta_msb]}")
+    print("  [+] LSB Slice Static Calib:")
+    print(f"      alpha: {[round(x, 4) for x in alpha_lsb]}")
+    print(f"      beta : {[round(x, 1) for x in beta_lsb]}")
+    print("  [+] Locked fixed parameters permanently for the entire test!\n")
 
-    ring_history: deque[dict] = deque(maxlen=3600)
+    ring_history: deque[dict] = deque(maxlen=7200)
     t_start = time.time()
     last_physical_heater_state = None
     last_regler_state = None
+    last_phase_idx = -1
     pair_idx = 0
 
-    print("\n[+] STARTING 2-BEAT THERMAL EXPERIMENT:\n")
+    print("[+] STARTING 16-MINUTE PHASE-LOCKED EXPERIMENT:\n")
 
     while running:
         t_now = time.time()
         elapsed = t_now - t_start
         if elapsed >= total_duration_s:
-            print(f"\n[✓] Target duration reached: {elapsed/60:.2f} / {args.duration_minutes:.2f} min.")
+            print(f"\n[✓] Target duration reached: {elapsed/60:.2f} / {total_duration_s/60:.2f} min.")
             break
 
-        # Heater timing
-        heater_time_in_period = elapsed % heater_period_s
-        if args.heater_start == "off":
-            heater_macro_on = heater_time_in_period >= heater_off_s
-            heater_time_left = (heater_period_s - heater_time_in_period) if heater_macro_on else (heater_off_s - heater_time_in_period)
-        else:
-            heater_macro_on = heater_time_in_period < heater_on_s
-            heater_time_left = (heater_on_s - heater_time_in_period) if heater_macro_on else (heater_period_s - heater_time_in_period)
+        # Determine current phase
+        phase_idx = min(len(phases) - 1, int(elapsed // phase_dur_s))
+        cur_phase = phases[phase_idx]
+        time_in_phase = elapsed - (phase_idx * phase_dur_s)
+        time_left_phase = phase_dur_s - time_in_phase
 
+        if phase_idx != last_phase_idx:
+            last_phase_idx = phase_idx
+            print(f"\n>>> [T={elapsed/60:.2f} min]: ENTERING {cur_phase['name']} (Duration {args.phase_duration:.1f} min) <<<")
+
+        heater_macro_on = cur_phase["heater"]
+        reglering_on = cur_phase["regler"]
+
+        # PWM Heater control
         pwm_period_s = 1.0 / max(0.1, args.heater_pwm_hz)
         pwm_on_s = pwm_period_s * (args.heater_duty_pct / 100.0)
         time_in_pwm_cycle = elapsed % pwm_period_s
@@ -294,22 +373,17 @@ def main():
             client.set_heaters(physical_heater_on, [pwr, pwr, pwr, pwr])
             last_physical_heater_state = physical_heater_on
 
-        # Regler timing
-        regler_time_in_period = elapsed % regler_period_s
-        reglering_on = (regler_time_in_period < regler_on_s)
-        reglering_time_left = (regler_on_s - regler_time_in_period) if reglering_on else (regler_period_s - regler_time_in_period)
-
+        # Reglering toggle
         if reglering_on != last_regler_state:
             last_regler_state = reglering_on
             if reglering_on:
                 lr_q16 = lr_q16_active
                 reg_q16 = reg_q16_active
-                print(f"\n>>> [T={elapsed/60:.2f} min]: TRAINING ON (Active Online SGD, K={args.k_batch}, LR={args.lr}, λ={args.l2_reg}) <<<")
+                print(f"    --> REGULATION ACTIVE (Online SGD: LR={args.lr:.2f}, K={args.k_batch}, λ={args.l2_reg})")
             else:
                 lr_q16 = 0
                 reg_q16 = 0
-                print(f"\n>>> [T={elapsed/60:.2f} min]: TRAINING OFF (Ablation W8=0, LR=0) <<<")
-                # Zero out W8 on silicon ONCE for ablation
+                print(f"    --> REGULATION OFF (Ablation W8=0, Free Drift)")
                 client._send_binary(MAML_CMD_CENTER_WEIGHTS, payload_zero_w8)
                 time.sleep(0.02)
 
@@ -317,14 +391,20 @@ def main():
         # BEAT 2k: MSB SLICE
         # -------------------------------------------------------------
         client.set_w33_matrix(W_msb_silicon)
-        res_msb = execute_hardware_beat(client, args.delay_us, lr_q16, reg_q16, k_batch=args.k_batch)
+        res_msb = execute_hardware_beat(
+            client, args.delay_us, lr_q16, reg_q16,
+            k_batch=args.k_batch, W_mat=M_msb, alpha=alpha_msb, beta=beta_msb
+        )
         telem_msb = res_msb["telem"]
 
         # -------------------------------------------------------------
         # BEAT 2k+1: LSB SLICE
         # -------------------------------------------------------------
         client.set_w33_matrix(W_lsb_silicon)
-        res_lsb = execute_hardware_beat(client, args.delay_us, lr_q16, reg_q16, k_batch=args.k_batch)
+        res_lsb = execute_hardware_beat(
+            client, args.delay_us, lr_q16, reg_q16,
+            k_batch=args.k_batch, W_mat=M_lsb, alpha=alpha_lsb, beta=beta_lsb
+        )
         telem_lsb = res_lsb["telem"]
 
         # Recombination
@@ -332,8 +412,11 @@ def main():
         rmse_lsb = res_lsb["rmse_lsb"]
         enob_msb = res_msb["enob_bits"]
         enob_lsb = res_lsb["enob_bits"]
-        combined_rmse = math.sqrt((16.0 * rmse_msb)**2 + (rmse_lsb)**2)
-        combined_enob_raw = max(0.0, 15.0 - math.log2(max(combined_rmse, 1.0)))
+
+        # Sann Kontinuerlig Deterministisk 8-Bit Recombination ENOB:
+        # När MSB >= 4.0 bitar är alla 4 bitar deterministiska (4.0 + LSB).
+        # När MSB närmar sig 4.0 bitar skalas LSB-bidraget mjukt och kontinuerligt utan tröskelklipp.
+        combined_enob = min(9.5, max(0.0, min(4.0, enob_msb) + enob_lsb * min(1.0, max(0.0, enob_msb / 4.0))))
 
         w8_msb_min = min(min(r) for r in telem_msb.w_m8)
         w8_msb_max = max(max(r) for r in telem_msb.w_m8)
@@ -344,17 +427,19 @@ def main():
             "pair": pair_idx,
             "timestamp": time.time(),
             "elapsed_s": round(elapsed, 1),
+            "phase_name": cur_phase["name"],
+            "phase_idx": phase_idx,
             "heater_on": heater_macro_on,
-            "heater_time_left_s": round(heater_time_left, 1),
+            "heater_time_left_s": round(time_left_phase, 1),
             "reglering_on": reglering_on,
-            "reglering_time_left_s": round(reglering_time_left, 1),
+            "reglering_time_left_s": round(time_left_phase, 1),
             "enob_msb": round(enob_msb, 2),
             "enob_lsb": round(enob_lsb, 2),
             "rmse_msb": round(rmse_msb, 2),
             "rmse_lsb": round(rmse_lsb, 2),
             "loss_msb": round(res_msb["loss_lsb2"], 1),
             "loss_lsb": round(res_lsb["loss_lsb2"], 1),
-            "combined_enob_raw": round(combined_enob_raw, 2),
+            "combined_enob_raw": round(combined_enob, 2),
             "w8_msb_range": [w8_msb_min, w8_msb_max],
             "w8_lsb_range": [w8_lsb_min, w8_lsb_max],
         }
@@ -366,12 +451,13 @@ def main():
         write_latest_status_atomic({
             "pair": pair_idx,
             "elapsed_s": round(elapsed, 1),
+            "phase_name": cur_phase["name"],
             "heater_on": heater_macro_on,
             "heater_duty_pct": args.heater_duty_pct,
-            "heater_time_left_s": round(heater_time_left, 1),
+            "heater_time_left_s": round(time_left_phase, 1),
             "reglering_on": reglering_on,
-            "reglering_time_left_s": round(reglering_time_left, 1),
-            "comb_enob": round(combined_enob_raw, 2),
+            "reglering_time_left_s": round(time_left_phase, 1),
+            "comb_enob": round(combined_enob, 2),
             "msb_enob": round(enob_msb, 2),
             "lsb_enob": round(enob_lsb, 2),
             "w8_msb_range": [w8_msb_min, w8_msb_max],
@@ -382,9 +468,8 @@ def main():
             h_str = f"HEAT: ON ({args.heater_duty_pct:.0f}%)" if heater_macro_on else "HEAT: OFF ( 0%)"
             r_str = "REGL: ON (SGD )" if reglering_on else "REGL: OFF( W8=0)"
             print(f"Pair {pair_idx:4d} [{int(elapsed//60):02d}:{int(elapsed%60):02d}] | "
-                  f"{h_str} [{int(heater_time_left//60):02d}:{int(heater_time_left%60):02d}] | "
-                  f"{r_str} [{int(reglering_time_left//60):02d}:{int(reglering_time_left%60):02d}] | "
-                  f"MSB: {enob_msb:.2f} b | LSB: {enob_lsb:.2f} b | Comb: {combined_enob_raw:.2f} b | "
+                  f"{cur_phase['name'][:14]} | {h_str} | {r_str} | "
+                  f"MSB: {enob_msb:.2f} b | LSB: {enob_lsb:.2f} b | Comb: {combined_enob:.2f} b | "
                   f"W8_msb: [{w8_msb_min:+3d}, {w8_msb_max:+3d}]")
 
         pair_idx += 1
@@ -393,11 +478,24 @@ def main():
     with open(args.out_json, "w") as f:
         json.dump({
             "metadata": {
-                "title": "Inverted MAML Card 1 2-Beat Bit Slicing Thermal Stress Experiment",
-                "duration_minutes": args.duration_minutes,
+                "title": "Inverted MAML Card 1 2-Beat Bit Slicing Thermal Stress Experiment (Fixed Cold DC Calibrated)",
+                "duration_minutes": total_duration_s / 60.0,
                 "heater_duty_pct": args.heater_duty_pct,
+                "phases": phases,
+                "k_batch": args.k_batch,
+                "lr": args.lr,
+                "l2_reg": args.l2_reg,
+                "delay_us": args.delay_us,
                 "w_msb": W_msb_silicon,
-                "w_lsb": W_lsb_silicon
+                "w_lsb": W_lsb_silicon,
+                "calib_msb": {
+                    "alpha": alpha_msb.tolist(),
+                    "beta": beta_msb.tolist()
+                },
+                "calib_lsb": {
+                    "alpha": alpha_lsb.tolist(),
+                    "beta": beta_lsb.tolist()
+                }
             },
             "history": list(ring_history)
         }, f, indent=2)
