@@ -368,16 +368,11 @@ def main():
         heater_macro_on = cur_phase["heater"]
         reglering_on = cur_phase["regler"]
 
-        # PWM Heater control
-        pwm_period_s = 1.0 / max(0.1, args.heater_pwm_hz)
-        pwm_on_s = pwm_period_s * (args.heater_duty_pct / 100.0)
-        time_in_pwm_cycle = elapsed % pwm_period_s
-        physical_heater_on = heater_macro_on and (time_in_pwm_cycle < pwm_on_s)
-
-        if physical_heater_on != last_physical_heater_state:
-            pwr = 100 if physical_heater_on else 0
-            client.set_heaters(physical_heater_on, [pwr, pwr, pwr, pwr])
-            last_physical_heater_state = physical_heater_on
+        # Hardware-locked T20 PWM Heater control (crystal-locked 0.2 Hz on T20, zero Python/UDP jitter)
+        if heater_macro_on != last_physical_heater_state:
+            pwr = int(round(args.heater_duty_pct)) if heater_macro_on else 0
+            client.set_heaters(heater_macro_on, [pwr, pwr, pwr, pwr])
+            last_physical_heater_state = heater_macro_on
 
         # Reglering toggle
         if reglering_on != last_regler_state:
