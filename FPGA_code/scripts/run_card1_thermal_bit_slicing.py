@@ -276,7 +276,7 @@ def main():
     ])
     sc = 50.0 / 84.0
     M_msb = np.round(k_default_m33 * sc).astype(np.int32)
-    M_lsb = np.round(k_default_m33 * sc).astype(np.int32)
+    M_lsb = np.round(M_msb * 0.75).astype(np.int32)
 
     W_msb_silicon = M_msb.tolist()
     W_lsb_silicon = M_lsb.tolist()
@@ -388,8 +388,9 @@ def main():
                 time.sleep(0.02)
 
         # -------------------------------------------------------------
-        # BEAT 2k: MSB SLICE
+        # BEAT 2k: MSB SLICE (Hardware Slice Bank 0)
         # -------------------------------------------------------------
+        client._send_binary(0x1E, struct.pack("<BB", 4, 0))
         client.set_w33_matrix(W_msb_silicon)
         res_msb = execute_hardware_beat(
             client, args.delay_us, lr_q16, reg_q16,
@@ -398,8 +399,9 @@ def main():
         telem_msb = res_msb["telem"]
 
         # -------------------------------------------------------------
-        # BEAT 2k+1: LSB SLICE
+        # BEAT 2k+1: LSB SLICE (Hardware Slice Bank 1)
         # -------------------------------------------------------------
+        client._send_binary(0x1E, struct.pack("<BB", 4, 1))
         client.set_w33_matrix(W_lsb_silicon)
         res_lsb = execute_hardware_beat(
             client, args.delay_us, lr_q16, reg_q16,

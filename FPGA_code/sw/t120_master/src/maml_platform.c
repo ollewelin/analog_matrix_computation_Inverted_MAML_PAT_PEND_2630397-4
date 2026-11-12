@@ -140,6 +140,19 @@ static int16_t g_w_m33_q14[6][6];   /* Primary Payload Matrix M33 (fixed target)
 static int16_t g_vel_m3_q14[8][6];
 static int16_t g_vel_m8_q14[7][6];
 
+/* 2-Beat Interleaved Bit-Slicing Independent State Banks (0 = MSB, 1 = LSB) */
+typedef struct {
+    int16_t w0_m3_q14[8][6];
+    int16_t w0_m8_q14[7][6];
+    int16_t w_m3_q14[8][6];
+    int16_t w_m8_q14[7][6];
+    int16_t vel_m3_q14[8][6];
+    int16_t vel_m8_q14[7][6];
+} maml_slice_state_t;
+
+static maml_slice_state_t g_slice_bank[2];
+static uint8_t g_active_slice_id = 0u;
+
 /* Stratified time-slice gradient accumulators across the M=10 strata */
 static int32_t g_acc_grad_m3[8][6];
 static int32_t g_acc_grad_m8[7][6];
@@ -1404,6 +1417,43 @@ static void maml_center_compensation_weights(void) {
     }
     maml_update_3d_landscape_coords();
     maml_sync_shadow_bytes();
+
+    /* Initialize both slice banks (0 = MSB, 1 = LSB) to the centered baseline */
+    for (int s = 0; s < 2; s++) {
+        memcpy(g_slice_bank[s].w0_m3_q14,  g_w0_m3_q14,  sizeof(g_w0_m3_q14));
+        memcpy(g_slice_bank[s].w0_m8_q14,  g_w0_m8_q14,  sizeof(g_w0_m8_q14));
+        memcpy(g_slice_bank[s].w_m3_q14,   g_w_m3_q14,   sizeof(g_w_m3_q14));
+        memcpy(g_slice_bank[s].w_m8_q14,   g_w_m8_q14,   sizeof(g_w_m8_q14));
+        memcpy(g_slice_bank[s].vel_m3_q14, g_vel_m3_q14, sizeof(g_vel_m3_q14));
+        memcpy(g_slice_bank[s].vel_m8_q14, g_vel_m8_q14, sizeof(g_vel_m8_q14));
+    }
+    g_active_slice_id = 0u;
+}
+
+static void maml_switch_slice_bank(uint8_t new_slice) {
+    new_slice &= 1u;
+    if (new_slice == g_active_slice_id) return;
+
+    /* Save active slice state (full Q1.14 weights + momentum) */
+    memcpy(g_slice_bank[g_active_slice_id].w0_m3_q14,  g_w0_m3_q14,  sizeof(g_w0_m3_q14));
+    memcpy(g_slice_bank[g_active_slice_id].w0_m8_q14,  g_w0_m8_q14,  sizeof(g_w0_m8_q14));
+    memcpy(g_slice_bank[g_active_slice_id].w_m3_q14,   g_w_m3_q14,   sizeof(g_w_m3_q14));
+    memcpy(g_slice_bank[g_active_slice_id].w_m8_q14,   g_w_m8_q14,   sizeof(g_w_m8_q14));
+    memcpy(g_slice_bank[g_active_slice_id].vel_m3_q14, g_vel_m3_q14, sizeof(g_vel_m3_q14));
+    memcpy(g_slice_bank[g_active_slice_id].vel_m8_q14, g_vel_m8_q14, sizeof(g_vel_m8_q14));
+
+    g_active_slice_id = new_slice;
+
+    /* Restore target slice state */
+    memcpy(g_w0_m3_q14,  g_slice_bank[new_slice].w0_m3_q14,  sizeof(g_w0_m3_q14));
+    memcpy(g_w0_m8_q14,  g_slice_bank[new_slice].w0_m8_q14,  sizeof(g_w0_m8_q14));
+    memcpy(g_w_m3_q14,   g_slice_bank[new_slice].w_m3_q14,   sizeof(g_w_m3_q14));
+    memcpy(g_w_m8_q14,   g_slice_bank[new_slice].w_m8_q14,   sizeof(g_w_m8_q14));
+    memcpy(g_vel_m3_q14, g_slice_bank[new_slice].vel_m3_q14, sizeof(g_vel_m3_q14));
+    memcpy(g_vel_m8_q14, g_slice_bank[new_slice].vel_m8_q14, sizeof(g_vel_m8_q14));
+
+    maml_sync_shadow_bytes();
+    maml_refresh_all_columns();
 }
 
 static void maml_seed_weights(uint8_t mode, uint8_t swing_pct) {
@@ -2968,6 +3018,9 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                     /* Clear hidden offset back to 0 without touching nominal weights */
                     memset(g_hid_w_m33, 0, sizeof(g_hid_w_m33));
                     maml_refresh_all_columns();
+                } else if (subcmd == 4 && req_len >= 7) {
+                    /* Switch active 2-beat slice bank (0 = MSB, 1 = LSB) */
+                    maml_switch_slice_bank(req[6]);
                 }
             }
             t20_sync_heater_and_wdog();
