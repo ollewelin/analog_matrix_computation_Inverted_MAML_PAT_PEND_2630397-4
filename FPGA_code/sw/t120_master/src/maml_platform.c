@@ -153,6 +153,11 @@ typedef struct {
 static maml_slice_state_t g_slice_bank[2];
 static uint8_t g_active_slice_id = 0u;
 
+/* Optional locked cold DC calibration (alpha_q16, beta) per slice for z_target */
+static uint8_t g_slice_ab_enabled[2] = {0u, 0u};
+static int32_t g_slice_alpha_q16[2][6];
+static int16_t g_slice_beta[2][6];
+
 /* Stratified time-slice gradient accumulators across the M=10 strata */
 static int32_t g_acc_grad_m3[8][6];
 static int32_t g_acc_grad_m8[7][6];
@@ -673,16 +678,25 @@ static void maml_refresh_all_columns(void) {
  * ============================================================================ */
 static void maml_recompute_z_target(void) {
     /* Compute ideal digital target output Z_target = g_adc49_zero_cal + Target_Gain * (M33 * x_ref)
-     * When g_target_gain_q8 > 256 (e.g. 1024 = 4.0x), the digital supervisor demands excess gain
-     * above the attenuated M33 physical output, forcing M3 -> Sig4 -> M8 -> Sig10 to supply the difference! */
+     * When g_slice_ab_enabled[g_active_slice_id] is set (locked cold startup calibration),
+     * Z_target[j] = beta[j] + alpha[j] * (M33 * x_ref)[j], so online SGD tracks thermal drift
+     * rather than fighting the fixed passive attenuator gain (~0.02-0.05 vs 1.0). */
     uint16_t gain_q8 = (g_target_gain_q8 > 0) ? g_target_gain_q8 : 256u;
+    uint8_t use_ab = g_slice_ab_enabled[g_active_slice_id & 1u];
     for (int j = 0; j < 6; j++) {
         int32_t acc = 0;
         for (int i = 0; i < 6; i++) {
             acc += (int32_t)g_tel.w_m33[i][j] * (int32_t)g_tel.x_ref[i];
         }
-        int32_t acc_boosted = rshift_rne((int32_t)acc * (int32_t)gain_q8, 8);
-        int32_t z_scaled = (int32_t)g_adc49_zero_cal[j] + rshift_rne(acc_boosted * 8, 8);
+        int32_t z_scaled;
+        if (use_ab) {
+            int64_t prod = (int64_t)g_slice_alpha_q16[g_active_slice_id & 1u][j] * (int64_t)acc;
+            int32_t scaled = (int32_t)((prod + (prod >= 0 ? 32768LL : -32768LL)) >> 16);
+            z_scaled = (int32_t)g_slice_beta[g_active_slice_id & 1u][j] + scaled;
+        } else {
+            int32_t acc_boosted = rshift_rne((int32_t)acc * (int32_t)gain_q8, 8);
+            z_scaled = (int32_t)g_adc49_zero_cal[j] + rshift_rne(acc_boosted * 8, 8);
+        }
         if (z_scaled > 2047)  z_scaled = 2047;
         if (z_scaled < -2048) z_scaled = -2048;
         g_tel.z_target[j] = (int16_t)z_scaled;
@@ -1452,6 +1466,7 @@ static void maml_switch_slice_bank(uint8_t new_slice) {
     memcpy(g_vel_m3_q14, g_slice_bank[new_slice].vel_m3_q14, sizeof(g_vel_m3_q14));
     memcpy(g_vel_m8_q14, g_slice_bank[new_slice].vel_m8_q14, sizeof(g_vel_m8_q14));
 
+    maml_recompute_z_target();
     maml_sync_shadow_bytes();
     maml_refresh_all_columns();
 }
@@ -3021,6 +3036,18 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                 } else if (subcmd == 4 && req_len >= 7) {
                     /* Switch active 2-beat slice bank (0 = MSB, 1 = LSB) */
                     maml_switch_slice_bank(req[6]);
+                } else if (subcmd == 5 && req_len >= 43) {
+                    /* Set locked cold startup alpha_q16[6] and beta[6] for slice_id (0 = MSB, 1 = LSB) */
+                    uint8_t sid = req[6] & 1u;
+                    memcpy(g_slice_alpha_q16[sid], &req[7], 24);
+                    memcpy(g_slice_beta[sid], &req[31], 12);
+                    g_slice_ab_enabled[sid] = 1u;
+                    maml_recompute_z_target();
+                } else if (subcmd == 6) {
+                    /* Disable per-slice alpha/beta z_target override (revert to legacy) */
+                    g_slice_ab_enabled[0] = 0u;
+                    g_slice_ab_enabled[1] = 0u;
+                    maml_recompute_z_target();
                 }
             }
             t20_sync_heater_and_wdog();

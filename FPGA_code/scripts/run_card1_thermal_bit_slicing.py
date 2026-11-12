@@ -325,6 +325,12 @@ def main():
     alpha_msb, beta_msb = calibrate_fixed_slice_params(client, W_msb_silicon, num_samples=40, delay_us=args.delay_us)
     alpha_lsb, beta_lsb = calibrate_fixed_slice_params(client, W_lsb_silicon, num_samples=40, delay_us=args.delay_us)
 
+    # Lock cold alpha/beta inside T120 SoC z_target so SGD only tracks thermal drift (not 0.03 vs 1.0 gain)
+    for sid, (alp, bet) in [(0, (alpha_msb, beta_msb)), (1, (alpha_lsb, beta_lsb))]:
+        a_q16 = [int(round(float(a) * 65536.0)) for a in alp]
+        b_i16 = [max(-32768, min(32767, int(round(float(b))))) for b in bet]
+        client._send_binary(0x1E, struct.pack("<BB6i6h", 5, sid, *a_q16, *b_i16))
+
     print("  [+] MSB Slice Static Calib:")
     print(f"      alpha: {[round(x, 4) for x in alpha_msb]}")
     print(f"      beta : {[round(x, 1) for x in beta_msb]}")
