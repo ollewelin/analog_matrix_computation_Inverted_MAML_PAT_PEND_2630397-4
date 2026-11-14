@@ -67,7 +67,8 @@ This self-contained package archives the complete verified Card 1 Mode A **2-bea
 | `R16dc_fix` | `0.055` | `1920` | `0.85` | `±100` | `+0.94 b` | `1.67x` | `+0.89 b` | `0.40 b` | `0.75` | **`+2.443`** | 2T1C Triode Saturation Knee |
 | `R17dc_fix` | `0.055` | `1920` | `0.85` | `±90` | `+0.70 b` | `1.52x` | `+0.82 b` | `0.34 b` | `0.75` | **`+2.026`** | Replicate 1 (P3 9.03 b, Loss 9.5k) |
 | `R18dc_fix` | `0.055` | `1920` | `0.85` | `±90` | `+0.88 b` | `1.65x` | **`+1.25 b`** | `0.39 b` | `0.50` | **`+2.385`** | Replicate 2 (Clean climb +1.25 b) |
-| **`R19dc_fix` ★** | **`0.055`** | **`1920`** | **`0.85`** | **`±90`** | `+0.77 b` | `1.52x` | `+0.74 b` | `0.37 b` | `0.67` | **`+1.888`** | **Replicate 3 (P3 8.80 b, P5 Lift +1.11 b, 3924 unbroken pairs)** |
+| `R19dc_fix` | `0.055` | `1920` | `0.85` | `±90` | `+0.77 b` | `1.52x` | `+0.74 b` | `0.37 b` | `0.67` | **`+1.888`** | Replicate 3 (P3 8.80 b, P5 Lift +1.11 b, 3924 unbroken pairs) |
+| **`R20dc_fix` ★** | **`0.055`** | **`1920`** | **`0.85`** | **`±90`** | `+0.82 b` | `1.58x` | `+0.80 b` | `0.41 b` | `0.51` | **`+1.902`** | **Multi-Stage Sweep: 2 Cold + 6 Warm 30% + 6 Warm 40% (Lift +1.25 b in P13, 4702 pairs)** |
 
 ---
 
@@ -88,7 +89,12 @@ A systematic hardware sweep (`R10dc_fix .. R16dc_fix`) on physical silicon revea
 
 ### Empirical Visualizations from Silicon Reports
 
-#### 1. Unbroken Telemetry Replicate (Round 19dc_fix, Clamp = ±90 LSB)
+#### 1. Multi-Stage Thermal Sweep Timeline (Round 20dc_fix, 30% Heat + 40% Heat, Clamp = ±90 LSB)
+Comprehensive 14-phase multi-stage thermal stress experiment across 4,702 unbroken pairs showing 30s step-responses at 30% and 40% PWM heating, reaching +1.25 bits lift and 1.87x loss reduction under heavy thermal stress without saturation:
+
+![Round 20 Optimum Timeline](reports_and_logs/figures/fig_card1_r20_lr0p055_l2_1920_mom0p85_cl90_thermal_slicing.png)
+
+#### 2. Unbroken Telemetry Replicate (Round 19dc_fix, Clamp = ±90 LSB)
 Complete 3,924 unbroken sample pairs showing 8.80 bits Phase 3 ENOB, +1.11 bits Phase 5 lift, 1.72x loss reduction, and clean linear anti-windup regulation at ±90 LSB:
 
 ![Round 19 Optimum Timeline](reports_and_logs/figures/fig_card1_r19dc_fix_lr0p055_l2_1920_mom0p85_cl90_thermal_slicing.png)

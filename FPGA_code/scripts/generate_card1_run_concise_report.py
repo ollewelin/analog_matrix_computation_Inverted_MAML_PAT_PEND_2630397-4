@@ -139,6 +139,10 @@ def generate_timeline_figure(
     phases = meta["phases"]
     clamp = int(meta.get("clamp_lsb", 75))
     w3_cap = max(15, clamp // 3)
+    if "stage1_duty_pct" in meta and "stage2_duty_pct" in meta:
+        duty_desc = f"{meta['stage1_duty_pct']:.0f}%/{meta['stage2_duty_pct']:.0f}% PWM"
+    else:
+        duty_desc = f"{meta.get('heater_duty_pct', 40):.0f}% PWM"
 
     t_s = np.array([float(r["elapsed_s"]) for r in hist], dtype=np.float64)
     t_min = t_s / 60.0
@@ -186,7 +190,7 @@ def generate_timeline_figure(
     ax.grid(True, linestyle=":", alpha=0.5)
     ax.legend(loc="lower left", fontsize=7.5, ncol=3, framealpha=0.92)
     ax.set_title(
-        f"Card 1 Round {round_num} Bit-Slicing ({meta['heater_duty_pct']:.0f}% PWM, K={meta['k_batch']}, "
+        f"Card 1 Round {round_num} Bit-Slicing ({duty_desc}, K={meta['k_batch']}, "
         f"LR={meta['lr']}, L2={meta['l2_reg']}, Mom={meta['momentum']}, Clamp=±{clamp} LSB)",
         fontsize=10.8, fontweight="bold"
     )
@@ -263,6 +267,10 @@ def generate_all_weights_figure(data: dict, fig_out: Path, round_num: int) -> bo
     phases = meta["phases"]
     clamp = int(meta.get("clamp_lsb", 75))
     w3_cap = max(15, clamp // 3)
+    if "stage1_duty_pct" in meta and "stage2_duty_pct" in meta:
+        duty_desc = f"{meta['stage1_duty_pct']:.0f}%/{meta['stage2_duty_pct']:.0f}% PWM"
+    else:
+        duty_desc = f"{meta.get('heater_duty_pct', 40):.0f}% PWM"
     t_min = np.array([float(r["elapsed_s"]) for r in hist], dtype=np.float64) / 60.0
 
     has_full = ("w8_msb" in hist[0] and "w3_msb" in hist[0])
@@ -469,13 +477,17 @@ def write_markdown(
 ) -> None:
     tr = trend_info["trends"]
     best_row = max(all_rows, key=lambda r: r["score"])
+    if "stage1_duty_pct" in meta and "stage2_duty_pct" in meta:
+        duty_desc = f"{meta['stage1_duty_pct']:.0f}%/{meta['stage2_duty_pct']:.0f}% PWM"
+    else:
+        duty_desc = f"{meta.get('heater_duty_pct', 40):.0f}% PWM"
     lines = [
         f"# Inverted MAML Card 1: Round {round_num} Thermal Bit-Slicing Report ({slug_upper})",
         "",
         "**Hardware:** Card 1 (`Trion T120F324` Master SoC + `Trion T20F256` Coprocessor, `1k / 2.2k` Passive Attenuator)  ",
         "**Firmware:** `T120_SOC_ETH_FW v2.2-MAML (SW Build Nov 14 2026 10:15:16)`, `HW_LOGIC: 0x20261030`  ",
         f"**Dataset:** `FPGA_code/logs/bit_slicing/{json_name}` (`{sum(s['n_pairs'] for s in stats):,}` pairs)  ",
-        f"**Hyperparameters:** `Heater = {meta['heater_duty_pct']:.0f}%` PWM, `K = {meta['k_batch']}`, `LR = {meta['lr']}`, `L2 = {meta['l2_reg']}`, `Momentum = {meta['momentum']}`, `Clamp = ±{meta.get('clamp_lsb', 75)} LSB`  ",
+        f"**Hyperparameters:** `Heater = {duty_desc}`, `K = {meta['k_batch']}`, `LR = {meta['lr']}`, `L2 = {meta['l2_reg']}`, `Momentum = {meta['momentum']}`, `Clamp = ±{meta.get('clamp_lsb', 75)} LSB`  ",
         "",
         "---",
         "",
@@ -585,6 +597,10 @@ def build_pdf(
     tr = trend_info["trends"]
     best_row = max(all_rows, key=lambda r: r["score"])
     clamp = int(meta.get("clamp_lsb", 75))
+    if "stage1_duty_pct" in meta and "stage2_duty_pct" in meta:
+        duty_desc = f"{meta['stage1_duty_pct']:.0f}%/{meta['stage2_duty_pct']:.0f}% PWM"
+    else:
+        duty_desc = f"{meta.get('heater_duty_pct', 40):.0f}% PWM"
     doc = SimpleDocTemplate(str(pdf_out), pagesize=letter, leftMargin=40, rightMargin=40, topMargin=34, bottomMargin=42)
 
     story = [
@@ -592,7 +608,7 @@ def build_pdf(
         Paragraph(
             f"<b>Hardware:</b> Card 1 (T120+T20, 1k/2.2k) &nbsp;|&nbsp; "
             f"<b>FW:</b> v2.2-MAML (0x20261030) &nbsp;|&nbsp; "
-            f"<b>Params:</b> {meta['heater_duty_pct']:.0f}% PWM, K={meta['k_batch']}, LR={meta['lr']}, L2={meta['l2_reg']}, Mom={meta['momentum']}, Clamp=±{clamp} LSB",
+            f"<b>Params:</b> {duty_desc}, K={meta['k_batch']}, LR={meta['lr']}, L2={meta['l2_reg']}, Mom={meta['momentum']}, Clamp=±{clamp} LSB",
             sub_s,
         ),
         HRFlowable(width="100%", thickness=0.9, color=colors.HexColor("#cbd5e1")),
