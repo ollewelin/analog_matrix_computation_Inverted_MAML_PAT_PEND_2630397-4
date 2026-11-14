@@ -227,6 +227,23 @@ def write_latest_status_atomic(data: dict):
     except Exception:
         pass
 
+def verify_hw_clamp(client: MamlUdpClient, target_clamp: int, attempts: int = 8) -> int:
+    """Apply and verify M3/M8 hardware weight clamp over UDP against MamlTelemetry.w_comp_clamp."""
+    last_seen = None
+    for attempt in range(1, attempts + 1):
+        drain_udp(client)
+        telem = client.set_gain_experiment(d_line=2, w33=1, target_gain=1.0, clamp=int(target_clamp))
+        if telem is not None:
+            last_seen = int(getattr(telem, "w_comp_clamp", -1))
+            if last_seen == int(target_clamp):
+                print(f"[+] Verified Hardware Clamp: ±{last_seen} LSB (attempt {attempt}/{attempts})")
+                return last_seen
+        time.sleep(0.05)
+    raise RuntimeError(
+        f"Hardware failed to acknowledge clamp ±{target_clamp} LSB after {attempts} attempts (last seen: {last_seen})"
+    )
+
+
 def main():
     global client_global, running
     parser = argparse.ArgumentParser(description="Card 1 Thermal Stress 2-Beat Bit Slicing")
@@ -245,6 +262,7 @@ def main():
     parser.add_argument("--warm-phases", type=int, default=6, help="Number of warm (Heater ON) phases (default 6)")
     parser.add_argument("--cool-phases", type=int, default=2, help="Number of trailing cool phases (default 2, use 0 to skip)")
     parser.add_argument("--cooldown-sec", type=float, default=60.0, help="Pre-run forced cooldown duration with Heaters OFF before cold DC calibration (default 60s)")
+    parser.add_argument("--load-dc-calib", type=str, default="FPGA_code/config/r1_dc_cal_fixed.json", help="Path to locked R1 cold DC calibration JSON (pass '' to fit new calibration at t=0)")
     parser.add_argument("--out-json", type=str, default="FPGA_code/logs/bit_slicing/card1_thermal_slicing_30pct_k2_lr0p04_16min.json")
     args = parser.parse_args()
 
@@ -313,7 +331,7 @@ def main():
     client.clear_w33_hidden_offset()
     time.sleep(0.03)
 
-    client.set_gain_experiment(d_line=2, w33=1, target_gain=1.0, clamp=args.clamp)
+    verify_hw_clamp(client, args.clamp, attempts=8)
     time.sleep(0.03)
 
     lr_q16_active = int(round(args.lr * 1024.0))
@@ -364,15 +382,26 @@ def main():
     time.sleep(0.05)
     client._send_binary(MAML_CMD_CENTER_WEIGHTS, init_payload)
     time.sleep(0.05)
+    verify_hw_clamp(client, args.clamp, attempts=8)
     client.set_heaters(False, [0, 0, 0, 0])
     time.sleep(0.03)
 
     # -----------------------------------------------------------------
-    # FIXED COLD DC CALIBRATION (Fitted at t=0, Heaters OFF, Locked)
+    # FIXED COLD DC CALIBRATION (Locked R1 Reference or t=0 Fit)
     # -----------------------------------------------------------------
-    print("\n[*] Executing Fixed Cold DC Calibration (40 samples per slice, Heaters OFF)...")
-    alpha_msb, beta_msb = calibrate_fixed_slice_params(client, W_msb_silicon, num_samples=40, delay_us=args.delay_us)
-    alpha_lsb, beta_lsb = calibrate_fixed_slice_params(client, W_lsb_silicon, num_samples=40, delay_us=args.delay_us)
+    use_locked_cal = bool(args.load_dc_calib and os.path.exists(args.load_dc_calib))
+    if use_locked_cal:
+        with open(args.load_dc_calib, "r") as f_cal:
+            cal_obj = json.load(f_cal)
+        alpha_msb = np.array(cal_obj["calib_msb"]["alpha"], dtype=np.float64)
+        beta_msb = np.array(cal_obj["calib_msb"]["beta"], dtype=np.float64)
+        alpha_lsb = np.array(cal_obj["calib_lsb"]["alpha"], dtype=np.float64)
+        beta_lsb = np.array(cal_obj["calib_lsb"]["beta"], dtype=np.float64)
+        print(f"\n[*] Loaded PERMANENT LOCKED R1 Cold DC Calibration from: {args.load_dc_calib}")
+    else:
+        print("\n[*] Executing Fixed Cold DC Calibration (40 samples per slice, Heaters OFF)...")
+        alpha_msb, beta_msb = calibrate_fixed_slice_params(client, W_msb_silicon, num_samples=40, delay_us=args.delay_us)
+        alpha_lsb, beta_lsb = calibrate_fixed_slice_params(client, W_lsb_silicon, num_samples=40, delay_us=args.delay_us)
 
     # Lock cold alpha/beta inside T120 SoC z_target so SGD only tracks thermal drift (not 0.03 vs 1.0 gain)
     for sid, (alp, bet) in [(0, (alpha_msb, beta_msb)), (1, (alpha_lsb, beta_lsb))]:
@@ -521,6 +550,10 @@ def main():
             "w8_lsb_range": [w8_lsb_min, w8_lsb_max],
             "w3_msb_range": [w3_msb_min, w3_msb_max],
             "w3_lsb_range": [w3_lsb_min, w3_lsb_max],
+            "w8_msb": [[int(v) for v in row] for row in telem_msb.w_m8],
+            "w8_lsb": [[int(v) for v in row] for row in telem_lsb.w_m8],
+            "w3_msb": [[int(v) for v in row] for row in telem_msb.w_m3],
+            "w3_lsb": [[int(v) for v in row] for row in telem_lsb.w_m3],
             "clip_msb": int(telem_msb.clip_events_cnt),
             "clip_lsb": int(telem_lsb.clip_events_cnt),
         }
@@ -528,8 +561,13 @@ def main():
         ring_history.append(pair_record)
 
         # Throttled atomic writes for GUI (~2 Hz and on phase transitions) to prevent CPU/disk stall
+        # Strip full 2D matrices from live GUI ring buffer so disk atomic writes stay <1 ms.
         if phase_changed or (pair_idx % 5 == 0):
-            write_ring_buffer_atomic({"history": list(ring_history)})
+            lite_hist = [
+                {k: v for k, v in r.items() if k not in ("w8_msb", "w8_lsb", "w3_msb", "w3_lsb")}
+                for r in ring_history
+            ]
+            write_ring_buffer_atomic({"history": lite_hist})
             write_latest_status_atomic({
                 "pair": pair_idx,
                 "elapsed_s": round(elapsed, 1),
@@ -571,6 +609,7 @@ def main():
                 "momentum": args.momentum,
                 "clamp_lsb": args.clamp,
                 "delay_us": args.delay_us,
+                "dc_calib_mode": f"LOCKED_R1_FIXED ({args.load_dc_calib})" if use_locked_cal else "PER_RUN_T0_FIT",
                 "w_msb": W_msb_silicon,
                 "w_lsb": W_lsb_silicon,
                 "calib_msb": {

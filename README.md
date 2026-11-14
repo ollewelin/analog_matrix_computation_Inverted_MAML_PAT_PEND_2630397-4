@@ -216,12 +216,81 @@ Working with analog computing is an act of balancing physics and precision. Very
   - **5. Official Comprehensive Report:**
     - [📄 `INVERTED_MAML_CARD2_THERMAL_STRESS_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD2_THERMAL_STRESS_COMPREHENSIVE_REPORT.pdf) (Complete 11-page publication report in English, with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD2_THERMAL_STRESS_COMPREHENSIVE_REPORT.md))
 
+- **2026-11-14 (Card 1 Cold-Start 2-Beat Analog Bit Slicing, Integrated-L2 Anti-Windup & 8-Round Thermal Hyperparameter Optimization):**
+  - **1. Objective, Hardware Setup & Firmware Fixes (`T120_SOC_ETH_FW v2.2-MAML`, `HW_LOGIC 0x20261030`):**  
+    Validated 2-beat time-division multiplexed **Analog Bit Slicing (`K = 1`)** on **Card 1 (`Trion T120F324` Master SoC + `Trion T20F256` Coprocessor, `1k / 2.2k` passive summing attenuator)** under active hardware thermal stress (**`40%` duty-cycle staggered `0.2 Hz` PWM heating**). To isolate pure hyperparameter sensitivity across rounds without baking cumulative PCB heat into calibration targets, all experiments locked the static 25 °C ambient DC calibration vectors (`alpha`, `beta`) from Round 1 in [`FPGA_code/config/r1_dc_cal_fixed.json`](FPGA_code/config/r1_dc_cal_fixed.json). Key firmware breakthroughs in `v2.2-MAML` include:
+    1. **Two-Layer `dx8` Backpropagation Sign & `M3` Scaling Fix:** Corrected the sign inversion in `dx8[i]` accumulation (`err49[j]` $\to$ `-err49[j]`), tuned `grad_m3_out` shift to `>> 6`, and bounded active `M3` rows `0..5` to `±max(15, clamp/3)` (`±25 LSB` at `clamp=75`) via `sat_comp_m3_q14()` so dynamic adaptation never corrupts the frozen `±40 LSB` temporal reference staircases (`M3` rows `6..7`).
+    2. **Integrated-L2 Back-Calculation Anti-Windup (`maml_momentum_step_antiwindup`):** Folded L2 decay directly inside velocity updates and projected stored momentum velocity to realized clamped steps whenever weights touch `±clamp`, eliminating rail-bounce limit cycles.
+    3. **Ethernet Minimum-Frame & Verified Clamp Handshake:** Preserved 60-byte padded IEEE 802.3 command reception (`MAML_CMD_BATCH_STEP`) and added `verify_hw_clamp()` telemetry readback verification before each run.
+
+  - **2. Core Results — 2x2 Factorial Accounting, 8-Round Locked-DC Search (`R1dc_fix..R8dc_fix`) & 13-Min Sustained Verification:**
+
+    | Factorial Condition | Thermal State | Regulation State | Mean Loss (LSB²) | Mean Comb ENOB | Peak Comb ENOB | MSB / LSB Mean | W8 Range [MSB / LSB] |
+    | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+    | **1. Cold Closed-Loop** | Heaters OFF (0%) | Comp ON (`K=1`, `L2=2048`) | `3,748.0 L²` | **9.45 b** | `9.50 b` | `5.58 / 5.83 b` | `[-13, 13]` / `[-6, 7]` |
+    | **2. Cold Open-Loop** | Heaters OFF (0%) | Comp OFF (`W8=0`) | `3,947.3 L²` | **9.45 b** | `9.50 b` | `5.53 / 5.84 b` | `[0, 0]` (0% leak) |
+    | **3. Warm Closed-Loop** | Heaters ON (`40%` PWM) | Comp ON (`K=1`, `L2=2048`) | **`50,580.5 L²`** | **`7.19 b`** | `9.50 b` | `3.75 / 3.83 b` | `[-75, 75]` / `[-75, 75]` |
+    | **4. Warm Open-Loop** | Heaters ON (`40%` PWM) | Comp OFF (`W8=0`) | `106,727.2 L²` | `5.66 b` | `7.65 b` | `3.14 / 3.21 b` | `[0, 0]` (0% leak) |
+
+    **Multi-Round Locked-DC Optimization Summary (`R1dc_fix..R8dc_fix`, vs. Continuous PCHIP Thermal Baseline $E_{\text{base}}(t)$):**
+
+    | Round | LR | L2 Reg | Mom | Clamp | Lift vs `E_base` | Loss Ratio | Hot Climb | Jitter | Recov | Composite Score |
+    | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+    | `R1dc_fix` | `0.03` | `1024` | `0.9` | `±75` | `+1.00 b` | `1.71x` | `+0.95 b` | `0.40 b` | `0.00` | **`+1.799`** |
+    | `R2dc_fix` | `0.035` | `1536` | `0.85` | `±75` | `+0.99 b` | `1.69x` | `+1.16 b` | `0.39 b` | `0.00` | **`+1.957`** |
+    | `R3dc_fix` | `0.02` | `2560` | `0.8` | `±70` | `+0.04 b` | `1.00x` | `+0.24 b` | `0.34 b` | `1.00` | **`+0.204`** |
+    | `R4dc_fix` | `0.05` | `1792` | `0.85` | `±70` | `+1.08 b` | `1.78x` | `+0.97 b` | `0.40 b` | `0.50` | **`+2.480`** |
+    | `R5dc_fix` | `0.055` | `1792` | `0.85` | `±85` | `+1.12 b` | `1.77x` | `+1.37 b` | `0.42 b` | `0.00` | **`+2.393`** |
+    | `R6dc_fix` | `0.055` | `1792` | `0.8` | `±90` | `+0.99 b` | `1.72x` | `+1.02 b` | `0.40 b` | `0.00` | **`+1.770`** |
+    | **`R7dc_fix` ★** | **`0.055`** | **`2048`** | **`0.85`** | **`±75`** | `+1.04 b` | `1.74x` | `+1.17 b` | `0.40 b` | `0.50` | **`+2.665`** |
+    | **`R8dc_fix` (13m Verify)** | **`0.055`** | **`2048`** | **`0.85`** | **`±75`** | **`+1.16 b`** | **`1.85x`** | `+0.68 b` | `0.42 b` | `0.00` | **`+1.855`** |
+
+    **Phase-by-Phase Telemetry for the 13-Minute Sustained Verification Run (`R8dc_fix`, last `7,200` ring-buffered pairs `P3..P8`):**
+
+    | Phase | Regime | Pairs | Comb ENOB (`Start -> Late`, Mean) | Δ vs `E_base` | Total Loss (`Start -> Late`) | Loss Ratio | W8 Peak `[M, L]` | W3 Peak |
+    | :--- | :--- | ---: | :---: | :---: | :---: | :---: | :---: | :---: |
+    | `P3` | Warm / Regler ON | 1672 | `8.33 -> 7.58` (**7.95 b**) | **`+1.29 b`** | `20,916 -> 41,271` | **`1.93x`** | `[75, 75]` | `25` |
+    | `P4` | Warm / Regler OFF | 1230 | `6.37 -> 5.85` (`6.09 b`) | `+0.02 b` | `70,958 -> 94,606` | `1.00x` | `[0, 0]` | `0` |
+    | `P5` | Warm / Regler ON | 1254 | `6.02 -> 6.70` (**6.75 b**) | **`+1.08 b`** | `87,755 -> 62,399` | **`1.78x`** | `[75, 75]` | `25` |
+    | `P6` | Warm / Regler OFF | 950 | `5.53 -> 5.43` (`5.49 b`) | `+0.01 b` | `111,378 -> 117,807` | `1.00x` | `[0, 0]` | `0` |
+    | `P7` | Warm / Regler ON | 1105 | `5.63 -> 6.49` (**6.52 b**) | **`+1.16 b`** | `107,093 -> 68,701` | **`1.84x`** | `[75, 75]` | `25` |
+    | `P8` | Warm / Regler OFF | 989 | `5.33 -> 5.26` (`5.29 b`) | `-0.00 b` | `124,102 -> 129,302` | `1.00x` | `[0, 0]` | `0` |
+
+  - **3. Empirical Visualizations & Full 180-Synapse Weight Telemetry (`84 W(8)` + `96 W(3)`):**
+
+    ![Card 1 13-Minute Bit-Slicing Thermal Performance Timeline](FPGA_code/docs/figures/fig_card1_bs_comp_timeline.png)
+    *Figure: Complete 13-minute verification timeline (`R8dc_fix`, `LR=0.055, L2=2048, Mom=0.85, Clamp=±75 LSB`) across `6 x 2.0 min` warm cycles (`P3..P8`). Closed-loop compensation maintains a consistent `+1.08 b` to `+1.29 b` ENOB lift (`1.78x`–`1.93x` loss suppression) above the continuous PCHIP uncompensated thermal drift curve $E_{\text{base}}(t)$ even as open-loop drift sinks to `5.29 b`.*
+
+    ![Multi-Round & Phase-by-Phase Hyperparameter Comparison Heatmap](FPGA_code/docs/figures/fig_card1_bs_comp_heatmap.png)
+    *Figure: Multi-round hyperparameter comparison across `R1dc_fix..R8dc_fix` showing mean combined ENOB (left) and thermal-detrended lift vs. $E_{\text{base}}(t)$ (right), highlighting the low-LR under-drive collapse at `R3` (`LR=0.02, L2=2560`), the `R7dc_fix` composite optimum (`+2.665`), and sustained `R8dc_fix` 13-minute gains (`+1.16 b` detrended lift).*
+
+    ![All 84 Individual W(8) Matrix Weights Across 13-Minute Run](FPGA_code/docs/figures/fig_card1_bs_comp_all_w8_weights.png)
+    *Figure: Full per-synapse telemetry of all `84 W(8)` compensation weights (`7 rows x 6 cols` MSB + `7 rows x 6 cols` LSB) during the 13-minute verification run (`R8dc_fix`), cleanly clamping at `±75 LSB` with integrated-L2 anti-windup and dropping to `0` during OFF ablation phases.*
+
+    ![All 96 Individual W(3) Matrix Weights Across 13-Minute Run](FPGA_code/docs/figures/fig_card1_bs_comp_all_w3_weights.png)
+    *Figure: Full per-synapse telemetry of all `96 W(3)` hidden-layer weights (`8 rows x 6 cols` MSB + `8 rows x 6 cols` LSB) during `R8dc_fix`, verifying that active data rows `0..5` stay bounded inside `±25 LSB` while frozen temporal clock staircase rows `6..7` (`±40 LSB`, dashed curves) remain untouched.*
+
+    ![Hot-Phase Convergence Trajectories Across R1dc_fix..R8dc_fix](FPGA_code/docs/figures/fig_card1_bs_comp_hot_convergence.png)
+    *Figure: Detrended warm closed-loop convergence trajectories comparing all 8 optimization rounds, illustrating rapid thermal drift rejection whenever `LR >= 0.05` and balanced `L2` restoring force is active.*
+
+    ![2x2 Factorial Summary & Trend Metrics for Card 1 Bit Slicing](FPGA_code/docs/figures/fig_card1_bs_comp_factorial_summary.png)
+    *Figure: 2x2 factorial ENOB and mean loss summary (`Cold ON/OFF = 9.45 b`, `Warm ON = 7.19 b` vs. `Warm OFF = 5.66 b`) paired with detrended optimization scores.*
+
+    ![Champion R7dc_fix Full 180-Weight Telemetry Across P1..P6](FPGA_code/docs/figures/fig_card1_r7dc_fix_lr0p055_l2_2048_mom0p85_cl75_w8_w3_all_weights.png)
+    *Figure: Complete 180-synapse weight trajectories (`84 W(8)` + `96 W(3)`) for the global short-run champion `R7dc_fix ★` (`LR=0.055, L2=2048, Mom=0.85, Clamp=±75 LSB`, Composite Score `+2.665`) across all 6 Cold+Warm phases (`P1..P6`).*
+
+  - **4. Official Comprehensive & Per-Round Reports:**
+    - [📄 `INVERTED_MAML_CARD1_BIT_SLICING_THERMAL_STRESS_FHP_COMPREHENSIVE_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD1_BIT_SLICING_THERMAL_STRESS_FHP_COMPREHENSIVE_REPORT.pdf) (Complete 13-page Card 1 Bit-Slicing & FHP Comprehensive Report, with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD1_BIT_SLICING_THERMAL_STRESS_FHP_COMPREHENSIVE_REPORT.md))
+    - Per-round 2-page 180-weight reports: [R8dc_fix (13-min Verify)](FPGA_code/docs/INVERTED_MAML_CARD1_R8DC_FIX_LR0P055_L2_2048_MOM0P85_CL75_THERMAL_SLICING_REPORT.pdf) · [R7dc_fix ★ (Optimum `+2.665`)](FPGA_code/docs/INVERTED_MAML_CARD1_R7DC_FIX_LR0P055_L2_2048_MOM0P85_CL75_THERMAL_SLICING_REPORT.pdf) · [R6dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R6DC_FIX_LR0P055_L2_1792_MOM0P80_CL90_THERMAL_SLICING_REPORT.pdf) · [R5dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R5DC_FIX_LR0P055_L2_1792_MOM0P85_CL85_THERMAL_SLICING_REPORT.pdf) · [R4dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R4DC_FIX_LR0P05_L2_1792_MOM0P85_CL70_THERMAL_SLICING_REPORT.pdf) · [R3dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R3DC_FIX_LR0P02_L2_2560_MOM0P80_CL70_THERMAL_SLICING_REPORT.pdf) · [R2dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R2DC_FIX_LR0P035_L2_1536_MOM0P85_CL75_THERMAL_SLICING_REPORT.pdf) · [R1dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R1DC_FIX_LR0P03_L2_1024_MOM0P90_CL75_THERMAL_SLICING_REPORT.pdf)
+    - Verified parameter registry & locked R1 DC calibration: [`FPGA_code/config/bit_slicing_hyperparams.json`](FPGA_code/config/bit_slicing_hyperparams.json), [`FPGA_code/config/r1_dc_cal_fixed.json`](FPGA_code/config/r1_dc_cal_fixed.json)
+
 ---
 
 ### 📦 Verified Release Archives & Reproducibility Packages
 
 Release packages containing synthesized bitstreams (`*.bit`), flash hex (`*.hex`), open-source SystemVerilog HDL, RISC-V C-firmware, and test scripts are archived in [`FPGA_code/releases/`](FPGA_code/releases/):
 
+- [**`Release_20261114_ModeA_Card1_BitSlicing_AntiWindup_Baseline_R1`**](FPGA_code/releases/Release_20261114_ModeA_Card1_BitSlicing_AntiWindup_Baseline_R1/): **Complete Card 1 2-Beat Analog Bit-Slicing (`K=1`), Integrated-L2 Anti-Windup & Locked-DC Thermal Optimization Software Package.** Includes verified `T120F324` bitstreams/hex (`v2.2-MAML`, `0x20261030`), full C firmware + BSP, locked 25 °C DC calibration (`r1_dc_cal_fixed.json`), Python runner with clamp verification (`verify_hw_clamp`), GP tuner, live GUI, all `R1dc_fix..R8dc_fix` 180-weight PDF reports, 13-page FHP Comprehensive Report, and verified telemetry datasets (`Cold 9.45 b`, `R7dc_fix ★ Score +2.665`, `R8dc_fix 13-min +1.16 b Lift / 1.85x LossR`).
 - [**`Release_20261108_ModeA_Card2_ThermalStress_Cycling_30pctDuty_1Hz`**](FPGA_code/releases/Release_20261108_ModeA_Card2_ThermalStress_Cycling_30pctDuty_1Hz/): **Complete 20-minute physical thermal stress and active drift rejection benchmark package on Card 2 silicon.** 4 on-board heaters driven at 30% duty cycle (1.0 Hz PWM) in 8.0m ON / 8.0m OFF cycles interleaved with 2.0m ON / 2.0m OFF Mode A SGD across [5.0..5.4 ms] (3,331 epochs). Proves -69.9% error reduction (+1.00 b resolution gain) under cold drift, dynamic headroom expansion to +117 LSB, BJT saturation guard, complete 11-page publication report, full 3,331-epoch dataset, bitstreams, and live monitoring GUI.
 - [**`Release_20261107_ModeA_Card2_TimingSolid_VerilogEngine_Comprehensive`**](FPGA_code/releases/Release_20261107_ModeA_Card2_TimingSolid_VerilogEngine_Comprehensive/): Verified crystal-locked 10.000000 ms Verilog Frame Engine benchmark on Card 2 silicon across both [4.5..5.5 ms] and [4.9..5.9 ms] windows. Contains T120/T20 bitstreams, firmware, HDL, and 10-page reports.
 - [**`Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K1_PairedAblation`**](FPGA_code/releases/Release_20261106_ModeA_Card2_1000ep_W3_Staircase_K1_PairedAblation/): Verified 1000-epoch benchmark on Card 2 live silicon with crystal-locked 10.0 ms timing, W(3) staircase dynamic calibration, and 1:1 paired-ablation control ($K=1$ Online SGD). Contains clean RISC-V firmware, T120/T20 bitstreams, HDL, Python runner, and 10-page report.
