@@ -453,10 +453,10 @@ def propose_next_hyperparams(
     best = max(analyses, key=lambda a: a["score"])
 
     # Candidate grid constrained inside physically valid regimes
-    lrs = [0.020, 0.025, 0.028, 0.030, 0.032, 0.035, 0.038, 0.040, 0.045, 0.055]
-    l2s = [768, 896, 1024, 1280, 1536, 1792, 2048, 2560]
-    moms = [0.75, 0.80, 0.82, 0.85, 0.86, 0.88, 0.90, 0.92]
-    clamps = [65, 70, 72, 75, 78, 80]
+    lrs = [0.025, 0.030, 0.035, 0.040, 0.045, 0.050, 0.055]
+    l2s = [512, 768, 896, 1024, 1280, 1536, 1792, 2048]
+    moms = [0.75, 0.80, 0.82, 0.85, 0.88, 0.90, 0.92]
+    clamps = [70, 75, 80, 85, 90, 95]
 
     candidates = []
     for lr in lrs:
@@ -474,48 +474,45 @@ def propose_next_hyperparams(
 
     mu, sigma = _gp_predict(X_train, y_train, X_cand)
 
-    # Physics trend-curve shaping prior anchored on the latest & best runs
-    tr = latest["trends"]
+    # Physics trend-curve shaping prior anchored on best when latest collapsed, else latest
+    ref = best if latest["score"] < best["score"] - 0.5 else latest
+    tr = ref["trends"]
     p_best = best["params"]
     b_tr = best["trends"]
 
-    # Exploration coefficient decays across the 5 rounds (Round 2..3 explore, Round 4..5 exploit)
-    kappa = max(0.25, 1.35 - 0.25 * max(0, next_round_idx - 2))
-
-    prior_bonus = np.zeros(len(candidates), dtype=np.float64)
-    target_lr = p_best["lr"]
-    target_l2 = float(p_best["l2_reg"])
-    target_mom = p_best["momentum"]
-    target_clamp = float(p_best["clamp"])
+    # Exploration coefficient decays across rounds (explore early, exploit later)
+    kappa = max(0.30, 1.35 - 0.22 * max(0, next_round_idx - 2))
 
     # Compute physics directional nudges from the trend curves
-    if tr["jitter_std"] > 0.28:
-        reasons.append(f"High Warm-ON jitter ({tr['jitter_std']:.3f} b) -> penalize high noise_amp (lower lr or momentum).")
+    if tr["jitter_std"] > 0.42:
+        reasons.append(f"High Warm-ON jitter ({tr['jitter_std']:.3f} b > 0.42) -> penalize excessive noise_amp.")
     else:
-        reasons.append(f"Clean Warm-ON trend stability (jitter={tr['jitter_std']:.3f} b).")
+        reasons.append(f"Acceptable Warm-ON trend stability (jitter={tr['jitter_std']:.3f} b).")
 
-    if tr["hot_conv_climb_b"] < 0.05 and tr["w8_mean_peak_lsb"] < 0.80 * latest["params"]["clamp"]:
+    if tr["hot_conv_climb_b"] < 0.05 and tr["w8_mean_peak_lsb"] < 0.80 * ref["params"]["clamp"]:
         reasons.append(
             f"Under-powered thermal tracking (conv_climb={tr['hot_conv_climb_b']:+.2f} b, "
             f"W8_peak={tr['w8_mean_peak_lsb']:.1f} < 0.8*clamp) -> bias toward higher G_eff (higher lr/mom or lower L2)."
         )
     elif tr["pinned_frac"] > 0.35 or tr["recovery_rate"] < 0.5:
         reasons.append(
-            f"Rail pinning detected (pinned={tr['pinned_frac']:.2f}, recovery={tr['recovery_rate']:.2f}) "
-            f"-> bias toward stronger L2 anchor or wider/tuned clamp headroom."
+            f"Rail pinning detected on reference run (pinned={tr['pinned_frac']:.2f}, recovery={tr['recovery_rate']:.2f}, clamp=±{ref['params']['clamp']}) "
+            f"-> expand W8 clamp headroom toward 80-90 LSB to prevent Col saturation."
         )
     else:
         reasons.append(
-            f"Healthy anti-windup dynamics (W8_peak={tr['w8_mean_peak_lsb']:.1f}/{latest['params']['clamp']}, "
+            f"Healthy anti-windup dynamics (W8_peak={tr['w8_mean_peak_lsb']:.1f}/{ref['params']['clamp']}, "
             f"recovery={tr['recovery_rate']:.2f})."
         )
 
     # Pinch-off guard: check if higher clamp previously degraded score
-    high_clamp_runs = [a for a in analyses if a["params"]["clamp"] >= 78]
-    mid_clamp_runs = [a for a in analyses if 70 <= a["params"]["clamp"] <= 76]
+    high_clamp_runs = [a for a in analyses if a["params"]["clamp"] >= 80]
+    mid_clamp_runs = [a for a in analyses if 72 <= a["params"]["clamp"] <= 78]
+    pinch_off_detected = False
     if high_clamp_runs and mid_clamp_runs:
         if max(a["score"] for a in high_clamp_runs) < max(a["score"] for a in mid_clamp_runs) - 0.15:
-            reasons.append("Pinch-off turnaround detected at clamp >= 78 -> restrict clamp <= 75.")
+            pinch_off_detected = True
+            reasons.append("Pinch-off turnaround detected at clamp >= 80 -> bias back toward <= 78 LSB.")
 
     tested_set = {
         (round(a["params"]["lr"], 4), int(a["params"]["l2_reg"]), round(a["params"]["momentum"], 3), int(a["params"]["clamp"]))
@@ -532,32 +529,33 @@ def propose_next_hyperparams(
 
         # Physics prior regularization around physical tradeoffs
         b = 0.0
-        # 1. Subthreshold pinch-off soft penalty above clamp=75
-        if cl > 75:
-            b -= 0.04 * (cl - 75)
-        # 2. If jitter was high, penalize higher N_amp
+        # 1. Subthreshold pinch-off soft penalty only above clamp=85 unless pinch-off already observed
+        if pinch_off_detected and cl >= 80:
+            b -= 0.12 * (cl - 75)
+        elif cl > 85:
+            b -= 0.03 * (cl - 85)
+        # 2. If jitter exceeds physical floor, penalize higher N_amp vs reference
         n_amp = (4.0 * lr) / math.sqrt(max(0.05, 1.0 - mom ** 2))
-        if tr["jitter_std"] > 0.28:
-            if n_amp > latest["physics"]["noise_amp"]:
-                b -= 0.65 * (n_amp - latest["physics"]["noise_amp"]) / 0.10
+        if tr["jitter_std"] > 0.42:
+            if n_amp > ref["physics"]["noise_amp"]:
+                b -= 0.55 * (n_amp - ref["physics"]["noise_amp"]) / 0.10
         # 3. If under-powered, reward moderately higher G_eff vs best
         g_eff = (4.0 * lr) / max(0.05, 1.0 - mom)
         if b_tr["hot_conv_climb_b"] < 0.10 and b_tr["pinned_frac"] < 0.25:
             if g_eff > best["physics"]["G_eff"] * 1.15 and g_eff < 3.5:
                 b += 0.22
-        # 4. If pinned at rail, reward higher l2_reg or moderate clamp shift
-        if tr["pinned_frac"] > 0.35 or tr["recovery_rate"] < 0.5:
-            if l2 > latest["params"]["l2_reg"]:
-                b += 0.20
-            if cl >= 75:
-                b += 0.10
-        # 5. Structured diverse coverage in Round 2 & 3 so GP learns sensitivity to each axis
+        # 4. If pinned at rail and no pinch-off detected yet, reward wider clamp headroom
+        if (tr["pinned_frac"] > 0.35 or tr["recovery_rate"] < 0.5) and not pinch_off_detected:
+            if cl > ref["params"]["clamp"] and cl <= ref["params"]["clamp"] + 15:
+                b += 0.45
+        # 5. Avoid dead under-powered regime seen when G_eff/L2 collapses (< 0.55)
+        if g_eff < 0.55 and l2 >= 2048:
+            b -= 1.0
+        # 6. Structured diverse coverage in Round 2 & 3 so GP learns sensitivity to each axis
         if next_round_idx == 2:
-            # Test higher G_eff + slightly lower L2 or nearby L2/mom to probe dynamic headroom around clamp=75
             if mom in (0.85, 0.88, 0.90) and l2 in (1024, 1536) and lr >= 0.035 and cl == 75:
                 b += 0.45
         elif next_round_idx == 3:
-            # Test clamp & momentum trade-off (e.g. mom=0.80 vs 0.90, clamp=70 vs 80 depending on Round 2)
             if mom == 0.80 and cl in (70, 80):
                 b += 0.30
 

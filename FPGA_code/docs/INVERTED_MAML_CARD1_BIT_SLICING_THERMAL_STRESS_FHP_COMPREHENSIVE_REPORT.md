@@ -10,7 +10,7 @@ This comprehensive report documents the complete cold-start Card 1 (`1k/2.2k` at
 
 - **Unheated Cold Reference (`cold_verify_k1.json`):** `Cold / Regler ON` achieves **`9.45 b`** and `Cold / Regler OFF (W8=0)` achieves **`9.45 b`** combined 8-bit ENOB — well above the `> 8.0 b` cold baseline criterion.
 - **Primary Evaluated Dataset (`opt_r2dc_fix_lr0p035_l2_1536_mom0p85_cl75.json`, `3,846` pairs):** `LR=0.035, L2=1536, Momentum=0.85, Clamp=±75 LSB, K=1, 40% PWM` delivers **`+0.99 b`** detrended `Warm ON` lift above continuous PCHIP baseline $E_{\text{base}}(t)$, **`1.69x`** detrended loss suppression, **`+1.16 b`** hot convergence climb, and **`0.00`** anti-windup recovery (Composite Score **`+1.957`**).
-- **Cumulative Optimization Progress (`R1–R2`):** Best verified configuration so far is **Round 2** (`LR=0.035, L2=1536, Mom=0.85, Clamp=±75`) with Composite Score **`+1.957`**.
+- **Cumulative Optimization Progress (`R1–R3`):** Best verified configuration so far is **Round 2** (`LR=0.035, L2=1536, Mom=0.85, Clamp=±75`) with Composite Score **`+1.957`**.
 
 ---
 
@@ -25,13 +25,14 @@ This comprehensive report documents the complete cold-start Card 1 (`1k/2.2k` at
 | **3. Warm Closed-Loop** | Heaters ON (40% @ 1Hz) | Comp ON (`K=1`, L2=1536) | **36,405.2** | **7.71 b** | 9.50 b | 4.00 / 4.02 b | `[-57, 75]` / `[-46, 75]` |
 | **4. Warm Open-Loop** | Heaters ON (40% @ 1Hz) | Comp OFF (`W8=0`) | 77,050.5 | 6.32 b | 7.96 b | 3.39 / 3.44 b | `[0, 0]` (0% leak) |
 
-### Table 1B: Latest Hyperparameter & Detrended Trend-Curve Results (`R1–R2`)
+### Table 1B: Latest Hyperparameter & Detrended Trend-Curve Results (`R1–R3`)
 
 | Round | Dataset | LR | L2 Reg | Mom | Clamp | Lift vs E_base | Loss Ratio | Hot Climb | Jitter | Recovery | Composite Score |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | R1 | `opt_r1dc_fix_lr0p03_l2_1024_mom0p90_cl75.json` | `0.03` | `1024` | `0.9` | `±75` | `+1.00 b` | `1.71x` | `+0.95 b` | `0.40 b` | `0.00` | **`+1.799`** |
 | R2 ★ | `opt_r2dc_fix_lr0p035_l2_1536_mom0p85_cl75.json` | `0.035` | `1536` | `0.85` | `±75` | `+0.99 b` | `1.69x` | `+1.16 b` | `0.39 b` | `0.00` | **`+1.957`** |
-*Active Next Optimization Target (`Round 3`):* `LR=0.02, L2=2560, Momentum=0.8, Clamp=±70 LSB` (GP predicted `+1.893 ± 0.993`).
+| R3 | `opt_r3dc_fix_lr0p02_l2_2560_mom0p80_cl70.json` | `0.02` | `2560` | `0.8` | `±70` | `+0.04 b` | `1.00x` | `+0.24 b` | `0.34 b` | `1.00` | **`+0.204`** |
+*Active Next Optimization Target (`Round 4`):* `LR=0.05, L2=1792, Momentum=0.85, Clamp=±80 LSB` (GP predicted `+1.706 ± 0.841`).
 
 ### Table 1C: Phase-by-Phase Telemetry (`opt_r2dc_fix_lr0p035_l2_1536_mom0p85_cl75.json`)
 
