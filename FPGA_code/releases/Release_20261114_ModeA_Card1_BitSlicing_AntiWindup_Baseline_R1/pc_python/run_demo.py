@@ -61,6 +61,7 @@ def main():
     total_active_sec = 14 * args.phase_sec
     print("=" * 80)
     print(f" INVERTED MAML: LIVE SILICON HARDWARE DEMO (Card 1)")
+    print(f" Hardware: Card 1 (T120 SoC + T20 Coprocessor, 1k/2.2k Passive Attenuator)")
     print(f" Profile: 2 Cold ({args.phase_sec:.0f}s) + 6 Warm 30% ({args.phase_sec:.0f}s) + 6 Warm 40% ({args.phase_sec:.0f}s)")
     print(f" Active Duration: {total_active_sec/60:.1f} min ({total_active_sec:.0f}s) + {args.cooldown_sec:.0f}s Cooldown")
     print(f" Parameters: Clamp = ±{args.clamp} LSB, LR = {args.lr}, L2 = {args.l2_reg}, Mom = {args.momentum}, K = 1")

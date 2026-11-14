@@ -153,6 +153,10 @@ make -C FPGA_code/sw/t120_master clean all
 
 ## 6. 2026-11-14 Live Hardware Demo Example: Multi-Stage Thermal Stress & Bit-Slicing
 
+**Target Hardware:** Card 1 (`Trion T120F324` Master SoC + `Trion T20F256` Coprocessor, **`1k / 2.2k` Passive Summing Attenuator**)  
+**Firmware:** `T120_SOC_ETH_FW v2.2-MAML (SW Build Nov 14 2026 10:15:16)`, `HW_LOGIC: 0x20261030`  
+**Analog Architecture:** Dual-2T1C MOS Triode Differential Multipliers (M33 6x6, M3 8x6, M8 7x6) with Hadamard Attenuator Network  
+
 This one-click demo performs a live multi-stage thermal stress and analog bit-slicing demonstration on Card 1 silicon, transitioning from ambient cold baseline through moderate heating (30% PWM) up to heavy thermal stress (40% PWM).
 
 ### Start of Live GUI Monitor
