@@ -82,13 +82,14 @@ class BitSlicingLiveGUI(QtWidgets.QMainWindow):
 
         self.history = []
         self.latest_status = {}
+        self._last_mtime = 0.0
 
         self._init_ui()
 
-        # Update timer (reads ring buffer file every 250 ms)
+        # Update timer (checks mtime every 800 ms, only redraws when status changes)
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.poll_data)
-        self.timer.start(250)
+        self.timer.start(800)
 
     def _init_ui(self):
         main_widget = QtWidgets.QWidget()
@@ -211,13 +212,23 @@ class BitSlicingLiveGUI(QtWidgets.QMainWindow):
                     added_off_label = True
 
     def poll_data(self):
+        # Skip heavy JSON parsing & matplotlib redraw when no new data has arrived
+        if not LATEST_STATUS_JSON.exists():
+            return
+        try:
+            mtime = LATEST_STATUS_JSON.stat().st_mtime
+            if mtime == self._last_mtime:
+                return
+            self._last_mtime = mtime
+        except Exception:
+            return
+
         # 1. Read latest status
-        if LATEST_STATUS_JSON.exists():
-            try:
-                with open(LATEST_STATUS_JSON, "r") as f:
-                    self.latest_status = json.load(f)
-            except Exception:
-                pass
+        try:
+            with open(LATEST_STATUS_JSON, "r") as f:
+                self.latest_status = json.load(f)
+        except Exception:
+            pass
 
         # 2. Read ring buffer history
         if RING_BUFFER_JSON.exists():
@@ -271,7 +282,8 @@ class BitSlicingLiveGUI(QtWidgets.QMainWindow):
 
         w8_msb = s.get("w8_msb_range", [0, 0])
         w8_lsb = s.get("w8_lsb_range", [0, 0])
-        self.lbl_w8_margin.setText(f"<b>W8 Margin (Rail ±120):</b><br>MSB: [{w8_msb[0]:+3d}, {w8_msb[1]:+3d}]<br>LSB: [{w8_lsb[0]:+3d}, {w8_lsb[1]:+3d}]")
+        clamp_lsb = s.get("clamp_lsb", 75)
+        self.lbl_w8_margin.setText(f"<b>W8 Margin (Rail ±{clamp_lsb}):</b><br>MSB: [{w8_msb[0]:+3d}, {w8_msb[1]:+3d}]<br>LSB: [{w8_lsb[0]:+3d}, {w8_lsb[1]:+3d}]")
 
     def update_plots(self):
         if not self.history or len(self.history) < 2:
@@ -301,7 +313,7 @@ class BitSlicingLiveGUI(QtWidgets.QMainWindow):
         self.ax_comb.axhline(8.0, color="#f59e0b", linestyle=":", linewidth=1.5, alpha=0.85, label="8.0 b Target")
         self.ax_comb.axhline(4.0, color="#64748b", linestyle="--", linewidth=1.0, alpha=0.5, label="4.0 b Base Floor")
         self.ax_comb.set_ylim(0.0, 9.5)
-        self.ax_comb.legend(loc="upper right", facecolor="#1e293b", edgecolor="#334155", fontsize=8.5)
+        self.ax_comb.legend(loc="upper right", facecolor="#334155", edgecolor="#94a3b8", framealpha=0.85, labelcolor="#f8fafc", fontsize=8.5)
 
         # -------------------------------------------------------------
         # 2. MSB 4-Bit Plot (Middle, Dual Axis: ENOB & Loss)
@@ -330,7 +342,7 @@ class BitSlicingLiveGUI(QtWidgets.QMainWindow):
 
         lines_msb = l_msb_enob + l_msb_loss
         labels_msb = [l.get_label() for l in lines_msb]
-        self.ax_msb.legend(lines_msb, labels_msb, loc="upper right", facecolor="#1e293b", edgecolor="#334155", fontsize=8)
+        self.ax_msb.legend(lines_msb, labels_msb, loc="upper right", facecolor="#334155", edgecolor="#94a3b8", framealpha=0.85, labelcolor="#f8fafc", fontsize=8)
 
         # -------------------------------------------------------------
         # 3. LSB 4-Bit Plot (Bottom, Dual Axis: ENOB & Loss)
@@ -360,7 +372,7 @@ class BitSlicingLiveGUI(QtWidgets.QMainWindow):
 
         lines_lsb = l_lsb_enob + l_lsb_loss
         labels_lsb = [l.get_label() for l in lines_lsb]
-        self.ax_lsb.legend(lines_lsb, labels_lsb, loc="upper right", facecolor="#1e293b", edgecolor="#334155", fontsize=8)
+        self.ax_lsb.legend(lines_lsb, labels_lsb, loc="upper right", facecolor="#334155", edgecolor="#94a3b8", framealpha=0.85, labelcolor="#f8fafc", fontsize=8)
 
         self.canvas.draw_idle()
 

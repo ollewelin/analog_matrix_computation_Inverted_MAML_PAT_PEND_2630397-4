@@ -129,6 +129,7 @@ def calibrate_fixed_slice_params(
     Locked permanently for the duration of the experiment.
     """
     client.set_w33_matrix(W_silicon)
+    drain_udp(client)
     time.sleep(0.05)
     W_mat = np.array(W_silicon, dtype=np.float64)
     xs, ys = [], []
@@ -136,6 +137,9 @@ def calibrate_fixed_slice_params(
     for _ in range(num_samples):
         pkt = struct.pack("<BBHHHH", 0, 1, delay_us, delay_us, 0, 0)
         raw = client._send_binary(MAML_CMD_BATCH_STEP, pkt)
+        if raw is None or len(raw) < client.TELEM_SIZE:
+            drain_udp(client)
+            raw = client._send_binary(MAML_CMD_BATCH_STEP, pkt)
         if raw is not None and len(raw) >= client.TELEM_SIZE:
             telem = client._parse_hw_telemetry(raw)
             x_vec = np.array(telem.x_ref, dtype=np.float64)
@@ -228,37 +232,61 @@ def main():
     parser = argparse.ArgumentParser(description="Card 1 Thermal Stress 2-Beat Bit Slicing")
     parser.add_argument("--ip", type=str, default="192.168.1.50")
     parser.add_argument("--port", type=int, default=5000)
-    parser.add_argument("--phase-duration", type=float, default=2.0, help="Duration of each phase in minutes (default 2.0 min)")
+    parser.add_argument("--phase-duration", type=float, default=2.0, help="Duration of warm/cool phases in minutes (default 2.0 min)")
+    parser.add_argument("--cold-phase-duration", type=float, default=0.5, help="Duration of first 2 cold phases in minutes (default 0.5 min = 30s)")
     parser.add_argument("--heater-duty-pct", type=float, default=30.0, help="Heater PWM duty cycle pct (default 30%%)")
     parser.add_argument("--heater-pwm-hz", type=float, default=1.0, help="Heater PWM frequency in Hz")
     parser.add_argument("--delay-us", type=int, default=5000, help="Delay in us (default 5000 = 5.0 ms)")
     parser.add_argument("--k-batch", type=int, default=2, help="Mini-batch size K (default 2)")
     parser.add_argument("--lr", type=float, default=0.04, help="Learning rate (default 0.04)")
     parser.add_argument("--l2-reg", type=int, default=96, help="L2 regularization (default 96)")
+    parser.add_argument("--momentum", type=float, default=0.98, help="SGD momentum [0.0..0.999] (default 0.98)")
+    parser.add_argument("--clamp", type=int, default=75, help="Dynamic M3/M8 weight clamp limit in LSB (default 75)")
+    parser.add_argument("--warm-phases", type=int, default=6, help="Number of warm (Heater ON) phases (default 6)")
+    parser.add_argument("--cool-phases", type=int, default=2, help="Number of trailing cool phases (default 2, use 0 to skip)")
+    parser.add_argument("--cooldown-sec", type=float, default=60.0, help="Pre-run forced cooldown duration with Heaters OFF before cold DC calibration (default 60s)")
     parser.add_argument("--out-json", type=str, default="FPGA_code/logs/bit_slicing/card1_thermal_slicing_30pct_k2_lr0p04_16min.json")
     args = parser.parse_args()
 
     os.makedirs(os.path.dirname(args.out_json), exist_ok=True)
 
-    # 8-Phase Master Schedule (Olle protocol: 2 min cold -> 4 min warm -> 2 min cool)
-    phases = [
-        {"name": "Phase 1: Cold / Regler ON",  "heater": False, "regler": True},
-        {"name": "Phase 2: Cold / Regler OFF", "heater": False, "regler": False},
-        {"name": "Phase 3: Warm / Regler ON",  "heater": True,  "regler": True},
-        {"name": "Phase 4: Warm / Regler OFF", "heater": True,  "regler": False},
-        {"name": "Phase 5: Warm / Regler ON",  "heater": True,  "regler": True},
-        {"name": "Phase 6: Warm / Regler OFF", "heater": True,  "regler": False},
-        {"name": "Phase 7: Cool / Regler ON",  "heater": False, "regler": True},
-        {"name": "Phase 8: Cool / Regler OFF", "heater": False, "regler": False},
-    ]
+    # Master Schedule: 2 Cold (short, default 30s each) + N Warm (default 6) + 2 Cool
+    cold_dur_s = args.cold_phase_duration * 60.0
     phase_dur_s = args.phase_duration * 60.0
-    total_duration_s = len(phases) * phase_dur_s
+    phases = [
+        {"name": "Phase 1: Cold / Regler ON",  "heater": False, "regler": True,  "dur_s": cold_dur_s},
+        {"name": "Phase 2: Cold / Regler OFF", "heater": False, "regler": False, "dur_s": cold_dur_s},
+    ]
+    for wi in range(args.warm_phases):
+        pnum = 3 + wi
+        reg_on = (wi % 2 == 0)
+        phases.append({
+            "name": f"Phase {pnum}: Warm / Regler {'ON' if reg_on else 'OFF'}",
+            "heater": True,
+            "regler": reg_on,
+            "dur_s": phase_dur_s,
+        })
+    for ci in range(args.cool_phases):
+        pnum = 3 + args.warm_phases + ci
+        reg_on = (ci % 2 == 0)
+        phases.append({
+            "name": f"Phase {pnum}: Cool / Regler {'ON' if reg_on else 'OFF'}",
+            "heater": False,
+            "regler": reg_on,
+            "dur_s": phase_dur_s,
+        })
+    phase_starts = []
+    acc_s = 0.0
+    for p in phases:
+        phase_starts.append(acc_s)
+        acc_s += p["dur_s"]
+    total_duration_s = acc_s
 
     print("=" * 85)
     print("  INVERTED MAML: THERMAL CYCLING & 2-BEAT INTERLEAVED ANALOG BIT SLICING")
-    print(f"  Hardware: Card 1 @ {args.ip}:{args.port} | Total Duration: {total_duration_s/60:.1f} min ({len(phases)} x {args.phase_duration:.1f}m)")
+    print(f"  Hardware: Card 1 @ {args.ip}:{args.port} | Total Duration: {total_duration_s/60:.1f} min (2x{args.cold_phase_duration:.1f}m + {len(phases)-2}x{args.phase_duration:.1f}m)")
     print(f"  Thermal Stress: {args.heater_duty_pct:.0f}% PWM @ {args.heater_pwm_hz:.1f} Hz")
-    print(f"  SGD Reglering : LR = {args.lr:.2f}, K-batch = {args.k_batch}, λ = {args.l2_reg} | Attenuator 1k/3.3k")
+    print(f"  SGD Reglering : LR = {args.lr:.4f}, Mom = {args.momentum:.2f}, K-batch = {args.k_batch}, λ = {args.l2_reg}, clamp = ±{args.clamp} LSB | Attenuator 1k/2.2k")
     print("=" * 85)
 
     ensure_version_guard(host=args.ip, port=args.port)
@@ -285,7 +313,7 @@ def main():
     client.clear_w33_hidden_offset()
     time.sleep(0.03)
 
-    client.set_gain_experiment(d_line=2, w33=1, target_gain=1.0, clamp=120)
+    client.set_gain_experiment(d_line=2, w33=1, target_gain=1.0, clamp=args.clamp)
     time.sleep(0.03)
 
     lr_q16_active = int(round(args.lr * 1024.0))
@@ -297,6 +325,9 @@ def main():
         hadamard_delay_us=args.delay_us, lr_inner_q16=lr_q16_active
     )
     time.sleep(0.03)
+    mom_q16 = max(0, min(65535, int(round(args.momentum * 65536.0))))
+    client._send_binary(0x1E, struct.pack("<BH", 7, mom_q16))
+    time.sleep(0.02)
     client._send_binary(0x13, struct.pack("<BB", 1, 1))  # LEDs ON
     time.sleep(0.02)
     client.set_data_color(COLOR_WHITE, 0.0)
@@ -307,6 +338,24 @@ def main():
     w_m8_zero = [[0]*6 for _ in range(7)]
     init_payload = build_center_weights_payload(1)
     payload_zero_w8 = build_custom_weights_payload(init_w_m3, w_m8_zero, 1)
+
+    # Ensure heaters are strictly OFF and wait --cooldown-sec so cold DC cal runs on cool silicon
+    client.set_heaters(False, [0, 0, 0, 0])
+    client._send_binary(MAML_CMD_CENTER_WEIGHTS, payload_zero_w8)
+    if args.cooldown_sec > 0:
+        print(f"\n[*] Cooling board for {args.cooldown_sec:.0f}s with Heaters OFF (0%) before Cold DC calibration...")
+        cool_start = time.time()
+        next_log = 15.0
+        while running:
+            dt_cool = time.time() - cool_start
+            if dt_cool >= args.cooldown_sec:
+                break
+            if dt_cool >= next_log:
+                print(f"    ... cooldown {dt_cool:.0f}s / {args.cooldown_sec:.0f}s (Heaters OFF)")
+                next_log += 15.0
+            client.set_heaters(False, [0, 0, 0, 0])
+            time.sleep(min(2.0, max(0.05, args.cooldown_sec - dt_cool)))
+        print("[+] Cooldown complete.")
 
     # Initial DC zero cal with active staircase W(3) and W(8)=0
     flat_init_m3 = [init_w_m3[r][c] for r in range(8) for c in range(6)]
@@ -356,14 +405,19 @@ def main():
             break
 
         # Determine current phase
-        phase_idx = min(len(phases) - 1, int(elapsed // phase_dur_s))
+        phase_idx = 0
+        for pi, ps in enumerate(phase_starts):
+            if elapsed >= ps:
+                phase_idx = pi
         cur_phase = phases[phase_idx]
-        time_in_phase = elapsed - (phase_idx * phase_dur_s)
-        time_left_phase = phase_dur_s - time_in_phase
+        time_in_phase = elapsed - phase_starts[phase_idx]
+        time_left_phase = cur_phase["dur_s"] - time_in_phase
 
+        phase_changed = False
         if phase_idx != last_phase_idx:
             last_phase_idx = phase_idx
-            print(f"\n>>> [T={elapsed/60:.2f} min]: ENTERING {cur_phase['name']} (Duration {args.phase_duration:.1f} min) <<<")
+            phase_changed = True
+            print(f"\n>>> [T={elapsed/60:.2f} min]: ENTERING {cur_phase['name']} (Duration {cur_phase['dur_s']/60:.1f} min) <<<")
 
         heater_macro_on = cur_phase["heater"]
         reglering_on = cur_phase["regler"]
@@ -380,19 +434,25 @@ def main():
             if reglering_on:
                 lr_q16 = lr_q16_active
                 reg_q16 = reg_q16_active
-                print(f"    --> REGULATION ACTIVE (Online SGD: LR={args.lr:.2f}, K={args.k_batch}, λ={args.l2_reg})")
+                print(f"    --> REGULATION ACTIVE (Online SGD: LR={args.lr:.4f}, Mom={args.momentum:.2f}, K={args.k_batch}, λ={args.l2_reg})")
             else:
                 lr_q16 = 0
                 reg_q16 = 0
                 print(f"    --> REGULATION OFF (Ablation W8=0, Free Drift)")
+                drain_udp(client)
                 client._send_binary(MAML_CMD_CENTER_WEIGHTS, payload_zero_w8)
                 time.sleep(0.02)
 
         # -------------------------------------------------------------
         # BEAT 2k: MSB SLICE (Hardware Slice Bank 0)
         # -------------------------------------------------------------
-        client._send_binary(0x1E, struct.pack("<BB", 4, 0))
-        client.set_w33_matrix(W_msb_silicon)
+        drain_udp(client)
+        if client._send_binary(0x1E, struct.pack("<BB", 4, 0)) is None:
+            drain_udp(client)
+            client._send_binary(0x1E, struct.pack("<BB", 4, 0))
+        if not client.set_w33_matrix(W_msb_silicon):
+            drain_udp(client)
+            client.set_w33_matrix(W_msb_silicon)
         res_msb = execute_hardware_beat(
             client, args.delay_us, lr_q16, reg_q16,
             k_batch=args.k_batch, W_mat=M_msb, alpha=alpha_msb, beta=beta_msb
@@ -402,8 +462,13 @@ def main():
         # -------------------------------------------------------------
         # BEAT 2k+1: LSB SLICE (Hardware Slice Bank 1)
         # -------------------------------------------------------------
-        client._send_binary(0x1E, struct.pack("<BB", 4, 1))
-        client.set_w33_matrix(W_lsb_silicon)
+        drain_udp(client)
+        if client._send_binary(0x1E, struct.pack("<BB", 4, 1)) is None:
+            drain_udp(client)
+            client._send_binary(0x1E, struct.pack("<BB", 4, 1))
+        if not client.set_w33_matrix(W_lsb_silicon):
+            drain_udp(client)
+            client.set_w33_matrix(W_lsb_silicon)
         res_lsb = execute_hardware_beat(
             client, args.delay_us, lr_q16, reg_q16,
             k_batch=args.k_batch, W_mat=M_lsb, alpha=alpha_lsb, beta=beta_lsb
@@ -425,6 +490,15 @@ def main():
         w8_msb_max = max(max(r) for r in telem_msb.w_m8)
         w8_lsb_min = min(min(r) for r in telem_lsb.w_m8)
         w8_lsb_max = max(max(r) for r in telem_lsb.w_m8)
+        w3_msb_min = min(min(r) for r in telem_msb.w_m3[:6])
+        w3_msb_max = max(max(r) for r in telem_msb.w_m3[:6])
+        w3_lsb_min = min(min(r) for r in telem_lsb.w_m3[:6])
+        w3_lsb_max = max(max(r) for r in telem_lsb.w_m3[:6])
+
+        # Safety guard: in Regler OFF, re-center immediately if W8 drifted from [0, 0]
+        if (not reglering_on) and (w8_msb_min != 0 or w8_msb_max != 0 or w8_lsb_min != 0 or w8_lsb_max != 0):
+            drain_udp(client)
+            client._send_binary(MAML_CMD_CENTER_WEIGHTS, payload_zero_w8)
 
         pair_record = {
             "pair": pair_idx,
@@ -445,27 +519,42 @@ def main():
             "combined_enob_raw": round(combined_enob, 2),
             "w8_msb_range": [w8_msb_min, w8_msb_max],
             "w8_lsb_range": [w8_lsb_min, w8_lsb_max],
+            "w3_msb_range": [w3_msb_min, w3_msb_max],
+            "w3_lsb_range": [w3_lsb_min, w3_lsb_max],
+            "w8_msb": [[int(v) for v in row] for row in telem_msb.w_m8],
+            "w8_lsb": [[int(v) for v in row] for row in telem_lsb.w_m8],
+            "w3_msb": [[int(v) for v in row] for row in telem_msb.w_m3],
+            "w3_lsb": [[int(v) for v in row] for row in telem_lsb.w_m3],
+            "clip_msb": int(telem_msb.clip_events_cnt),
+            "clip_lsb": int(telem_lsb.clip_events_cnt),
         }
 
         ring_history.append(pair_record)
 
-        # Atomic writes for GUI
-        write_ring_buffer_atomic({"history": list(ring_history)})
-        write_latest_status_atomic({
-            "pair": pair_idx,
-            "elapsed_s": round(elapsed, 1),
-            "phase_name": cur_phase["name"],
-            "heater_on": heater_macro_on,
-            "heater_duty_pct": args.heater_duty_pct,
-            "heater_time_left_s": round(time_left_phase, 1),
-            "reglering_on": reglering_on,
-            "reglering_time_left_s": round(time_left_phase, 1),
-            "comb_enob": round(combined_enob, 2),
-            "msb_enob": round(enob_msb, 2),
-            "lsb_enob": round(enob_lsb, 2),
-            "w8_msb_range": [w8_msb_min, w8_msb_max],
-            "w8_lsb_range": [w8_lsb_min, w8_lsb_max],
-        })
+        # Throttled atomic writes for GUI (~2 Hz and on phase transitions) to prevent CPU/disk stall
+        # Strip full 2D matrices from live GUI ring buffer so disk atomic writes stay <1 ms.
+        if phase_changed or (pair_idx % 5 == 0):
+            lite_hist = [
+                {k: v for k, v in r.items() if k not in ("w8_msb", "w8_lsb", "w3_msb", "w3_lsb")}
+                for r in ring_history
+            ]
+            write_ring_buffer_atomic({"history": lite_hist})
+            write_latest_status_atomic({
+                "pair": pair_idx,
+                "elapsed_s": round(elapsed, 1),
+                "phase_name": cur_phase["name"],
+                "heater_on": heater_macro_on,
+                "heater_duty_pct": args.heater_duty_pct,
+                "heater_time_left_s": round(time_left_phase, 1),
+                "reglering_on": reglering_on,
+                "reglering_time_left_s": round(time_left_phase, 1),
+                "comb_enob": round(combined_enob, 2),
+                "msb_enob": round(enob_msb, 2),
+                "lsb_enob": round(enob_lsb, 2),
+                "clamp_lsb": args.clamp,
+                "w8_msb_range": [w8_msb_min, w8_msb_max],
+                "w8_lsb_range": [w8_lsb_min, w8_lsb_max],
+            })
 
         if pair_idx % 10 == 0:
             h_str = f"HEAT: ON ({args.heater_duty_pct:.0f}%)" if heater_macro_on else "HEAT: OFF ( 0%)"
@@ -488,6 +577,8 @@ def main():
                 "k_batch": args.k_batch,
                 "lr": args.lr,
                 "l2_reg": args.l2_reg,
+                "momentum": args.momentum,
+                "clamp_lsb": args.clamp,
                 "delay_us": args.delay_us,
                 "w_msb": W_msb_silicon,
                 "w_lsb": W_lsb_silicon,

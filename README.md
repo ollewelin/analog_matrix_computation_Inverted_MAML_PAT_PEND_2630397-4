@@ -14,24 +14,21 @@
 
 ---
 
-> **⚖️ LICENSING & OPEN SCIENCE POLICY (SE 2630397-4)**
-> 
-> * **PCBA / Discrete Hardware (`/pcba_hardware`):** Full Open Source (aligned with CERN OHL-P / Permissive principles). Free for anyone to manufacture, distribute, modify, and sell commercially or non-commercially without any restrictions.
-> * **ASIC / Integrated Circuit (IC) & Core Architecture:** 
->   * **Free for Research & Academia:** Universities, researchers, and students are completely free to study, test, and implement these designs in silicon, ASIC, or Integrated Circuit (IC) form for research and non-commercial purposes without restrictions.
->   * **Commercial ASIC / IC Use:** Strictly reserved. Any commercial product or profit-driven silicon/ASIC/IC implementation requires a separate written license agreement under Patent Pending SE 2630397-4.
-> 
-> *See full license text in [LICENSE.md](LICENSE.md).*
+## ⚖️ License & Patent Grant (`SHL-2.1`)
 
-### 💡 A personal note from the inventor, Olle Welin (October 2026)
+Everything in this repository—hardware schematics, PCB layouts, commercial ASIC/IC implementations, FPGA gateware, firmware, and software—is released as **100% Open Source** under the **Solderpad Hardware License v2.1 (`SHL-2.1`)**.
+
+* **Patent Grant (`SE 2630397-4`):** Includes a perpetual, worldwide, non-exclusive, no-charge, royalty-free patent license under Section 3 of `SHL-2.1` covering **Swedish Patent Application No. SE 2630397-4** (priority date `2026-06-03`) and any patents, continuations, divisionals, reissues, or foreign/PCT counterparts thereof—for both commercial and non-commercial use, including commercial ASIC and IC manufacturing. No separate agreement or permission is required.
+* **Inventor & Attribution:** Original invention by **Olle Welin** (`Copyright (c) 2026 Olle Welin`). Under `SHL-2.1` Section 4, redistributions and derivative works must preserve all copyright, patent, and attribution notices.
+* **No Warranty / No Liability:** Provided **"AS IS"**, without warranties or liability of any kind (see `SHL-2.1` Sections 7–8).
+
+*See the full license text in [LICENSE.md](LICENSE.md).*
+
+### 💡 A personal note from the inventor, Olle Welin
 
 *If you are wondering where this project is heading – to be honest, I am taking it one day at a time! I am building, probing, and testing all of this entirely on my own as a private passion project on my lab bench.*
 
-*I believe deeply in open science and radical hardware transparency. That is why all source code, FPGA firmware, schematics, telemetry logs, and patent specifications are openly published here for anyone who is curious. Feel free to explore, replicate, benchmark, and research it.*
-
-*To make things completely clear on how you can use this work:*
-* **Discrete PCB Hardware (`/pcba_hardware`):** The physical PCBA implementation using discrete transistors, op-amps, and standard components is **fully open source**—including for commercial manufacturing, modification, building, and commercial sales without any restrictions.
-* **ASIC / Silicon & Core Architecture:** Universities, students, and researchers are completely free to study, simulate, test, or implement these designs in silicon, ASIC, or Integrated Circuit (IC) form for academic and non-commercial research. Commercial profit-driven silicon/ASIC/IC products remain reserved under Patent Pending SE 2630397-4 and require a separate written licensing agreement or partnership with me.
+*I believe deeply in open science and radical hardware transparency. That is why all source code, FPGA firmware, schematics, telemetry logs, and patent specifications are openly published here under **Solderpad Hardware License v2.1 (`SHL-2.1`)**—free for everyone, including academia, hobbyists, startups, and commercial ASIC/IC manufacturers alike, with no separate permission required.*
 
 *If you find this interesting, want to collaborate on silicon tapeouts, or build upon these ideas – please feel free to reach out!*
 

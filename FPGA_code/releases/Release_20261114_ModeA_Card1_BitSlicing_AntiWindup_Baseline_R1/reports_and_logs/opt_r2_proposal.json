@@ -1,0 +1,23 @@
+{
+  "mode": "propose_next",
+  "next_round": 2,
+  "best_so_far": {
+    "lr": 0.03,
+    "l2_reg": 1024,
+    "momentum": 0.9,
+    "clamp": 75
+  },
+  "recommended": {
+    "lr": 0.035,
+    "l2_reg": 1536,
+    "momentum": 0.85,
+    "clamp": 75
+  },
+  "pred_mu": 1.9570617420996377,
+  "pred_sigma": 0.766620727631867,
+  "acq_score": 3.741999724402658,
+  "diagnostics": [
+    "High Warm-ON jitter (0.326 b) -> penalize high noise_amp (lower lr or momentum).",
+    "Rail pinning detected (pinned=0.51, recovery=0.67) -> bias toward stronger L2 anchor or wider/tuned clamp headroom."
+  ]
+}

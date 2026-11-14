@@ -37,12 +37,22 @@ static inline int16_t sat_q14(int32_t v) {
     return (int16_t)v;
 }
 
-static uint8_t  g_w_comp_clamp   = 80u;  /* Dynamic compensation weight limit (80..127 LSB) */
+static uint8_t  g_w_comp_clamp   = 75u;  /* Dynamic compensation weight limit (40..127 LSB) */
 static uint16_t g_reg_lambda_q16 = 0u;   /* L2 weight-decay toward W_null in batch mode (Q0.16, 0 = off) */
 
 /* Dynamic saturation for Dual-2T1C compensation weights [-g_w_comp_clamp, +g_w_comp_clamp] DAC LSBs */
 static inline int16_t sat_comp_w_q14(int32_t v) {
     int32_t lim = ((int32_t)g_w_comp_clamp << 7);
+    if (v >  lim) return (int16_t)lim;
+    if (v < -lim) return (int16_t)(-lim);
+    return (int16_t)v;
+}
+
+/* Dynamic saturation for Layer 1 (M3 data rows 0..5) so it does not swamp fixed rows 6..7 */
+static inline int16_t sat_comp_m3_q14(int32_t v) {
+    int32_t m3_lim_lsb = (int32_t)g_w_comp_clamp / 3;
+    if (m3_lim_lsb < 15) m3_lim_lsb = 15;
+    int32_t lim = (m3_lim_lsb << 7);
     if (v >  lim) return (int16_t)lim;
     if (v < -lim) return (int16_t)(-lim);
     return (int16_t)v;
@@ -1139,8 +1149,7 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
         rail_clip_49 = maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
         rail_clip_45 = maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
     } else {
-        /* 2. Sub-Window A: Perturb Matrix 8 FIRST (active rows 0..5 = 0x3F00, M3 3-stated Hi-Z)
-         *    Per NON_BACKPROP_HADAMARD_GRADIENT_RULES.md §2: M8 is perturbed first while M3 is quiet! */
+        /* 2. Sub-Window A: Perturb Matrix 8 FIRST (active rows 0..5 = 0x3F00, M3 3-stated Hi-Z) */
         maml_run_permuted_hadamard_sweep(0x3F00u);
         rail_clip_49 = maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
 
@@ -1281,7 +1290,7 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     for (int i = 0; i < 6; i++) {
         int32_t sum = 0;
         for (int j = 0; j < 6; j++) {
-            int32_t col_term = rshift_rne((int32_t)g_tel.sigma2_slope[j] * err49[j], 14);
+            int32_t col_term = rshift_rne((int32_t)g_tel.sigma2_slope[j] * (-err49[j]), 14);
             sum += (int32_t)g_tel.w_m8[i][j] * col_term;
         }
         dx8[i] = rshift_rne(sum, 6);
@@ -1295,7 +1304,7 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 6; j++) {
             int32_t prod = (int32_t)sens_m3[i][j] * dx8[j];
-            grad_m3_out[i][j] = sat_q14(rshift_rne(prod, 3));
+            grad_m3_out[i][j] = sat_q14(rshift_rne(prod, 6));
         }
     }
 }
@@ -1944,6 +1953,29 @@ static void maml_execute_step(void) {
     }
 }
 
+/* Momentum + back-calculation anti-windup step helper: integrates L2 decay smoothly inside
+ * velocity and projects velocity to the actually realized step when hitting ±lim_q14 rails. */
+static inline int16_t maml_momentum_step_antiwindup(int16_t w_cur, int16_t w_null, int16_t g_avg,
+                                                    int16_t *vel_io, int32_t lim_q14) {
+    int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
+    int32_t decay  = rshift_rne(((int32_t)w_cur - (int32_t)w_null) * (int32_t)g_reg_lambda_q16, 16);
+    int32_t v_cur  = (int32_t)(*vel_io);
+    int32_t v_dec  = (v_cur >= 0)
+        ? ((v_cur * (int32_t)g_momentum_q16) >> 16)
+        : -(((-v_cur) * (int32_t)g_momentum_q16) >> 16);
+    int32_t v_new  = v_dec + step_w + decay;
+    int32_t w_unclamped = (int32_t)w_cur - v_new;
+    int32_t w_clamped   = w_unclamped;
+    if (w_clamped >  lim_q14) w_clamped =  lim_q14;
+    if (w_clamped < -lim_q14) w_clamped = -lim_q14;
+    if (w_clamped != w_unclamped) {
+        *vel_io = sat_q14((int32_t)w_cur - w_clamped);
+    } else {
+        *vel_io = sat_q14(v_new);
+    }
+    return (int16_t)w_clamped;
+}
+
 /* ============================================================================
  * True Two-Stage Multi-Strata Batch Gradient Accumulation & Weight Step
  *   - Strata Loop (Inner): Holds the exact same input vector x_ref constant
@@ -2045,30 +2077,55 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
      * samples in the batch clipped), weight mutation is strictly suppressed (dW == 0). */
     if (g_lr_inner_q16 > 0u) {
         g_comp_is_centered = 0u;
+        int32_t m3_lim_lsb = (int32_t)g_w_comp_clamp / 3;
+        if (m3_lim_lsb < 15) m3_lim_lsb = 15;
+        int32_t lim_m3_q14 = (m3_lim_lsb << 7);
+        int32_t lim_m8_q14 = ((int32_t)g_w_comp_clamp << 7);
         if (valid_samples > 0u) {
             for (int r = 0; r < 6; r++) {
                 for (int c = 0; c < 6; c++) {
                     int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)valid_samples);
-                    int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
-                    /* L2 weight-decay toward centered W_null: dW -= lambda * (W - W_null) */
-                    int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
-                                               (int32_t)g_reg_lambda_q16, 16);
-                    g_w_m3_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m3_q14[r][c] - step_w - decay);
+                    g_w_m3_q14[r][c] = maml_momentum_step_antiwindup(
+                        g_w_m3_q14[r][c], (int16_t)maml_wnull_m3_q14(r, c), g_avg,
+                        &g_vel_m3_q14[r][c], lim_m3_q14);
                     g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
                 }
             }
             for (int r = 0; r < 6; r++) {
                 for (int c = 0; c < 6; c++) {
                     int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)valid_samples);
-                    int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
+                    g_w_m8_q14[r][c] = maml_momentum_step_antiwindup(
+                        g_w_m8_q14[r][c], (int16_t)maml_wnull_m8_q14(r, c), g_avg,
+                        &g_vel_m8_q14[r][c], lim_m8_q14);
+                    g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
+                }
+            }
+        } else {
+            /* Clip-recovery: all samples clipped against thr45/thr49.
+             * Halve momentum velocity and pull weights toward W_null via L2 decay. */
+            for (int r = 0; r < 6; r++) {
+                for (int c = 0; c < 6; c++) {
+                    g_vel_m3_q14[r][c] /= 2;
+                    int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
+                                               (int32_t)g_reg_lambda_q16, 16);
+                    g_w_m3_q14[r][c] = sat_comp_m3_q14((int32_t)g_w_m3_q14[r][c] - decay);
+                    g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
+                }
+            }
+            for (int r = 0; r < 6; r++) {
+                for (int c = 0; c < 6; c++) {
+                    g_vel_m8_q14[r][c] /= 2;
                     int32_t decay = rshift_rne(((int32_t)g_w_m8_q14[r][c] - maml_wnull_m8_q14(r, c)) *
                                                (int32_t)g_reg_lambda_q16, 16);
-                    g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - step_w - decay);
+                    g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - decay);
                     g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
                 }
             }
         }
-    } else if (g_reg_lambda_q16 > 0u) {
+    } else {
+        memset(g_vel_m3_q14, 0, sizeof(g_vel_m3_q14));
+        memset(g_vel_m8_q14, 0, sizeof(g_vel_m8_q14));
+        if (g_reg_lambda_q16 > 0u) {
         for (int r = 0; r < 6; r++) {
             for (int c = 0; c < 6; c++) {
                 int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
@@ -2084,6 +2141,7 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
                 g_w_m8_q14[r][c] = sat_comp_w_q14((int32_t)g_w_m8_q14[r][c] - decay);
                 g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
             }
+        }
         }
     }
 
@@ -2705,8 +2763,8 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                          * with strong intermediate carrier signals while M8 starts near zero! */
                         for (int c = 0; c < 6; c++) {
                             if (g_w_m3_q14[c][c] == 0) {
-                                g_w_m3_q14[c][c]  = (int16_t)(80 << 7);
-                                g_w0_m3_q14[c][c] = (int16_t)(80 << 7);
+                                g_w_m3_q14[c][c]  = sat_comp_w_q14((int32_t)(80 << 7));
+                                g_w0_m3_q14[c][c] = g_w_m3_q14[c][c];
                             }
                         }
                         for (int r = 0; r < 7; r++) {
@@ -3048,6 +3106,10 @@ uint16_t maml_handle_udp_command(const uint8_t *req, uint16_t req_len,
                     g_slice_ab_enabled[0] = 0u;
                     g_slice_ab_enabled[1] = 0u;
                     maml_recompute_z_target();
+                } else if (subcmd == 7 && req_len >= 8) {
+                    /* Set SGD momentum in Q0.16 (e.g. 0.98 -> 64225, 0.0 -> 0) */
+                    uint16_t mom_q16 = (uint16_t)req[6] | ((uint16_t)req[7] << 8);
+                    g_momentum_q16 = mom_q16;
                 }
             }
             t20_sync_heater_and_wdog();
@@ -3080,7 +3142,7 @@ void maml_set_gain_experiment_config(uint8_t d_line, uint8_t w33, uint16_t gain_
     g_d_line_div     = (d_line >= 1 && d_line <= 16) ? d_line : 1u;
     g_w33_div        = (w33 >= 1 && w33 <= 16) ? w33 : 1u;
     g_target_gain_q8 = (gain_q8 >= 32 && gain_q8 <= 4096) ? gain_q8 : 256u;
-    g_w_comp_clamp   = (clamp >= 40 && clamp <= 127) ? clamp : 80u;
+    g_w_comp_clamp   = (clamp >= 40 && clamp <= 127) ? clamp : 75u;
 
     maml_load_default_m33();
     maml_generate_new_white_noise_ref();
