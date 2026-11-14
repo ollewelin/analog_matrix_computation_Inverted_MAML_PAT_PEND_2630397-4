@@ -227,6 +227,23 @@ def write_latest_status_atomic(data: dict):
     except Exception:
         pass
 
+def verify_hw_clamp(client: MamlUdpClient, target_clamp: int, attempts: int = 8) -> int:
+    """Apply and verify M3/M8 hardware weight clamp over UDP against MamlTelemetry.w_comp_clamp."""
+    last_seen = None
+    for attempt in range(1, attempts + 1):
+        drain_udp(client)
+        telem = client.set_gain_experiment(d_line=2, w33=1, target_gain=1.0, clamp=int(target_clamp))
+        if telem is not None:
+            last_seen = int(getattr(telem, "w_comp_clamp", -1))
+            if last_seen == int(target_clamp):
+                print(f"[+] Verified Hardware Clamp: ±{last_seen} LSB (attempt {attempt}/{attempts})")
+                return last_seen
+        time.sleep(0.05)
+    raise RuntimeError(
+        f"Hardware failed to acknowledge clamp ±{target_clamp} LSB after {attempts} attempts (last seen: {last_seen})"
+    )
+
+
 def main():
     global client_global, running
     parser = argparse.ArgumentParser(description="Card 1 Thermal Stress 2-Beat Bit Slicing")
@@ -314,7 +331,7 @@ def main():
     client.clear_w33_hidden_offset()
     time.sleep(0.03)
 
-    client.set_gain_experiment(d_line=2, w33=1, target_gain=1.0, clamp=args.clamp)
+    verify_hw_clamp(client, args.clamp, attempts=8)
     time.sleep(0.03)
 
     lr_q16_active = int(round(args.lr * 1024.0))
@@ -365,6 +382,7 @@ def main():
     time.sleep(0.05)
     client._send_binary(MAML_CMD_CENTER_WEIGHTS, init_payload)
     time.sleep(0.05)
+    verify_hw_clamp(client, args.clamp, attempts=8)
     client.set_heaters(False, [0, 0, 0, 0])
     time.sleep(0.03)
 

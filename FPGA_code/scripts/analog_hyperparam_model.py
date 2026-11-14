@@ -180,6 +180,22 @@ def extract_warm_trend_metrics(log_path: str) -> Dict[str, Any]:
     on_phases = []
     off_phases = []
 
+    # Detect effective hardware clamp if a UDP set_gain_experiment packet was dropped
+    all_on_w8 = [
+        max(
+            abs(r["w8_msb_range"][0]), abs(r["w8_msb_range"][1]),
+            abs(r["w8_lsb_range"][0]), abs(r["w8_lsb_range"][1]),
+        )
+        for recs in phase_map.values()
+        for r in recs
+        if r.get("reglering_on", False)
+    ]
+    if all_on_w8:
+        global_w8_max = float(max(all_on_w8))
+        at_ceiling_frac = float(np.mean(np.array(all_on_w8, dtype=np.float64) >= global_w8_max - 0.1))
+        if global_w8_max >= 40.0 and global_w8_max < (clamp - 2) and at_ceiling_frac > 0.20:
+            clamp = int(round(global_w8_max))
+
     for pidx in sorted_pidxs:
         recs = phase_map[pidx]
         if len(recs) < 10:
