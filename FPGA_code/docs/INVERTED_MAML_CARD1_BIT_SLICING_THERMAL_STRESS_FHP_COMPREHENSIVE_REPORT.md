@@ -9,8 +9,8 @@
 This comprehensive report documents the complete cold-start Card 1 (`1k/2.2k` attenuator, Trion `T120F324` + `T20F256`) validation of 2-beat time-division multiplexed **Analog Bit Slicing (`K=1`)** after resolving the two-layer backpropagation sign (`dx8`), M3 scaling (`>> 6`), M3 active-row saturation (`±25 LSB` vs frozen `±40 LSB` staircases), IEEE 802.3 Ethernet batch frame padding, and **integrated-L2 back-calculation anti-windup** (`T120_SOC_ETH_FW v2.2-MAML`, `HW_LOGIC 0x20261030`).
 
 - **Unheated Cold Reference (`cold_verify_k1.json`):** `Cold / Regler ON` achieves **`9.45 b`** and `Cold / Regler OFF (W8=0)` achieves **`9.45 b`** combined 8-bit ENOB — well above the `> 8.0 b` cold baseline criterion.
-- **Primary Evaluated Dataset (`opt_r5_lr0p03_l2_1024_mom0p85_cl75.json`, `3,901` pairs):** `LR=0.03, L2=1024, Momentum=0.85, Clamp=±75 LSB, K=1, 40% PWM` delivers **`+0.20 b`** detrended `Warm ON` lift above continuous PCHIP baseline $E_{\text{base}}(t)$, **`1.34x`** detrended loss suppression, **`+0.43 b`** hot convergence climb, and **`0.89`** anti-windup recovery (Composite Score **`+1.147`**).
-- **Cumulative Optimization Progress (`R1–R6`):** Best verified configuration so far is **Round 2** (`LR=0.035, L2=1536, Mom=0.85, Clamp=±75`) with Composite Score **`+2.004`**.
+- **Primary Evaluated Dataset (`opt_r7_lr0p035_l2_768_mom0p90_cl75.json`, `3,917` pairs):** `LR=0.035, L2=768, Momentum=0.9, Clamp=±75 LSB, K=1, 40% PWM` delivers **`+0.18 b`** detrended `Warm ON` lift above continuous PCHIP baseline $E_{\text{base}}(t)$, **`1.38x`** detrended loss suppression, **`+0.48 b`** hot convergence climb, and **`0.95`** anti-windup recovery (Composite Score **`+1.191`**).
+- **Cumulative Optimization Progress (`R1–R7`):** Best verified configuration so far is **Round 2** (`LR=0.035, L2=1536, Mom=0.85, Clamp=±75`) with Composite Score **`+2.004`**.
 
 ---
 
@@ -20,12 +20,12 @@ This comprehensive report documents the complete cold-start Card 1 (`1k/2.2k` at
 
 | Factorial Condition | Thermal State | Regulation State | Mean Loss (LSB²) | Mean Comb ENOB | Peak Comb ENOB | MSB / LSB Mean | W8 Range [MSB / LSB] |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **1. Cold Closed-Loop** | Heaters OFF (0%) | Comp ON (`K=1`, L2=1024) | 4,193.7 | **9.43 b** | 9.50 b | 5.54 / 5.76 b | `[-14, 14]` / `[-10, 10]` |
-| **2. Cold Open-Loop** | Heaters OFF (0%) | Comp OFF (`W8=0`) | 4,434.3 | **9.43 b** | 9.50 b | 5.48 / 5.80 b | `[0, 0]` (0% leak) |
-| **3. Warm Closed-Loop** | Heaters ON (40% @ 1Hz) | Comp ON (`K=1`, L2=1024) | **10,595.2** | **8.92 b** | 9.50 b | 5.11 / 5.02 b | `[-45, 75]` / `[-37, 75]` |
-| **4. Warm Open-Loop** | Heaters ON (40% @ 1Hz) | Comp OFF (`W8=0`) | 19,861.5 | 8.43 b | 9.50 b | 4.57 / 4.47 b | `[0, 0]` (0% leak) |
+| **1. Cold Closed-Loop** | Heaters OFF (0%) | Comp ON (`K=1`, L2=768) | 4,073.3 | **9.42 b** | 9.50 b | 5.57 / 5.77 b | `[-27, 15]` / `[-12, 18]` |
+| **2. Cold Open-Loop** | Heaters OFF (0%) | Comp OFF (`W8=0`) | 4,840.9 | **9.39 b** | 9.50 b | 5.45 / 5.71 b | `[0, 0]` (0% leak) |
+| **3. Warm Closed-Loop** | Heaters ON (40% @ 1Hz) | Comp ON (`K=1`, L2=768) | **7,659.9** | **9.13 b** | 9.50 b | 5.25 / 5.27 b | `[-48, 75]` / `[-42, 75]` |
+| **4. Warm Open-Loop** | Heaters ON (40% @ 1Hz) | Comp OFF (`W8=0`) | 12,853.7 | 8.78 b | 9.50 b | 4.85 / 4.79 b | `[0, 0]` (0% leak) |
 
-### Table 1B: Latest Hyperparameter & Detrended Trend-Curve Results (`R1–R6`)
+### Table 1B: Latest Hyperparameter & Detrended Trend-Curve Results (`R1–R7`)
 
 | Round | Dataset | LR | L2 Reg | Mom | Clamp | Lift vs E_base | Loss Ratio | Hot Climb | Jitter | Recovery | Composite Score |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -35,18 +35,19 @@ This comprehensive report documents the complete cold-start Card 1 (`1k/2.2k` at
 | R4 | `opt_r4_lr0p045_l2_2048_mom0p88_cl75.json` | `0.045` | `2048` | `0.88` | `±75` | `+0.11 b` | `1.17x` | `+0.14 b` | `0.24 b` | `1.00` | **`+0.643`** |
 | R5 | `opt_r5_lr0p03_l2_1024_mom0p85_cl75.json` | `0.03` | `1024` | `0.85` | `±75` | `+0.20 b` | `1.34x` | `+0.43 b` | `0.26 b` | `0.89` | **`+1.147`** |
 | R6 | `opt_r6_lr0p025_l2_1280_mom0p92_cl75.json` | `0.025` | `1280` | `0.92` | `±75` | `+0.06 b` | `1.12x` | `+0.34 b` | `0.23 b` | `1.00` | **`+0.689`** |
-*Active Next Optimization Target (`Round 7`):* `LR=0.035, L2=768, Momentum=0.9, Clamp=±75 LSB` (GP predicted `+1.929 ± 0.644`).
+| R7 | `opt_r7_lr0p035_l2_768_mom0p90_cl75.json` | `0.035` | `768` | `0.9` | `±75` | `+0.18 b` | `1.38x` | `+0.48 b` | `0.26 b` | `0.95` | **`+1.191`** |
+*Active Next Optimization Target (`Round 8`):* `LR=0.04, L2=1536, Momentum=0.82, Clamp=±75 LSB` (GP predicted `+1.788 ± 0.405`).
 
-### Table 1C: Phase-by-Phase Telemetry (`opt_r5_lr0p03_l2_1024_mom0p85_cl75.json`)
+### Table 1C: Phase-by-Phase Telemetry (`opt_r7_lr0p035_l2_768_mom0p90_cl75.json`)
 
 | Phase | Regime | Pairs | Comb ENOB (`Start -> Late`, Mean) | Δ vs E_base | Total Loss (`Start -> Late`) | Loss Ratio | W8 Peak `[M, L]` | W3 Peak | W8 nz |
 | :--- | :--- | ---: | :---: | :---: | :---: | :---: | :---: | :---: | ---: |
-| P1 | Cold / Regler ON | 321 | `9.45 -> 9.44` (**9.43 b**) | — | `3635 -> 4235` | — | `[14, 10]` | `0` | `320` |
-| P2 | Cold / Regler OFF | 303 | `9.45 -> 9.42` (**9.43 b**) | — | `3554 -> 4621` | — | `[0, 0]` | `0` | `0` |
-| P3 | Warm / Regler ON | 1037 | `9.46 -> 9.13` (**9.30 b**) | **+0.05 b** | `4352 -> 6638` | **1.18x** | `[34, 37]` | `2` | `1037` |
-| P4 | Warm / Regler OFF | 927 | `9.04 -> 8.52` (**8.68 b**) | **+0.01 b** | `7725 -> 17229` | **0.99x** | `[0, 0]` | `0` | `0` |
-| P5 | Warm / Regler ON | 834 | `8.49 -> 8.38` (**8.45 b**) | **+0.28 b** | `18127 -> 18807` | **1.43x** | `[75, 75]` | `16` | `834` |
-| P6 | Warm / Regler OFF | 479 | `8.04 -> 7.89` (**7.93 b**) | **-0.02 b** | `28910 -> 32304` | **1.02x** | `[0, 0]` | `0` | `0` |
+| P1 | Cold / Regler ON | 334 | `9.38 -> 9.42` (**9.42 b**) | — | `4438 -> 4204` | — | `[27, 18]` | `1` | `333` |
+| P2 | Cold / Regler OFF | 296 | `9.40 -> 9.38` (**9.39 b**) | — | `5993 -> 4965` | — | `[0, 0]` | `0` | `0` |
+| P3 | Warm / Regler ON | 1066 | `9.39 -> 9.35` (**9.38 b**) | **+0.01 b** | `5141 -> 4725` | **1.21x** | `[34, 33]` | `3` | `1066` |
+| P4 | Warm / Regler OFF | 933 | `9.31 -> 8.83` (**8.99 b**) | **+0.02 b** | `5220 -> 11143` | **1.00x** | `[0, 0]` | `0` | `0` |
+| P5 | Warm / Regler ON | 817 | `8.74 -> 8.76` (**8.80 b**) | **+0.29 b** | `11691 -> 12402` | **1.49x** | `[75, 75]` | `19` | `817` |
+| P6 | Warm / Regler OFF | 471 | `8.42 -> 8.31` (**8.35 b**) | **+0.03 b** | `18601 -> 22121` | **1.01x** | `[0, 0]` | `0` | `0` |
 
 ---
 
