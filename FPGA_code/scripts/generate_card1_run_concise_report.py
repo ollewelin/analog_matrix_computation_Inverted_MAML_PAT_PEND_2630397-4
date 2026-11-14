@@ -52,9 +52,9 @@ def make_run_slug(meta: dict, round_num: int) -> tuple[str, str]:
     l2 = int(meta["l2_reg"])
     mom_str = f"{meta['momentum']:.2f}".replace(".", "p")
     clamp = int(meta.get("clamp_lsb", 75))
-    lower_tag = f"r{round_num}_lr{lr_str}_l2_{l2}_mom{mom_str}_cl{clamp}"
-    upper_tag = lower_tag.upper().replace("P", "p")
-    return lower_tag, f"R{round_num}_LR{lr_str.upper()}_L2_{l2}_MOM{mom_str.upper()}_CL{clamp}"
+    prefix = f"r{round_num}dc_fix" if str(meta.get("dc_calib_mode", "")).startswith("LOCKED_R1") else f"r{round_num}"
+    lower_tag = f"{prefix}_lr{lr_str}_l2_{l2}_mom{mom_str}_cl{clamp}"
+    return lower_tag, f"{prefix.upper()}_LR{lr_str.upper()}_L2_{l2}_MOM{mom_str.upper()}_CL{clamp}"
 
 
 def compute_phase_stats(data: dict, base_t: np.ndarray, base_e: np.ndarray, base_lnL: np.ndarray) -> list[dict]:
@@ -443,6 +443,7 @@ def collect_round_summary(all_log_paths: list[Path]) -> list[dict]:
         tr = tr_info["trends"]
         rows.append({
             "round": idx,
+            "label": f"R{idx}dc_fix" if ("dc_fix" in p.name or str(m.get("dc_calib_mode", "")).startswith("LOCKED_R1")) else f"R{idx}",
             "file": p.name,
             "lr": m["lr"],
             "l2": int(m["l2_reg"]),
@@ -491,7 +492,7 @@ def write_markdown(
     for r in all_rows:
         star = " ★" if r["round"] == best_row["round"] else ""
         lines.append(
-            f"| R{r['round']}{star} | `{r['lr']}` | `{r['l2']}` | `{r['mom']}` | `±{r['clamp']}` | "
+            f"| {r['label']}{star} | `{r['lr']}` | `{r['l2']}` | `{r['mom']}` | `±{r['clamp']}` | "
             f"`{r['lift']:+.2f} b` | `{r['loss_r']:.2f}x` | `{r['climb']:+.2f} b` | `{r['jitt']:.2f} b` | `{r['recov']:.2f}` | **`{r['score']:+.3f}`** |"
         )
 
@@ -612,11 +613,11 @@ def build_pdf(
     for r in show_rows:
         star = "*" if r["round"] == best_row["round"] else ""
         c_data.append([
-            f"R{r['round']}{star}", f"{r['lr']}", f"{r['l2']}", f"{r['mom']}", f"±{r['clamp']}",
+            f"{r['label']}{star}", f"{r['lr']}", f"{r['l2']}", f"{r['mom']}", f"±{r['clamp']}",
             f"{r['lift']:+.2f}b", f"{r['loss_r']:.2f}x", f"{r['climb']:+.2f}b", f"{r['jitt']:.2f}b",
             f"{r['recov']:.2f}", f"{r['score']:+.3f}",
         ])
-    c_tbl = Table(c_data, colWidths=[30, 42, 38, 36, 40, 48, 44, 52, 42, 42, 54])
+    c_tbl = Table(c_data, colWidths=[46, 40, 36, 34, 38, 46, 42, 50, 40, 40, 52])
     c_tbl.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
