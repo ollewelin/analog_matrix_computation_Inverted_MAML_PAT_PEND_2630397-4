@@ -659,9 +659,16 @@ def build_pdf(
     ]))
     story.append(tbl)
     story.append(Spacer(1, 5))
-    # Adapt Page 1 image height cleanly based on rows in cumulative table so everything stays on Page 1
-    p1_img_h = max(275, 360 - 11 * len(show_rows))
-    story.append(Image(str(fig1_path), width=524, height=p1_img_h))
+    from PIL import Image as PILImage
+
+    def fit_image(img_p: Path, max_w: float, max_h: float) -> Image:
+        with PILImage.open(img_p) as im:
+            iw, ih = im.size
+        scale = min(max_w / iw, max_h / ih)
+        return Image(str(img_p), width=iw * scale, height=ih * scale)
+
+    p1_max_h = max(280, 365 - 11 * len(show_rows))
+    story.append(fit_image(fig1_path, 524, p1_max_h))
 
     # Page 2: All W(8) and W(3) Weights
     story.append(PageBreak())
@@ -674,7 +681,7 @@ def build_pdf(
             bul_s,
         ))
         story.append(Spacer(1, 4))
-        story.append(Image(str(fig2_path), width=532, height=580))
+        story.append(fit_image(fig2_path, 532, 605))
     else:
         story.append(Paragraph(
             f"&bull; <b>Full 84 W(8) + 96 W(3) Weight Coverage:</b> Displays the signed `[min, max]` excursion envelopes of all 42 `W(8) MSB`, "
@@ -683,7 +690,7 @@ def build_pdf(
             bul_s,
         ))
         story.append(Spacer(1, 6))
-        story.append(Image(str(fig2_path), width=524, height=345))
+        story.append(fit_image(fig2_path, 524, 360))
 
     doc.build(story, canvasmaker=NumberedCanvas)
 
