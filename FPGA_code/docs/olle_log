@@ -835,3 +835,7 @@ Jämförelse mellan etablerade AIMC-metoder och Inverted MAML gällande offset/g
    - Sparse digital handledare: Mode A SGD körs enbart i låg bandbredd (sparse, 100 Hz vid refresh / K=1).
    - Oberoende tillstånd (M8_MSB och M8_LSB) säkerställer att både MSB och LSB hålls stabila mot sina fysiska kiselnivåer, vilket möjliggör ren binär shift-and-add (16*Y_MSB + Y_LSB) utan adaptiva digitala filter.
 ================================================================================
+/home/olle/anaconda3/bin/python gui/bit_slicing_live_gui.py
+/home/olle/anaconda3/bin/python FPGA_code/scripts/run_demo.py
+
+/home/olle/anaconda3/bin/python FPGA_code/scripts/run_demo.py --phase-sec 15 --cooldown-sec 15

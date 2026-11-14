@@ -148,3 +148,55 @@ make -C FPGA_code/sw/t120_master clean all
   --lr 0.055 --l2-reg 1920 --momentum 0.85 --clamp 90 \
   --load-dc-calib FPGA_code/config/r1_dc_cal_fixed.json
 ```
+
+---
+
+## 6. 2026-11-14 Live Hardware Demo Example: Multi-Stage Thermal Stress & Bit-Slicing
+
+This one-click demo performs a live multi-stage thermal stress and analog bit-slicing demonstration on Card 1 silicon, transitioning from ambient cold baseline through moderate heating (30% PWM) up to heavy thermal stress (40% PWM).
+
+### Start of Live GUI Monitor
+In terminal 1, launch the live real-time visual monitor:
+```bash
+/home/olle/anaconda3/bin/python gui/bit_slicing_live_gui.py
+```
+*(Runs on X11 display, plotting combined 8-bit ENOB, MSB/LSB individual precision, total squared loss, and real-time W(8) and W(3) envelope trajectories with color-coded regulation regimes).*
+
+### Start of Live Hardware Demo
+In terminal 2, launch the automated demo runner:
+
+#### Option A: Standard Full 14-Phase Demo (7.0 min active time, 30s per phase)
+```bash
+/home/olle/anaconda3/bin/python FPGA_code/scripts/run_demo.py
+```
+
+#### Option B: Fast Audience Demo (3.5 min active time, 15s per phase)
+```bash
+/home/olle/anaconda3/bin/python FPGA_code/scripts/run_demo.py --phase-sec 15 --cooldown-sec 15
+```
+
+### Demo Phase Schedule & Thermal Dynamics
+The demo executes a 14-phase sequence:
+1. **Cold Baseline (Phases 1–2, 0% Heat):**
+   - Phase 1 (Regler ON, 30s) & Phase 2 (Regler OFF, 30s) at ambient 25 °C establishing unheated reference (~8.6–8.7 bits).
+2. **Stage 1: Moderate Thermal Stress (Phases 3–8, 30% PWM Heater):**
+   - 6 alternating toggles (3 ON / 3 OFF) à 30s. The Inverted MAML loop tracks the gradual thermal drift, holding precision steady at 8.0–8.7 bits and lifting precision by +0.78 bits over free drift.
+3. **Stage 2: Intense Thermal Stress (Phases 9–14, 40% PWM Heater):**
+   - 6 alternating toggles (3 ON / 3 OFF) à 30s. When regulation is disabled, thermal drift accelerates loss past 103,000 LSB² (dropping uncompensated ENOB down to 5.7 bits). Each time regulation engages (e.g. Phase 13), precision instantly steps up by **`+1.25 bits`** and loss drops by **`1.87x`** (from 85k down to 54k LSB²), strictly bounded at ±90 LSB without saturation or clipping.
+
+### Empirical Visualizations from Demo Run (Round 20)
+
+#### 1. Real-Time 4-Panel Timeline (Round 20, 14 Phases)
+Full 4-panel telemetry (Combined ENOB, Loss, W8 bounds, and W3 clock/data envelope) across all 14 phases showing the immediate step-response whenever regulation is enabled:
+
+![Round 20 Demo Timeline](reports_and_logs/figures/fig_card1_r20_lr0p055_l2_1920_mom0p85_cl90_thermal_slicing.png)
+
+#### 2. All 180 Weight Trajectories (Round 20, 14 Phases)
+Complete 84 W(8) (7x6 MSB + 7x6 LSB) and 96 W(3) (8x6 MSB + 8x6 LSB) weight trajectories across 4,702 sample pairs, demonstrating smooth column-3 compensation within ±90 LSB clamp:
+
+![Round 20 All 180 Weights](reports_and_logs/figures/fig_card1_r20_lr0p055_l2_1920_mom0p85_cl90_w8_w3_all_weights.png)
+
+#### 3. Full Demo Report PDF
+The publication-quality PDF generated directly by `run_demo.py` is available at:
+* [INVERTED_MAML_CARD1_R20_LR0P055_L2_1920_MOM0P85_CL90_THERMAL_SLICING_REPORT.pdf](reports_and_logs/INVERTED_MAML_CARD1_R20_LR0P055_L2_1920_MOM0P85_CL90_THERMAL_SLICING_REPORT.pdf)
+
