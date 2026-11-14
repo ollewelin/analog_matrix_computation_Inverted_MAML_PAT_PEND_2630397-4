@@ -453,10 +453,10 @@ def propose_next_hyperparams(
     best = max(analyses, key=lambda a: a["score"])
 
     # Candidate grid constrained inside physically valid regimes
-    lrs = [0.020, 0.025, 0.030, 0.035, 0.045, 0.055]
-    l2s = [768, 1024, 1536, 2048, 2560]
-    moms = [0.75, 0.80, 0.85, 0.88, 0.90, 0.92]
-    clamps = [65, 70, 75, 80]
+    lrs = [0.020, 0.025, 0.028, 0.030, 0.032, 0.035, 0.038, 0.040, 0.045, 0.055]
+    l2s = [768, 896, 1024, 1280, 1536, 1792, 2048, 2560]
+    moms = [0.75, 0.80, 0.82, 0.85, 0.86, 0.88, 0.90, 0.92]
+    clamps = [65, 70, 72, 75, 78, 80]
 
     candidates = []
     for lr in lrs:
