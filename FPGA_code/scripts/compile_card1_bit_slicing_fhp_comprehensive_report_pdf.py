@@ -64,7 +64,7 @@ DEFAULT_COLD_JSON = LOGS_DIR / "cold_verify_k1.json"
 STEM = "INVERTED_MAML_CARD1_BIT_SLICING_THERMAL_STRESS_FHP_COMPREHENSIVE_REPORT"
 
 
-def compute_factorial_stats(data: dict) -> dict:
+def compute_factorial_stats(data: dict, cold_fallback: dict | None = None) -> dict:
     hist = data["history"]
     res = {}
     for key, h, r in [
@@ -74,6 +74,8 @@ def compute_factorial_stats(data: dict) -> dict:
         ("warm_off", True, False),
     ]:
         rows = [e for e in hist if bool(e["heater_on"]) == h and bool(e["reglering_on"]) == r]
+        if not rows and cold_fallback is not None:
+            rows = [e for e in cold_fallback["history"] if bool(e["heater_on"]) == h and bool(e["reglering_on"]) == r]
         comb = np.array([float(e["combined_enob_raw"]) for e in rows], dtype=np.float64)
         msb = np.array([float(e["enob_msb"]) for e in rows], dtype=np.float64)
         lsb = np.array([float(e["enob_lsb"]) for e in rows], dtype=np.float64)
@@ -1021,7 +1023,7 @@ def main():
     all_rows = collect_round_summary(all_paths)
     base_t, base_e, base_lnL = _fit_thermal_baseline(pdata["history"])
     pstats = compute_phase_stats(pdata, base_t, base_e, base_lnL)
-    fstats = compute_factorial_stats(pdata)
+    fstats = compute_factorial_stats(pdata, cold_data)
     trend_info = extract_warm_trend_metrics(str(p_path))
 
     label = f"{p_path.name} (LR={pdata['metadata']['lr']}, L2={pdata['metadata']['l2_reg']}, Mom={pdata['metadata']['momentum']})"
