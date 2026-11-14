@@ -161,16 +161,15 @@
     "composite_score": 2.004,
     "log_file": "FPGA_code/logs/bit_slicing/dc_recalibrated/opt_r2_lr0p035_l2_1536_mom0p85_cl75.json"
   },
-  "locked_r1_dc_cal_best_r4dc_fix": {
+  "locked_r1_dc_cal_best_r7dc_fix": {
     "attenuator": "1k/2.2k",
     "dc_calib_mode": "LOCKED_R1_FIXED (FPGA_code/config/r1_dc_cal_fixed.json)",
-    "clamp_lsb": 70,
-    "requested_clamp_lsb": 80,
+    "clamp_lsb": 75,
     "heater_duty_pct": 40.0,
     "heater_pwm_mode": "T20_hardware_0p2Hz_90deg_staggered",
     "k_batch": 1,
-    "lr": 0.05,
-    "l2_reg": 1792,
+    "lr": 0.055,
+    "l2_reg": 2048,
     "momentum": 0.85,
     "anti_windup": true,
     "cold_phase_duration_min": 0.25,
@@ -178,7 +177,7 @@
     "cold_phases": 2,
     "warm_phases": 4,
     "cool_phases": 0,
-    "composite_score": 2.48,
-    "log_file": "FPGA_code/logs/bit_slicing/opt_r4dc_fix_lr0p05_l2_1792_mom0p85_cl80.json"
+    "composite_score": 2.665,
+    "log_file": "FPGA_code/logs/bit_slicing/opt_r7dc_fix_lr0p055_l2_2048_mom0p85_cl75.json"
   }
 }
