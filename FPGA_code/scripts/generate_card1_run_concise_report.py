@@ -223,7 +223,8 @@ def generate_timeline_figure(
     ax.axhline(-clamp, color="#dc2626", linestyle=":", linewidth=1.2)
     ax.axhline(0, color="#64748b", linewidth=0.6, alpha=0.6)
     ax.set_ylabel("W(8) (LSB)", fontsize=9.5, fontweight="bold")
-    ax.set_ylim(-clamp - 12, clamp + 12)
+    w8_limit = max(95, clamp + 10)
+    ax.set_ylim(-w8_limit, w8_limit)
     ax.grid(True, linestyle=":", alpha=0.5)
     ax.legend(loc="lower left", fontsize=7.6, ncol=3, framealpha=0.92)
 
@@ -282,9 +283,10 @@ def generate_all_weights_figure(data: dict, fig_out: Path, round_num: int) -> bo
             _shade_phases(ax, phases)
             for r in range(7):
                 ax.plot(t_min, w8m[:, r, col], color=row_colors_7[r], linewidth=0.9, label=f"r{r}" if col == 0 else None)
+            w8_limit = max(95, clamp + 10)
             ax.axhline(clamp, color="#ef4444", linestyle=":", linewidth=0.8)
             ax.axhline(-clamp, color="#ef4444", linestyle=":", linewidth=0.8)
-            ax.set_ylim(-clamp - 8, clamp + 8)
+            ax.set_ylim(-w8_limit, w8_limit)
             ax.set_title(f"W8 MSB Col {col}", fontsize=8.8, fontweight="bold")
             ax.grid(True, linestyle=":", alpha=0.45)
             if col == 0:
@@ -298,7 +300,7 @@ def generate_all_weights_figure(data: dict, fig_out: Path, round_num: int) -> bo
                 ax.plot(t_min, w8l[:, r, col], color=row_colors_7[r], linewidth=0.9)
             ax.axhline(clamp, color="#ef4444", linestyle=":", linewidth=0.8)
             ax.axhline(-clamp, color="#ef4444", linestyle=":", linewidth=0.8)
-            ax.set_ylim(-clamp - 8, clamp + 8)
+            ax.set_ylim(-w8_limit, w8_limit)
             ax.set_title(f"W8 LSB Col {col}", fontsize=8.8, fontweight="bold")
             ax.grid(True, linestyle=":", alpha=0.45)
             if col == 0:
@@ -366,11 +368,12 @@ def generate_all_weights_figure(data: dict, fig_out: Path, round_num: int) -> bo
     ax.fill_between(t_min, w8m_min, w8m_max, color="#16a34a", alpha=0.22, label="W8 MSB [min, max] (42 weights)")
     ax.plot(t_min, w8m_max, color="#15803d", linewidth=1.2, label="Max (+)")
     ax.plot(t_min, w8m_min, color="#166534", linewidth=1.2, linestyle="--", label="Min (-)")
+    w8_limit = max(95, clamp + 10)
     ax.axhline(clamp, color="#dc2626", linestyle=":", linewidth=1.2, label=f"Clamp ±{clamp}")
     ax.axhline(-clamp, color="#dc2626", linestyle=":", linewidth=1.2)
     ax.set_title("W(8) MSB Bank (7 rows × 6 cols = 42 Synapses)", fontsize=9.8, fontweight="bold")
     ax.set_ylabel("Weight (LSB)", fontsize=9.0, fontweight="bold")
-    ax.set_ylim(-clamp - 12, clamp + 12)
+    ax.set_ylim(-w8_limit, w8_limit)
     ax.grid(True, linestyle=":", alpha=0.5)
     ax.legend(loc="lower left", fontsize=7.5, framealpha=0.9)
 
@@ -383,7 +386,7 @@ def generate_all_weights_figure(data: dict, fig_out: Path, round_num: int) -> bo
     ax.axhline(clamp, color="#dc2626", linestyle=":", linewidth=1.2, label=f"Clamp ±{clamp}")
     ax.axhline(-clamp, color="#dc2626", linestyle=":", linewidth=1.2)
     ax.set_title("W(8) LSB Bank (7 rows × 6 cols = 42 Synapses)", fontsize=9.8, fontweight="bold")
-    ax.set_ylim(-clamp - 12, clamp + 12)
+    ax.set_ylim(-w8_limit, w8_limit)
     ax.grid(True, linestyle=":", alpha=0.5)
     ax.legend(loc="lower left", fontsize=7.5, framealpha=0.9)
 

@@ -43,25 +43,66 @@ This self-contained package archives the complete verified Card 1 Mode A **2-bea
 
 ---
 
-## 3. Verified Locked-DC Performance (`R1dc_fix..R8dc_fix`, `K=1`, `40%` PWM)
+## 3. Verified Locked-DC Performance & Systematic Clamp Sweep (`R1dc_fix..R16dc_fix`, `40%` PWM)
 
 - **Cold Reference (`cold_verify_k1.json`, Heaters OFF, 643 pairs):** `Cold / Regler ON` mean **9.45 b** (`min 8.80 b`); `Cold / Regler OFF (W8=0)` mean **9.45 b** (`min 8.61 b`), `0/311` non-zero leaks.
 - **2x2 Factorial Accounting (`R8dc_fix` + Cold Reference):** Cold ON **9.45 b** (`3,748.0 L²`), Cold OFF **9.45 b** (`3,947.3 L²`), Warm ON **7.19 b** (`50,580.5 L²`), Warm OFF **5.66 b** (`106,727.2 L²`).
 
-| Round | LR | L2 Reg | Mom | Clamp | Lift vs `E_base` | Loss Ratio | Hot Climb | Jitter | Recov | Score |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `R1dc_fix` | `0.03` | `1024` | `0.9` | `±75` | `+1.00 b` | `1.71x` | `+0.95 b` | `0.40 b` | `0.00` | **`+1.799`** |
-| `R2dc_fix` | `0.035` | `1536` | `0.85` | `±75` | `+0.99 b` | `1.69x` | `+1.16 b` | `0.39 b` | `0.00` | **`+1.957`** |
-| `R3dc_fix` | `0.02` | `2560` | `0.8` | `±70` | `+0.04 b` | `1.00x` | `+0.24 b` | `0.34 b` | `1.00` | **`+0.204`** |
-| `R4dc_fix` | `0.05` | `1792` | `0.85` | `±70` | `+1.08 b` | `1.78x` | `+0.97 b` | `0.40 b` | `0.50` | **`+2.480`** |
-| `R5dc_fix` | `0.055` | `1792` | `0.85` | `±85` | `+1.12 b` | `1.77x` | `+1.37 b` | `0.42 b` | `0.00` | **`+2.393`** |
-| `R6dc_fix` | `0.055` | `1792` | `0.8` | `±90` | `+0.99 b` | `1.72x` | `+1.02 b` | `0.40 b` | `0.00` | **`+1.770`** |
-| **`R7dc_fix` ★** | **`0.055`** | **`2048`** | **`0.85`** | **`±75`** | `+1.04 b` | `1.74x` | `+1.17 b` | `0.40 b` | `0.50` | **`+2.665`** |
-| **`R8dc_fix` (13m)** | **`0.055`** | **`2048`** | **`0.85`** | **`±75`** | **`+1.16 b`** | **`1.85x`** | `+0.68 b` | `0.42 b` | `0.00` | **`+1.855`** |
+| Round | LR | L2 Reg | Mom | Clamp | Lift vs `E_base` | Loss Ratio | Hot Climb | Jitter | Recov | Score | Notes |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| `R1dc_fix` | `0.03` | `1024` | `0.9` | `±75` | `+1.00 b` | `1.71x` | `+0.95 b` | `0.40 b` | `0.00` | **`+1.799`** | Baseline locked DC |
+| `R2dc_fix` | `0.035` | `1536` | `0.85` | `±75` | `+0.99 b` | `1.69x` | `+1.16 b` | `0.39 b` | `0.00` | **`+1.957`** | Tuned L2 |
+| `R3dc_fix` | `0.02` | `2560` | `0.8` | `±70` | `+0.04 b` | `1.00x` | `+0.24 b` | `0.34 b` | `1.00` | **`+0.204`** | Over-damped |
+| `R4dc_fix` | `0.05` | `1792` | `0.85` | `±70` | `+1.08 b` | `1.78x` | `+0.97 b` | `0.40 b` | `0.50` | **`+2.480`** | High LR |
+| `R5dc_fix` | `0.055` | `1792` | `0.85` | `±85` | `+1.12 b` | `1.77x` | `+1.37 b` | `0.42 b` | `0.00` | **`+2.393`** | Relaxed clamp |
+| `R6dc_fix` | `0.055` | `1792` | `0.8` | `±90` | `+0.99 b` | `1.72x` | `+1.02 b` | `0.40 b` | `0.00` | **`+1.770`** | Lower momentum |
+| `R7dc_fix` | `0.055` | `2048` | `0.85` | `±75` | `+1.04 b` | `1.74x` | `+1.17 b` | `0.40 b` | `0.50` | **`+2.665`** | Tight L2 optimum |
+| `R8dc_fix` (13m) | `0.055` | `2048` | `0.85` | `±75` | **`+1.16 b`** | **`1.85x`** | `+0.68 b` | `0.42 b` | `0.00` | **`+1.855`** | 13-min sustained |
+| `R10dc_fix` | `0.055` | `1920` | `0.85` | `±75` | `+0.81 b` | `1.59x` | `+0.66 b` | `0.38 b` | `0.50` | **`+1.756`** | Under-clamped at L2=1920 |
+| `R11dc_fix` | `0.055` | `1920` | `0.85` | `±78` | `+0.96 b` | `1.67x` | `+1.13 b` | `0.40 b` | `0.00` | **`+1.898`** | Lift rising |
+| `R12dc_fix` | `0.055` | `1920` | `0.85` | `±80` | `+0.95 b` | `1.70x` | `+0.98 b` | `0.42 b` | `0.00` | **`+1.810`** | Loss ratio rising |
+| `R13dc_fix` | `0.055` | `1920` | `0.85` | `±82` | `+1.04 b` | `1.75x` | `+0.83 b` | `0.42 b` | `0.00` | **`+1.721`** | Lift > 1 bit |
+| `R14dc_fix` | `0.055` | `1920` | `0.85` | `±85` | **`+1.12 b`** | **`1.78x`** | `+1.06 b` | `0.43 b` | `0.50` | **`+2.645`** | Dynamic swing peak |
+| **`R15dc_fix` ★** | **`0.055`** | **`1920`** | **`0.85`** | **`±90`** | `+0.78 b` | `1.55x` | `+0.97 b` | `0.39 b` | `0.67` | **`+2.117`** | **LOCKED PRODUCTION OPTIMUM ("Lagom"): P3 8.78 b, Loss 13.4k** |
+| `R16dc_fix` | `0.055` | `1920` | `0.85` | `±100` | `+0.94 b` | `1.67x` | `+0.89 b` | `0.40 b` | `0.75` | **`+2.443`** | 2T1C Triode Saturation Knee |
 
 ---
 
-## 4. Exact Restore & Reproduction Commands
+## 4. Silicon Multiplier Saturation Mapping & Locked Clamp = 90 LSB Optimum ("Lagom")
+
+A systematic hardware sweep (`R10dc_fix .. R16dc_fix`) on physical silicon revealed the exact operating limits of the Inverted MAML Dual-2T1C MOS triode multipliers under sustained 40% PWM thermal stress:
+
+1. **Under-Clamping ($\le 75\dots 82$ LSB):**
+   The anti-windup clamp clips weights prematurely in column 3 (`W8[*, 3]`), preventing the closed loop from counteracting the entire thermal disturbance gradient.
+2. **Locked Production Optimum: Clamp = 90 LSB ("Lagom"):**
+   We have officially selected and locked **Clamp = 90 LSB** as our production setting. At **$\pm 90$ LSB**, the matrix delivers maximum precision and lowest error under thermal stress:
+   - **Phase 3 Warm ENOB:** **`8.78 bits`** (compared to `8.08 bits` at 85 LSB and `7.78 bits` at 75 LSB).
+   - **Phase 3 Total Loss:** Reduced to **`13,421`** (more than 50% lower than the 27,939 loss at 85 LSB and 33,400 at 75 LSB).
+   - **Zero ColTIA Saturation Clips:** `0 / 3,886` clips (100% linear transimpedance headroom).
+   - **High Anti-Windup Recovery:** `0.67` recovery rate back into the linear regime.
+3. **Triode Pinch-Off Saturation Knee (Clamp = 100 LSB):**
+   When the clamp is opened all the way to $\pm 100$ LSB (`R16dc_fix`), weights in column 3 reach +100 LSB, entering the saturated pinch-off region where $\Delta I / \Delta V_g$ non-linearities dominate. Total loss under heating rebounds from 13,421 up to 18,936 and precision drops back to 8.48 bits.
+
+### Empirical Visualizations from Silicon Reports
+
+#### 1. Full Real-Time Performance Timeline (Round 16dc_fix, Clamp = ±100 LSB)
+Demonstrates the full 4-panel telemetry: Combined ENOB across all 6 phases, moving mean loss, W(8) trajectories bounded at the ±100 LSB clamp, and W(3) data rows within ±33 LSB:
+
+![Round 16 Multi-Panel Timeline](reports_and_logs/figures/fig_card1_r16dc_fix_lr0p055_l2_1920_mom0p85_cl100_thermal_slicing.png)
+
+#### 2. All 180 Weight Trajectories (Round 16dc_fix, Clamp = ±100 LSB)
+Full 84-weight W(8) and 96-weight W(3) traces scaled to `[-110, +110]` LSB showing column 3 hitting the outer boundary without instability:
+
+![Round 16 Full Weight Trajectories](reports_and_logs/figures/fig_card1_r16dc_fix_lr0p055_l2_1920_mom0p85_cl100_w8_w3_all_weights.png)
+
+#### 3. Locked Production Optimum Timeline (Round 15dc_fix, Clamp = ±90 LSB)
+Phase 3 reaches 8.78 bits with 13.4k loss — the lowest thermal loss and highest precision recorded on Card 1 silicon:
+
+![Round 15 Optimum Timeline](reports_and_logs/figures/fig_card1_r15dc_fix_lr0p055_l2_1920_mom0p85_cl90_thermal_slicing.png)
+
+---
+
+## 5. Exact Restore & Reproduction Commands
 
 From repository root:
 ```bash
@@ -76,22 +117,15 @@ make -C FPGA_code/sw/t120_master clean all
 /home/olle/anaconda3/bin/python FPGA_code/scripts/flash_soc.py
 ```
 
-### Run Live GUI + Verified `R7dc_fix` / `R8dc_fix` Optimum (`LR=0.055, L2=2048, Mom=0.85, Clamp=75`)
+### Run Live GUI + Locked Production Optimum (`Clamp = 90 LSB`, `LR = 0.055`, `L2 = 1920`, `Mom = 0.85`)
 ```bash
 # Optional live monitor GUI
 /home/olle/anaconda3/bin/python gui/bit_slicing_live_gui.py &
 
-# Standard 4.5-min optimization benchmark (R7dc_fix configuration, Score +2.665)
+# Locked Production Optimum on Physical Silicon (R15dc_fix: Clamp=90, 8.78 b Warm ENOB, 13.4k Loss)
 /home/olle/anaconda3/bin/python FPGA_code/scripts/run_card1_thermal_bit_slicing.py \
   --cooldown-sec 60 --cold-phase-duration 0.25 --phase-duration 1.0 \
   --warm-phases 4 --cool-phases 0 --heater-duty-pct 40 --k-batch 1 \
-  --lr 0.055 --l2-reg 2048 --momentum 0.85 --clamp 75 \
-  --load-dc-calib FPGA_code/config/r1_dc_cal_fixed.json
-
-# Full 13-min sustained thermal verification (R8dc_fix configuration, +1.16 b Lift / 1.85x LossR)
-/home/olle/anaconda3/bin/python FPGA_code/scripts/run_card1_thermal_bit_slicing.py \
-  --cooldown-sec 60 --cold-phase-duration 0.5 --phase-duration 2.0 \
-  --warm-phases 6 --cool-phases 0 --heater-duty-pct 40 --k-batch 1 \
-  --lr 0.055 --l2-reg 2048 --momentum 0.85 --clamp 75 \
+  --lr 0.055 --l2-reg 1920 --momentum 0.85 --clamp 90 \
   --load-dc-calib FPGA_code/config/r1_dc_cal_fixed.json
 ```

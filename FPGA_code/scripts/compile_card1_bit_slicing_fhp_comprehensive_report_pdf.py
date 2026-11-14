@@ -175,7 +175,8 @@ def make_fig1_timeline(data: dict, base_t, base_e, base_lnL, out_path: Path, lab
     ax.axhline(clamp, color="#dc2626", linestyle=":", linewidth=1.2, label=f"Anti-Windup Clamp (±{clamp} LSB)")
     ax.axhline(-clamp, color="#dc2626", linestyle=":", linewidth=1.2)
     ax.set_ylabel("W(8) (LSB)", fontsize=9.5, fontweight="bold")
-    ax.set_ylim(-clamp - 12, clamp + 12)
+    w8_limit = max(95, clamp + 10)
+    ax.set_ylim(-w8_limit, w8_limit)
     ax.grid(True, linestyle=":", alpha=0.5)
     ax.legend(loc="lower left", fontsize=7.6, ncol=3, framealpha=0.92)
 
@@ -295,9 +296,10 @@ def make_fig3_w8_and_w3_split(data: dict, out_w8: Path, out_w3: Path, label: str
                 _shade_phases(ax, phases)
                 for r in range(7):
                     ax.plot(t_min, arr[:, r, col], color=row_colors[r], linewidth=0.9, label=f"r{r}" if (bank_idx == 0 and col == 0) else None)
+                w8_limit = max(95, clamp + 10)
                 ax.axhline(clamp, color="#ef4444", linestyle=":", linewidth=0.9)
                 ax.axhline(-clamp, color="#ef4444", linestyle=":", linewidth=0.9)
-                ax.set_ylim(-clamp - 8, clamp + 8)
+                ax.set_ylim(-w8_limit, w8_limit)
                 ax.set_title(f"{bank_name} Col {col}", fontsize=8.8, fontweight="bold")
                 ax.grid(True, linestyle=":", alpha=0.45)
                 if col == 0:
@@ -315,6 +317,7 @@ def make_fig3_w8_and_w3_split(data: dict, out_w8: Path, out_w3: Path, label: str
         w8l_max = np.array([r["w8_lsb_range"][1] for r in hist])
         fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.4))
         fig.patch.set_facecolor("white")
+        w8_limit = max(95, clamp + 10)
         for idx, (mn, mx, col_hex, title) in enumerate([
             (w8m_min, w8m_max, "#15803d", "W(8) MSB Bank (7 rows × 6 cols = 42 Synapses)"),
             (w8l_min, w8l_max, "#c2410c", "W(8) LSB Bank (7 rows × 6 cols = 42 Synapses)"),
@@ -330,7 +333,7 @@ def make_fig3_w8_and_w3_split(data: dict, out_w8: Path, out_w3: Path, label: str
             ax.set_xlabel("Elapsed Time (minutes)", fontsize=9.0, fontweight="bold")
             if idx == 0:
                 ax.set_ylabel("Weight (LSB)", fontsize=9.0, fontweight="bold")
-            ax.set_ylim(-clamp - 12, clamp + 12)
+            ax.set_ylim(-w8_limit, w8_limit)
             ax.grid(True, linestyle=":", alpha=0.5)
             ax.legend(loc="lower left", fontsize=7.6, framealpha=0.9)
         fig.suptitle(f"All 84 W(8) Compensation Weights (MSB + LSB Bank Envelopes) — {label}", fontsize=10.8, fontweight="bold")

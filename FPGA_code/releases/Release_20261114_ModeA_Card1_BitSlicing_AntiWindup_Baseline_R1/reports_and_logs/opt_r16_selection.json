@@ -1,0 +1,28 @@
+{
+  "mode": "select_best",
+  "best_run": "opt_r7dc_fix_lr0p055_l2_2048_mom0p85_cl75.json",
+  "recommended": {
+    "lr": 0.055,
+    "l2_reg": 2048,
+    "momentum": 0.85,
+    "clamp": 75
+  },
+  "best_score": 2.66508038892839,
+  "best_trends": {
+    "hot_on_late_enob": 7.092830188679245,
+    "warm_off_mean_enob": 6.186290482856026,
+    "warm_step_lift_b": 1.041649257137698,
+    "warm_loss_ratio": 1.7393580799399713,
+    "hot_conv_climb_b": 1.174431332093456,
+    "hot_post_slope_b_per_min": 0.20382830965619522,
+    "warm_off_slope_b_per_min": -0.5082482287943887,
+    "jitter_std": 0.4043986454197892,
+    "w8_mean_peak_lsb": 74.57430730478589,
+    "w3_max_peak_lsb": 25.0,
+    "clamp_hit_frac": 0.9785894206549118,
+    "recovery_rate": 0.5,
+    "pinned_frac": 0.6360831234256927,
+    "clip_delta": 0,
+    "off_w8_leak_frac": 0.0
+  }
+}
