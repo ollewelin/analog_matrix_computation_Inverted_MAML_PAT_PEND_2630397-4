@@ -43,7 +43,7 @@ This self-contained package archives the complete verified Card 1 Mode A **2-bea
 
 ---
 
-## 3. Verified Locked-DC Performance & Systematic Clamp Sweep (`R1dc_fix..R16dc_fix`, `40%` PWM)
+## 3. Verified Locked-DC Performance & Systematic Clamp Sweep (`R1dc_fix..R18dc_fix`, `40%` PWM)
 
 - **Cold Reference (`cold_verify_k1.json`, Heaters OFF, 643 pairs):** `Cold / Regler ON` mean **9.45 b** (`min 8.80 b`); `Cold / Regler OFF (W8=0)` mean **9.45 b** (`min 8.61 b`), `0/311` non-zero leaks.
 - **2x2 Factorial Accounting (`R8dc_fix` + Cold Reference):** Cold ON **9.45 b** (`3,748.0 L²`), Cold OFF **9.45 b** (`3,947.3 L²`), Warm ON **7.19 b** (`50,580.5 L²`), Warm OFF **5.66 b** (`106,727.2 L²`).
@@ -65,6 +65,8 @@ This self-contained package archives the complete verified Card 1 Mode A **2-bea
 | `R14dc_fix` | `0.055` | `1920` | `0.85` | `±85` | **`+1.12 b`** | **`1.78x`** | `+1.06 b` | `0.43 b` | `0.50` | **`+2.645`** | Dynamic swing peak |
 | **`R15dc_fix` ★** | **`0.055`** | **`1920`** | **`0.85`** | **`±90`** | `+0.78 b` | `1.55x` | `+0.97 b` | `0.39 b` | `0.67` | **`+2.117`** | **LOCKED PRODUCTION OPTIMUM ("Lagom"): P3 8.78 b, Loss 13.4k** |
 | `R16dc_fix` | `0.055` | `1920` | `0.85` | `±100` | `+0.94 b` | `1.67x` | `+0.89 b` | `0.40 b` | `0.75` | **`+2.443`** | 2T1C Triode Saturation Knee |
+| `R17dc_fix` | `0.055` | `1920` | `0.85` | `±90` | `+0.70 b` | `1.52x` | `+0.82 b` | `0.34 b` | `0.75` | **`+2.026`** | Replicate 1 (P3 9.03 b, Loss 9.5k) |
+| **`R18dc_fix` ★** | **`0.055`** | **`1920`** | **`0.85`** | **`±90`** | `+0.88 b` | `1.65x` | **`+1.25 b`** | `0.39 b` | `0.50` | **`+2.385`** | **VERIFIED PRODUCTION OPTIMUM ("Lagom"): Hot Climb +1.25 b** |
 
 ---
 
@@ -85,7 +87,12 @@ A systematic hardware sweep (`R10dc_fix .. R16dc_fix`) on physical silicon revea
 
 ### Empirical Visualizations from Silicon Reports
 
-#### 1. Full Real-Time Performance Timeline (Round 16dc_fix, Clamp = ±100 LSB)
+#### 1. Clean Verified Production Optimum Timeline (Round 18dc_fix, Clamp = ±90 LSB)
+Clean full 4-panel telemetry showing 8.59 bits Phase 3 ENOB, Hot Climb of +1.25 bits, zero ColTIA clipping across all 3,916 pairs, and smooth recovery:
+
+![Round 18 Optimum Timeline](reports_and_logs/figures/fig_card1_r18dc_fix_lr0p055_l2_1920_mom0p85_cl90_thermal_slicing.png)
+
+#### 2. Full Real-Time Performance Timeline (Round 16dc_fix, Clamp = ±100 LSB)
 Demonstrates the full 4-panel telemetry: Combined ENOB across all 6 phases, moving mean loss, W(8) trajectories bounded at the ±100 LSB clamp, and W(3) data rows within ±33 LSB:
 
 ![Round 16 Multi-Panel Timeline](reports_and_logs/figures/fig_card1_r16dc_fix_lr0p055_l2_1920_mom0p85_cl100_thermal_slicing.png)
