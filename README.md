@@ -284,6 +284,52 @@ Working with analog computing is an act of balancing physics and precision. Very
     - Per-round 2-page 180-weight reports: [R8dc_fix (13-min Verify)](FPGA_code/docs/INVERTED_MAML_CARD1_R8DC_FIX_LR0P055_L2_2048_MOM0P85_CL75_THERMAL_SLICING_REPORT.pdf) · [R7dc_fix ★ (Optimum `+2.665`)](FPGA_code/docs/INVERTED_MAML_CARD1_R7DC_FIX_LR0P055_L2_2048_MOM0P85_CL75_THERMAL_SLICING_REPORT.pdf) · [R6dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R6DC_FIX_LR0P055_L2_1792_MOM0P80_CL90_THERMAL_SLICING_REPORT.pdf) · [R5dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R5DC_FIX_LR0P055_L2_1792_MOM0P85_CL85_THERMAL_SLICING_REPORT.pdf) · [R4dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R4DC_FIX_LR0P05_L2_1792_MOM0P85_CL70_THERMAL_SLICING_REPORT.pdf) · [R3dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R3DC_FIX_LR0P02_L2_2560_MOM0P80_CL70_THERMAL_SLICING_REPORT.pdf) · [R2dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R2DC_FIX_LR0P035_L2_1536_MOM0P85_CL75_THERMAL_SLICING_REPORT.pdf) · [R1dc_fix](FPGA_code/docs/INVERTED_MAML_CARD1_R1DC_FIX_LR0P03_L2_1024_MOM0P90_CL75_THERMAL_SLICING_REPORT.pdf)
     - Verified parameter registry & locked R1 DC calibration: [`FPGA_code/config/bit_slicing_hyperparams.json`](FPGA_code/config/bit_slicing_hyperparams.json), [`FPGA_code/config/r1_dc_cal_fixed.json`](FPGA_code/config/r1_dc_cal_fixed.json)
 
+  - **5. Live Hardware Demo Example: Multi-Stage Thermal Stress & Bit-Slicing (2026-11-14):**
+
+    **Section 6: Live Hardware Demo Execution & Multi-Stage Thermal Stress Benchmark:**
+    - **Target Hardware:** Card 1 (`Trion T120F324` Master SoC + `Trion T20F256` Coprocessor, **`1k / 2.2k` Passive Summing Attenuator**)
+    - **Firmware:** `T120_SOC_ETH_FW v2.2-MAML (SW Build Nov 14 2026 10:15:16)`, `HW_LOGIC: 0x20261030`
+    - **Analog Architecture:** Dual-2T1C MOS Triode Differential Multipliers (M33 6x6, M3 8x6, M8 7x6) with Hadamard Attenuator Network
+
+    This one-click demo performs a live multi-stage thermal stress and analog bit-slicing demonstration on Card 1 silicon, transitioning from ambient cold baseline through moderate heating (30% PWM) up to heavy thermal stress (40% PWM).
+
+    **1. Start of Live GUI Monitor:**  
+    In terminal 1, launch the live real-time visual monitor:
+    ```bash
+    /home/olle/anaconda3/bin/python gui/bit_slicing_live_gui.py
+    ```
+    *(Runs on X11 display, plotting combined 8-bit ENOB, MSB/LSB individual precision, total squared loss, and real-time W(8) and W(3) envelope trajectories with color-coded regulation regimes).*
+
+    **2. Start of Live Hardware Demo:**  
+    In terminal 2, launch the automated demo runner:
+
+    - *Option A: Standard Full 14-Phase Demo (7.0 min active time, 30s per phase)*
+      ```bash
+      /home/olle/anaconda3/bin/python FPGA_code/scripts/run_demo.py
+      ```
+
+    - *Option B: Fast Audience Demo (3.5 min active time, 15s per phase)*
+      ```bash
+      /home/olle/anaconda3/bin/python FPGA_code/scripts/run_demo.py --phase-sec 15 --cooldown-sec 15
+      ```
+
+    **3. Demo Phase Schedule & Thermal Dynamics:**  
+    The demo executes a 14-phase sequence across 4,702 sample pairs:
+    1. **Cold Baseline (Phases 1–2, 0% Heat):** Phase 1 (Regler ON, 30s) & Phase 2 (Regler OFF, 30s) at ambient 25 °C establishing unheated reference (~8.6–8.7 bits).
+    2. **Stage 1: Moderate Thermal Stress (Phases 3–8, 30% PWM Heater):** 6 alternating toggles (3 ON / 3 OFF) à 30s. The Inverted MAML loop tracks the gradual thermal drift, holding precision steady at 8.0–8.7 bits and lifting precision by +0.78 bits over free drift.
+    3. **Stage 2: Intense Thermal Stress (Phases 9–14, 40% PWM Heater):** 6 alternating toggles (3 ON / 3 OFF) à 30s. When regulation is disabled, thermal drift accelerates loss past 103,000 LSB² (dropping uncompensated ENOB down to 5.7 bits). Each time regulation engages (e.g. Phase 13), precision instantly steps up by **`+1.25 bits`** and loss drops by **`1.87x`** (from 85k down to 54k LSB²), strictly bounded at ±90 LSB without saturation or clipping.
+
+    **4. Empirical Visualizations from Live Demo (Round 20):**
+
+    ![Round 20 Demo Timeline](FPGA_code/docs/figures/fig_card1_r20_lr0p055_l2_1920_mom0p85_cl90_thermal_slicing.png)
+    *Figure: Full 4-panel telemetry (Combined ENOB, Loss, W8 bounds, and W3 clock/data envelope) across all 14 phases showing immediate step-response whenever regulation is enabled.*
+
+    ![Round 20 All 180 Weights](FPGA_code/docs/figures/fig_card1_r20_lr0p055_l2_1920_mom0p85_cl90_w8_w3_all_weights.png)
+    *Figure: Complete 180-synapse weight trajectories (`84 W(8)` + `96 W(3)`) across 4,702 sample pairs, demonstrating smooth column-3 compensation within ±90 LSB clamp.*
+
+    **5. Demo Report Documentation:**  
+    - [📄 `INVERTED_MAML_CARD1_R20_LR0P055_L2_1920_MOM0P85_CL90_THERMAL_SLICING_REPORT.pdf`](FPGA_code/docs/INVERTED_MAML_CARD1_R20_LR0P055_L2_1920_MOM0P85_CL90_THERMAL_SLICING_REPORT.pdf) (Complete 2-page publication report for Round 20 Live Demo, with Markdown version [here](FPGA_code/docs/INVERTED_MAML_CARD1_R20_LR0P055_L2_1920_MOM0P85_CL90_THERMAL_SLICING_REPORT.md))
+
 ---
 
 ### 📦 Verified Release Archives & Reproducibility Packages
