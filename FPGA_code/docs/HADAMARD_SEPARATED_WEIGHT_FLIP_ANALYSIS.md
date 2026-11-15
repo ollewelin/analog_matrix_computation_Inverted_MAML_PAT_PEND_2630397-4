@@ -4,7 +4,7 @@
 - **Patent Reference:** SE 2630397-4
 - **Verification Policy:** 100% Live Physical Hardware Measurements (`N = 20` cycles per 3-step sequence, Zero Simulation)
 - **Raw Data JSON:** `FPGA_code/docs/hadamard_separated_weight_flip_live_results.json`
-- **Previous Study Preserved:** `FPGA_code/docs/hadamard_24us_live_results.json` & `FPGA_code/docs/HADAMARD_24US_CARRIER_WAVE_ANALYSIS.pdf`
+- **Previous Study Preserved:** `FPGA_code/docs/hadamard_24us_live_results.json` & `FPGA_code/docs/HADAMARD_24US_CARRIER_WAVE_ANALYSIS.md`
 
 ---
 
