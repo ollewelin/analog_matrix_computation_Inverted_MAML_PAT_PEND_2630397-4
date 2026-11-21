@@ -117,6 +117,50 @@ def build_custom_weights_payload(w_m3: list[list[int]], w_m8: list[list[int]], b
     return struct.pack("<B48b42b", baseline_mode, *flat_m3, *flat_m8)
 
 
+def calibrate_fixed_slice_params(
+    client: MamlUdpClient,
+    W_silicon: list[list[int]],
+    num_samples: int = 40,
+    delay_us: int = 5000
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Fits static column gain alpha and quiescent offset beta on cold silicon (heaters OFF, W8=0).
+    Model: Y_col = alpha_col * (X @ W)_col + beta_col
+    Locked permanently for the duration of the experiment.
+    """
+    client.set_w33_matrix(W_silicon)
+    drain_udp(client)
+    time.sleep(0.05)
+    W_mat = np.array(W_silicon, dtype=np.float64)
+    xs, ys = [], []
+
+    for _ in range(num_samples):
+        pkt = struct.pack("<BBHHHH", 0, 1, delay_us, delay_us, 0, 0)
+        raw = client._send_binary(MAML_CMD_BATCH_STEP, pkt)
+        if raw is None or len(raw) < client.TELEM_SIZE:
+            drain_udp(client)
+            raw = client._send_binary(MAML_CMD_BATCH_STEP, pkt)
+        if raw is not None and len(raw) >= client.TELEM_SIZE:
+            telem = client._parse_hw_telemetry(raw)
+            x_vec = np.array(telem.x_ref, dtype=np.float64)
+            y_vec = np.array(telem.adc49_sig, dtype=np.float64)
+            xs.append(x_vec @ W_mat)
+            ys.append(y_vec)
+        time.sleep(0.015)
+
+    X_ideal = np.array(xs)
+    Y_meas = np.array(ys)
+    alphas = np.zeros(6, dtype=np.float64)
+    betas = np.zeros(6, dtype=np.float64)
+
+    for c in range(6):
+        p = np.polyfit(X_ideal[:, c], Y_meas[:, c], deg=1)
+        alphas[c] = float(p[0])
+        betas[c] = float(p[1])
+
+    return alphas, betas
+
+
 def execute_hardware_beat(
     client: MamlUdpClient,
     delay_us: int,
@@ -211,10 +255,10 @@ def main():
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--cold-duration-sec", type=float, default=30.0, help="Cold baseline phases duration in seconds (default 30s)")
     parser.add_argument("--phase-duration-sec", type=float, default=30.0, help="Duration of each warm phase in seconds (default 30s)")
-    parser.add_argument("--stage1-phases", type=int, default=60, help="Number of phases at 15% heater (default 60)")
-    parser.add_argument("--stage1-duty-pct", type=float, default=15.0, help="Stage 1 heater duty cycle (default 15%)")
-    parser.add_argument("--stage2-phases", type=int, default=6, help="Number of phases at 35% heater (default 6)")
-    parser.add_argument("--stage2-duty-pct", type=float, default=35.0, help="Stage 2 heater duty cycle (default 35%)")
+    parser.add_argument("--stage1-phases", type=int, default=60, help="Number of phases at 15%% heater (default 60)")
+    parser.add_argument("--stage1-duty-pct", type=float, default=15.0, help="Stage 1 heater duty cycle (default 15%%)")
+    parser.add_argument("--stage2-phases", type=int, default=6, help="Number of phases at 35%% heater (default 6)")
+    parser.add_argument("--stage2-duty-pct", type=float, default=35.0, help="Stage 2 heater duty cycle (default 35%%)")
     parser.add_argument("--heater-pwm-hz", type=float, default=1.0, help="Heater PWM frequency in Hz")
     parser.add_argument("--delay-us", type=int, default=5000, help="Snapshot delay in us (default 5000 = 5.0 ms)")
     parser.add_argument("--k-batch", type=int, default=1, help="Mini-batch size K (default 1)")
@@ -223,7 +267,8 @@ def main():
     parser.add_argument("--momentum", type=float, default=0.85, help="SGD momentum (default 0.85)")
     parser.add_argument("--clamp", type=int, default=90, help="Dynamic M3/M8 weight clamp limit in LSB (default 90)")
     parser.add_argument("--cooldown-sec", type=float, default=60.0, help="Pre-run forced cooldown in seconds (default 60s)")
-    parser.add_argument("--load-dc-calib", type=str, default="FPGA_code/config/r1_dc_cal_fixed.json")
+    parser.add_argument("--load-dc-calib", type=str, default="FPGA_code/config/r1_dc_cal_fixed.json", help="Path to locked DC calibration JSON (or empty/none to fit new calibration)")
+    parser.add_argument("--save-dc-calib", type=str, default="", help="Path to save freshly calibrated cold DC calibration JSON")
     parser.add_argument("--out-json", type=str, default="FPGA_code/logs/bit_slicing/opt_r20dc_fix_extended_15pct_60cyc_35pct_6cyc_cl90.json")
     args = parser.parse_args()
 
@@ -360,14 +405,28 @@ def main():
     client.set_heaters(False, [0, 0, 0, 0])
     time.sleep(0.03)
 
-    # Load permanent cold DC cal
-    with open(args.load_dc_calib, "r") as f_cal:
-        cal_obj = json.load(f_cal)
-    alpha_msb = np.array(cal_obj["calib_msb"]["alpha"], dtype=np.float64)
-    beta_msb = np.array(cal_obj["calib_msb"]["beta"], dtype=np.float64)
-    alpha_lsb = np.array(cal_obj["calib_lsb"]["alpha"], dtype=np.float64)
-    beta_lsb = np.array(cal_obj["calib_lsb"]["beta"], dtype=np.float64)
-    print(f"\n[*] Loaded PERMANENT LOCKED R1 Cold DC Calibration from: {args.load_dc_calib}")
+    # Cold DC cal (Load locked file or execute fresh calibration)
+    use_locked_cal = bool(args.load_dc_calib and os.path.exists(args.load_dc_calib))
+    if use_locked_cal:
+        with open(args.load_dc_calib, "r") as f_cal:
+            cal_obj = json.load(f_cal)
+        alpha_msb = np.array(cal_obj["calib_msb"]["alpha"], dtype=np.float64)
+        beta_msb = np.array(cal_obj["calib_msb"]["beta"], dtype=np.float64)
+        alpha_lsb = np.array(cal_obj["calib_lsb"]["alpha"], dtype=np.float64)
+        beta_lsb = np.array(cal_obj["calib_lsb"]["beta"], dtype=np.float64)
+        print(f"\n[*] Loaded Cold DC Calibration from: {args.load_dc_calib}")
+    else:
+        print("\n[*] Executing Fresh Cold DC Calibration (40 samples per slice, Heaters OFF)...")
+        alpha_msb, beta_msb = calibrate_fixed_slice_params(client, W_msb_silicon, num_samples=40, delay_us=args.delay_us)
+        alpha_lsb, beta_lsb = calibrate_fixed_slice_params(client, W_lsb_silicon, num_samples=40, delay_us=args.delay_us)
+        if args.save_dc_calib:
+            os.makedirs(os.path.dirname(os.path.abspath(args.save_dc_calib)), exist_ok=True)
+            with open(args.save_dc_calib, "w") as f_save:
+                json.dump({
+                    "calib_msb": {"alpha": alpha_msb.tolist(), "beta": beta_msb.tolist()},
+                    "calib_lsb": {"alpha": alpha_lsb.tolist(), "beta": beta_lsb.tolist()},
+                }, f_save, indent=2)
+            print(f"[+] Saved fresh DC calibration to: {args.save_dc_calib}")
 
     for sid, (alp, bet) in [(0, (alpha_msb, beta_msb)), (1, (alpha_lsb, beta_lsb))]:
         a_q16 = [int(round(float(a) * 65536.0)) for a in alp]
