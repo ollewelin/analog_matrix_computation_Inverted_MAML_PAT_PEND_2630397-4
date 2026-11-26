@@ -13,6 +13,8 @@
 ![Patent Figure 1: Inverted MAML Analog Matrix Architecture with Autonomous Neural Compensation Network](Fig1.png)
 
 ---
+### Conclusion note 2026-11-25 no need for MAML (Model Agnostic Met Leraning required)
+all test so far 2026-11-25 have not included any MAML outer loop, no need för second order derivativ training! The 2 layer analog neural Network path seems to converge very fast with the the Forward Hadamard Propagation (FHP) to thermal drifts. Just first order derivatives from (FHP) is more the enough to stabilize the system !
 
 ## ⚖️ License & Patent Grant (`SHL-2.1`)
 
@@ -38,6 +40,8 @@ Everything in this repository—hardware schematics, PCB layouts, commercial ASI
 * **Zenodo Open Research Publication (DOI):** [🔗 `10.5281/zenodo.24030796`](https://zenodo.org/records/24030796)
 * **OSHWLab Interactive CAD, Schematics & PCB:** [🔗 `Inverted_MAML_6x6` on OSHWLab](https://oshwlab.com/olle_welin/project_yvkekxrp)
 * **EasyEDA Pro Cloud Editor:** [🔗 Open Directly in EasyEDA Pro](https://pro.easyeda.com/editor#id=901f528fcedd48afb0c852fa55bc80b4)
+*  **YouTube — heat testing at 2 stage bit sliced run:**
+(https://youtu.be/7_djRG0zqKU?is=gQ2Nx6fz03134yZ1)
 * **YouTube — Project Overview & Architecture Audio:** [Watch on YouTube](https://www.youtube.com/watch?v=LbWriQ0J6QY&t=72s)
 * **YouTube — Physical Silicon Hardware Bringup & Testing:** [Watch on YouTube](https://www.youtube.com/watch?v=x45Lw4IA8cg)
 
