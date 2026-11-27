@@ -1953,8 +1953,8 @@ static void maml_execute_step(void) {
     }
 }
 
-/* Separate M(3) L2 multiplier (4x M(8)) to prevent Sigmoid 4 saturation / shallow attractors. */
-static uint8_t g_reg_m3_mult = 4u;
+/* Separate M(3) L2 multiplier (default 1x = equal to M(8); adjustable via M(3)/M(8) split L2). */
+static uint8_t g_reg_m3_mult = 1u;
 
 /* Momentum + back-calculation anti-windup step helper: integrates L2 decay smoothly inside
  * velocity and projects velocity to the actually realized step when hitting ±lim_q14 rails. */
