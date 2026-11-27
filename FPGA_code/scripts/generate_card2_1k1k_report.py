@@ -11,6 +11,7 @@ Card 2 storage under FPGA_code/releases/Release_20261127_Card2_1k1k_BitSlicing_R
 """
 
 from __future__ import annotations
+import argparse
 import json
 import shutil
 import sys
@@ -35,15 +36,7 @@ LOGS_DIR = REPO_ROOT / "FPGA_code" / "logs" / "bit_slicing"
 CONFIG_DIR = REPO_ROOT / "FPGA_code" / "config"
 DOCS_DIR = REPO_ROOT / "FPGA_code" / "docs"
 DOCS_FIG_DIR = DOCS_DIR / "figures"
-REL_DIR = REPO_ROOT / "FPGA_code" / "releases" / "Release_20261127_Card2_1k1k_BitSlicing_R20" / "reports_and_logs"
-REL_FIG_DIR = REL_DIR / "figures"
 ARTIFACT_DIR = Path("/home/olle/.gemini/antigravity/brain/fa59cd2e-8c8b-41e2-add0-77ffdf2fe431")
-
-JSON_PATH = LOGS_DIR / "card2_1k1k_r20_lr0p055_l2_1920_mom0p85_cl90.json"
-DC_CAL_PATH = CONFIG_DIR / "card2_1k1k_dc_cal.json"
-
-SLUG = "card2_1k1k_r20_lr0p055_l2_1920_mom0p85_cl90"
-TITLE_PREFIX = "INVERTED_MAML_CARD2_1K1K_R20_LR0P055_L2_1920_MOM0P85_CL90_THERMAL_SLICING_REPORT"
 
 
 def compute_phase_stats(data: dict, base_t: np.ndarray, base_e: np.ndarray, base_lnL: np.ndarray) -> list[dict]:
@@ -235,32 +228,46 @@ def make_all_weights_figure(data: dict, out_path: Path):
 
 
 def main():
-    DOCS_FIG_DIR.mkdir(parents=True, exist_ok=True)
-    REL_FIG_DIR.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser(description="Generate Card 2 (1k/1k) R20 Thermal Slicing Report")
+    parser.add_argument("--json", type=Path, default=LOGS_DIR / "card2_1k1k_r20_lr0p055_l2_1920_mom0p85_cl90.json")
+    parser.add_argument("--dc-cal", type=Path, default=CONFIG_DIR / "card2_1k1k_dc_cal.json")
+    parser.add_argument("--slug", default="card2_1k1k_r20_lr0p055_l2_1920_mom0p85_cl90")
+    parser.add_argument("--title-prefix", default="INVERTED_MAML_CARD2_1K1K_R20_LR0P055_L2_1920_MOM0P85_CL90_THERMAL_SLICING_REPORT")
+    parser.add_argument("--rel-name", default="Release_20261127_Card2_1k1k_BitSlicing_R20")
+    parser.add_argument("--heat-label", default="30%/40% PWM")
+    args = parser.parse_args()
 
-    with open(JSON_PATH) as f:
+    json_path = args.json if args.json.is_absolute() else REPO_ROOT / args.json
+    dc_cal_path = args.dc_cal if args.dc_cal.is_absolute() else REPO_ROOT / args.dc_cal
+    rel_dir = REPO_ROOT / "FPGA_code" / "releases" / args.rel_name / "reports_and_logs"
+    rel_fig_dir = rel_dir / "figures"
+
+    DOCS_FIG_DIR.mkdir(parents=True, exist_ok=True)
+    rel_fig_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(json_path) as f:
         data = json.load(f)
-    with open(DC_CAL_PATH) as f:
+    with open(dc_cal_path) as f:
         dc_cal = json.load(f)
 
     meta = data["metadata"]
     hist = data["history"]
 
     base_t, base_e, base_lnL = _fit_thermal_baseline(hist)
-    warm_metrics = extract_warm_trend_metrics(JSON_PATH)
+    warm_metrics = extract_warm_trend_metrics(json_path)
     stats = compute_phase_stats(data, base_t, base_e, base_lnL)
 
-    tl_fig = DOCS_FIG_DIR / f"fig_{SLUG}_thermal_slicing.png"
-    w_fig = DOCS_FIG_DIR / f"fig_{SLUG}_w8_w3_all_weights.png"
+    tl_fig = DOCS_FIG_DIR / f"fig_{args.slug}_thermal_slicing.png"
+    w_fig = DOCS_FIG_DIR / f"fig_{args.slug}_w8_w3_all_weights.png"
     make_timeline_figure(data, base_t, base_e, base_lnL, tl_fig)
     make_all_weights_figure(data, w_fig)
 
     # Copy figures + raw logs to dedicated Card 2 storage + artifacts
     for src in (tl_fig, w_fig):
-        shutil.copy2(src, REL_FIG_DIR / src.name)
+        shutil.copy2(src, rel_fig_dir / src.name)
         shutil.copy2(src, ARTIFACT_DIR / src.name)
-    shutil.copy2(JSON_PATH, REL_DIR / JSON_PATH.name)
-    shutil.copy2(DC_CAL_PATH, REL_DIR / DC_CAL_PATH.name)
+    shutil.copy2(json_path, rel_dir / json_path.name)
+    shutil.copy2(dc_cal_path, rel_dir / dc_cal_path.name)
 
     alpha_msb = [round(x, 4) for x in dc_cal["calib_msb"]["alpha"]]
     beta_msb = [round(x, 1) for x in dc_cal["calib_msb"]["beta"]]
@@ -279,16 +286,24 @@ def main():
             f"`[{s['w8m_peak']}, {s['w8l_peak']}]` | `{s['w3_peak']}` | `{s['w8_nz']}` |"
         )
 
+    w8_overall_pk = max(max(s["w8m_peak"], s["w8l_peak"]) for s in stats)
+    warm_on_enobs = [s["comb_mean"] for s in stats if s["heater"] and s["regler"]]
+    warm_max_loss = max(s["loss_mean"] for s in stats if s["heater"])
+    cold_on_enob = stats[0]["comb_mean"]
+    cold_on_loss = stats[0]["loss_mean"]
+    cold_off_enob = stats[1]["comb_mean"]
+    cold_off_loss = stats[1]["loss_mean"]
+
     tr = warm_metrics["trends"]
-    md_path = DOCS_DIR / f"{TITLE_PREFIX}.md"
-    md_text = f"""# Inverted MAML Card 2 (`1k / 1k` = 50/50 Summing Attenuator): R20 Thermal Bit-Slicing Report
+    md_path = DOCS_DIR / f"{args.title_prefix}.md"
+    md_text = f"""# Inverted MAML Card 2 (`1k / 1k` = 50/50 Summing Attenuator, {args.heat_label}): R20 Thermal Bit-Slicing Report
 
 **Hardware Target:** Card 2 (`Trion T120F324` Master SoC + `Trion T20F256` Coprocessor, **`1k / 1k` (50/50) Passive Summing Attenuator**)  
 **Firmware:** `T120_SOC_ETH_FW v2.2-MAML (SW Build Nov 27 2026 20:52:38)`, `HW_LOGIC: 0x20261030`  
-**Dataset:** [`FPGA_code/logs/bit_slicing/{JSON_PATH.name}`](../logs/bit_slicing/{JSON_PATH.name}) (`{len(hist):,}` pairs)  
-**Dedicated Card 2 Storage:** `FPGA_code/releases/Release_20261127_Card2_1k1k_BitSlicing_R20/reports_and_logs/`  
-**DC Calibration (Cold):** [`FPGA_code/config/{DC_CAL_PATH.name}`](../config/{DC_CAL_PATH.name})  
-**Hyperparameters:** `Heater = 30%/40% PWM`, `K = {meta['k_batch']}`, `LR = {meta['lr']}`, `L2 = {meta['l2_reg']}`, `Momentum = {meta['momentum']}`, `Clamp = ±{meta['clamp_lsb']} LSB`  
+**Dataset:** [`FPGA_code/logs/bit_slicing/{json_path.name}`](../logs/bit_slicing/{json_path.name}) (`{len(hist):,}` pairs)  
+**Dedicated Card 2 Storage:** `FPGA_code/releases/{args.rel_name}/reports_and_logs/`  
+**DC Calibration (Cold):** [`FPGA_code/config/{dc_cal_path.name}`](../config/{dc_cal_path.name})  
+**Hyperparameters:** `Heater = {args.heat_label}`, `K = {meta['k_batch']}`, `LR = {meta['lr']}`, `L2 = {meta['l2_reg']}`, `Momentum = {meta['momentum']}`, `Clamp = ±{meta['clamp_lsb']} LSB`  
 
 ---
 
@@ -296,11 +311,11 @@ def main():
 
 1. **50/50 Summing Junction Physics (`1k / 1k` vs. Card 1 `1k / 2.2k`):**  
    With matched $1.0\\text{{ k}}\\Omega / 1.0\\text{{ k}}\\Omega$ summing resistors, the primary `M33` payload and the `M8` compensation branch share **equal $0.500\\times$ ($-6.02\\text{{ dB}}$) summing authority** at `ADC_49` (compared to $0.6875\\times / 0.3125\\times$ on Card 1 `1k / 2.2k`).
-2. **Cold Baseline (`P1–P2`):** `Cold / Regler ON` mean **9.49 b** (loss `1,673 LSB²`), `Cold / Regler OFF` mean **9.49 b** (loss `1,746 LSB²`).
+2. **Cold Baseline (`P1–P2`):** `Cold / Regler ON` mean **{cold_on_enob:.2f} b** (loss `{cold_on_loss:,.0f} LSB²`), `Cold / Regler OFF` mean **{cold_off_enob:.2f} b** (loss `{cold_off_loss:,.0f} LSB²`).
 3. **Thermal-Detrended Closed-Loop Performance:**  
    Weighted detrended `Warm ON` lift **`{tr['warm_step_lift_b']:+.2f} b`**, loss reduction ratio **`{tr['warm_loss_ratio']:.2f}x`**, detrended convergence climb **`{tr['hot_conv_climb_b']:+.2f} b`**, jitter **`{tr['jitter_std']:.2f} b`**, anti-windup recovery **`{tr['recovery_rate']:.2f}`**, composite score **`{warm_metrics['score']:+.3f}`**.
 4. **Zero Clamp Saturation & High Headroom:**  
-   Because `1k / 1k` provides $50\\%$ compensation authority, `W8` only needed up to **`±42 LSB`** even in Phase 13 (`40%` heat), staying well below the **`±90 LSB`** anti-windup clamp while keeping precision at **`7.97–8.54 b`** (`Loss ≤ 31.6k LSB²` in `ON`, vs `96.3k LSB²` on `1k/2.2k`).
+   Because `1k / 1k` provides $50\\%$ compensation authority, `W8` peaked at **`±{w8_overall_pk} LSB`** (well below the **`±{meta['clamp_lsb']} LSB`** anti-windup clamp), keeping warm `ON` precision at **`{min(warm_on_enobs):.2f}–{max(warm_on_enobs):.2f} b`** and max phase loss at **`{warm_max_loss:,.0f} LSB²`**.
 
 ---
 
@@ -330,7 +345,7 @@ def main():
 ![Card 2 1k/1k R20 All W(8) and W(3) Weights](figures/{w_fig.name})
 """
     md_path.write_text(md_text)
-    shutil.copy2(md_path, REL_DIR / md_path.name)
+    shutil.copy2(md_path, rel_dir / md_path.name)
     shutil.copy2(md_path, ARTIFACT_DIR / md_path.name)
 
     # Render clean PDF via ReportLab
@@ -339,7 +354,7 @@ def main():
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib import colors
 
-    pdf_path = DOCS_DIR / f"{TITLE_PREFIX}.pdf"
+    pdf_path = DOCS_DIR / f"{args.title_prefix}.pdf"
     doc = SimpleDocTemplate(str(pdf_path), pagesize=letter, leftMargin=32, rightMargin=32, topMargin=32, bottomMargin=32)
     styles = getSampleStyleSheet()
     t_style = ParagraphStyle("T", parent=styles["Heading1"], fontSize=14, leading=18, textColor=colors.HexColor("#0d47a1"), spaceAfter=3)
@@ -350,7 +365,7 @@ def main():
     tcb = ParagraphStyle("TCB", parent=styles["Normal"], fontSize=7, leading=9, alignment=1, textColor=colors.HexColor("#0d47a1"), fontName="Helvetica-Bold")
 
     story = [
-        Paragraph("Inverted MAML Card 2 (1k / 1k = 50/50): R20 Thermal Bit-Slicing Report", t_style),
+        Paragraph(f"Inverted MAML Card 2 (1k / 1k = 50/50, {args.heat_label}): R20 Thermal Bit-Slicing", t_style),
         Paragraph(
             f"Firmware: T120_SOC_ETH_FW v2.2-MAML (Build Nov 27 2026) | HW_LOGIC: 0x20261030 | "
             f"LR={meta['lr']}, L2={meta['l2_reg']}, Mom={meta['momentum']}, Clamp=±{meta['clamp_lsb']} LSB | {len(hist):,} Pairs",
@@ -358,9 +373,9 @@ def main():
         ),
         HRFlowable(width="100%", thickness=1.2, color=colors.HexColor("#1565c0"), spaceAfter=6),
         Paragraph(
-            f"<b>Summary:</b> With matched <b>1k / 1k (50/50)</b> summing resistors, Card 2 gains 50% analog compensation authority. "
-            f"Cold precision starts at <b>9.49 b</b> (Loss 1,673 LSB²). Under 40% PWM heating, active compensation holds <b>7.97–8.54 b</b> "
-            f"with W8 peaking at only <b>±42 LSB</b> (well inside the ±90 LSB clamp). Detrended lift: <b>{tr['warm_step_lift_b']:+.2f} b</b>, "
+            f"<b>Summary:</b> With matched <b>1k / 1k (50/50)</b> summing resistors under <b>{args.heat_label}</b>, Card 2 gains 50% analog compensation authority. "
+            f"Cold precision starts at <b>{cold_on_enob:.2f} b</b> (Loss {cold_on_loss:,.0f} LSB²). Under {args.heat_label} heating, active compensation holds <b>{min(warm_on_enobs):.2f}–{max(warm_on_enobs):.2f} b</b> "
+            f"with W8 peaking at <b>±{w8_overall_pk} LSB</b> (inside ±{meta['clamp_lsb']} LSB clamp). Detrended lift: <b>{tr['warm_step_lift_b']:+.2f} b</b>, "
             f"loss ratio: <b>{tr['warm_loss_ratio']:.2f}x</b>, composite score: <b>{warm_metrics['score']:+.3f}</b>.",
             b_style,
         ),
@@ -399,12 +414,12 @@ def main():
     story.append(Image(str(w_fig), width=530, height=340))
 
     doc.build(story)
-    shutil.copy2(pdf_path, REL_DIR / pdf_path.name)
+    shutil.copy2(pdf_path, rel_dir / pdf_path.name)
     shutil.copy2(pdf_path, ARTIFACT_DIR / pdf_path.name)
 
     print(f"[+] Saved Markdown: {md_path}")
     print(f"[+] Saved PDF     : {pdf_path}")
-    print(f"[+] Storage Dir   : {REL_DIR}")
+    print(f"[+] Storage Dir   : {rel_dir}")
 
 
 if __name__ == "__main__":
