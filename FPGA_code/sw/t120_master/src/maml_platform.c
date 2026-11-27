@@ -1953,12 +1953,16 @@ static void maml_execute_step(void) {
     }
 }
 
+/* Separate M(3) L2 multiplier (4x M(8)) to prevent Sigmoid 4 saturation / shallow attractors. */
+static uint8_t g_reg_m3_mult = 4u;
+
 /* Momentum + back-calculation anti-windup step helper: integrates L2 decay smoothly inside
  * velocity and projects velocity to the actually realized step when hitting ±lim_q14 rails. */
 static inline int16_t maml_momentum_step_antiwindup(int16_t w_cur, int16_t w_null, int16_t g_avg,
-                                                    int16_t *vel_io, int32_t lim_q14) {
+                                                    int16_t *vel_io, int32_t lim_q14,
+                                                    uint16_t reg_lambda_q16) {
     int32_t step_w = rshift_rne((int32_t)g_avg * (int32_t)g_lr_inner_q16, 8);
-    int32_t decay  = rshift_rne(((int32_t)w_cur - (int32_t)w_null) * (int32_t)g_reg_lambda_q16, 16);
+    int32_t decay  = rshift_rne(((int32_t)w_cur - (int32_t)w_null) * (int32_t)reg_lambda_q16, 16);
     int32_t v_cur  = (int32_t)(*vel_io);
     int32_t v_dec  = (v_cur >= 0)
         ? ((v_cur * (int32_t)g_momentum_q16) >> 16)
@@ -2081,13 +2085,15 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
         if (m3_lim_lsb < 15) m3_lim_lsb = 15;
         int32_t lim_m3_q14 = (m3_lim_lsb << 7);
         int32_t lim_m8_q14 = ((int32_t)g_w_comp_clamp << 7);
+        uint32_t reg_m3_q16 = (uint32_t)g_reg_lambda_q16 * (uint32_t)g_reg_m3_mult;
+        if (reg_m3_q16 > 32768u) reg_m3_q16 = 32768u;
         if (valid_samples > 0u) {
             for (int r = 0; r < 6; r++) {
                 for (int c = 0; c < 6; c++) {
                     int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)valid_samples);
                     g_w_m3_q14[r][c] = maml_momentum_step_antiwindup(
                         g_w_m3_q14[r][c], (int16_t)maml_wnull_m3_q14(r, c), g_avg,
-                        &g_vel_m3_q14[r][c], lim_m3_q14);
+                        &g_vel_m3_q14[r][c], lim_m3_q14, (uint16_t)reg_m3_q16);
                     g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
                 }
             }
@@ -2096,7 +2102,7 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
                     int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)valid_samples);
                     g_w_m8_q14[r][c] = maml_momentum_step_antiwindup(
                         g_w_m8_q14[r][c], (int16_t)maml_wnull_m8_q14(r, c), g_avg,
-                        &g_vel_m8_q14[r][c], lim_m8_q14);
+                        &g_vel_m8_q14[r][c], lim_m8_q14, g_reg_lambda_q16);
                     g_w0_m8_q14[r][c] = g_w_m8_q14[r][c];
                 }
             }
@@ -2107,7 +2113,7 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
                 for (int c = 0; c < 6; c++) {
                     g_vel_m3_q14[r][c] /= 2;
                     int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
-                                               (int32_t)g_reg_lambda_q16, 16);
+                                               (int32_t)reg_m3_q16, 16);
                     g_w_m3_q14[r][c] = sat_comp_m3_q14((int32_t)g_w_m3_q14[r][c] - decay);
                     g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
                 }
