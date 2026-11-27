@@ -255,6 +255,8 @@ def main():
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--cold-duration-sec", type=float, default=30.0, help="Cold baseline phases duration in seconds (default 30s)")
     parser.add_argument("--phase-duration-sec", type=float, default=30.0, help="Duration of each warm phase in seconds (default 30s)")
+    parser.add_argument("--on-duration-sec", type=float, default=0.0, help="Duration of warm Regler ON phases in seconds (default: use --phase-duration-sec)")
+    parser.add_argument("--off-duration-sec", type=float, default=0.0, help="Duration of warm Regler OFF phases in seconds (default: use --phase-duration-sec)")
     parser.add_argument("--stage1-phases", type=int, default=60, help="Number of phases at 15%% heater (default 60)")
     parser.add_argument("--stage1-duty-pct", type=float, default=15.0, help="Stage 1 heater duty cycle (default 15%%)")
     parser.add_argument("--stage2-phases", type=int, default=6, help="Number of phases at 35%% heater (default 6)")
@@ -282,6 +284,8 @@ def main():
         {"name": "Phase 1: Cold / Regler ON",  "heater": False, "duty": 0.0, "regler": True,  "dur_s": args.cold_duration_sec},
         {"name": "Phase 2: Cold / Regler OFF", "heater": False, "duty": 0.0, "regler": False, "dur_s": args.cold_duration_sec},
     ]
+    on_dur = args.on_duration_sec if args.on_duration_sec > 0 else args.phase_duration_sec
+    off_dur = args.off_duration_sec if args.off_duration_sec > 0 else args.phase_duration_sec
     p_num = 3
     for wi in range(args.stage1_phases):
         reg_on = (wi % 2 == 0)
@@ -290,7 +294,7 @@ def main():
             "heater": True,
             "duty": args.stage1_duty_pct,
             "regler": reg_on,
-            "dur_s": args.phase_duration_sec,
+            "dur_s": on_dur if reg_on else off_dur,
         })
         p_num += 1
 
@@ -301,7 +305,7 @@ def main():
             "heater": True,
             "duty": args.stage2_duty_pct,
             "regler": reg_on,
-            "dur_s": args.phase_duration_sec,
+            "dur_s": on_dur if reg_on else off_dur,
         })
         p_num += 1
 
