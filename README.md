@@ -2,6 +2,7 @@
 ## Patent Application: SE 2630397-4 (Patent Pending)
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24030796.svg)](https://zenodo.org/records/24030796)
+[![Security & Malware Scan](https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/actions/workflows/security-scan.yml/badge.svg)](https://github.com/ollewelin/analog_matrix_computation_Inverted_MAML_PAT_PEND_2630397-4/actions/workflows/security-scan.yml)
 
 ### 📄 Patent Document:
 * **Patent Specification (English Translation):** [📄 `inverterad MAML_12_Eng.pdf`](inverterad%20MAML_12_Eng.pdf)

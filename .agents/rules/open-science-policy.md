@@ -8,4 +8,6 @@ Everything in this repository is 100% **Open Science, Open Source, and Radically
    - Header: `"INVERTED MAML ANALOG MATRIX — PATENT PENDING SE 2630397-4"`
    - Subtitle / Footer: `"Open Science Hardware | 100% Pure Physical Silicon Execution | Trion T120 SoC"`
 3. Maintain full scientific and empirical transparency: publish all raw hardware telemetry, test scripts, and benchmark statistics openly.
+4. **PDF Hygiene & Malware Scanning:** All auto-generated PDF files (e.g., via ReportLab) must be scanned for malware/false positives and must not contain unnecessary embedded scripts or uncompressed raw streams before being committed.
+
 
