@@ -849,26 +849,22 @@ static void maml_shuffle_outer_slots(void) {
 }
 
 /* ============================================================================
- * Contiguous Interleaved 2x7 = 14-Pulse Sylvester H_8 Simplex Hadamard Table
- * (2.00 us per pulse = 28.00 us total + step 14 = 0x8000 Tri-State Hi-Z exit)
- *   - Uses all 7 non-DC rows of Sylvester H_8 (HADAMARD_16[1..7]):
- *     For any two distinct basis indices b != b' in 0..6, the dot product across
- *     the 7 non-DC rows is identically -1 (Simplex code).
- *   - Because active rows 0..5 are enabled (0x003Fu for M3, 0x3F00u for M8) while
- *     the 7th basis (b=6 for M3, b=14 for M8) is held in 3-State Hi-Z (y_6 == 0),
- *     subtracting c[6] from c[b] (c[b] - c[6] = 16 * y[b]) cancels 100% of
- *     off-diagonal inter-row cross-talk!
+ * Contiguous Interleaved 2x8 = 16-Pulse Full Orthogonal Sylvester H_8 Table
+ * (2.00 us per pulse = 32.00 us total + step 16 = 0x8000 Tri-State Hi-Z exit)
+ *   - Uses all 8 rows of Sylvester H_8 (k = 0..7) so all 8 rows of M(3) (bits 0..7)
+ *     and all 7 rows of M(8) (bits 8..14) are 100% mutually orthogonal (H_8^T H_8 = 8*I).
  *   - Interleaving (+) at 2*p and (-) at 2*p+1 separates each complementary pair
- *     by only 2.00 us, canceling 100% of capacitor discharge DC drift!
+ *     by only 2.00 us, canceling DC offset and capacitor discharge slope on every row.
  * ============================================================================ */
-static const uint16_t HADAMARD_2X7_POS[7] = {
-    0x2AAAu, /* p=0: H_8 row 1 */
-    0x1999u, /* p=1: H_8 row 2 */
-    0x4CCCu, /* p=2: H_8 row 3 */
-    0x0787u, /* p=3: H_8 row 4 */
-    0x52D2u, /* p=4: H_8 row 5 */
-    0x61E1u, /* p=5: H_8 row 6 */
-    0x34B4u  /* p=6: H_8 row 7 (completes exact 7-row Sylvester H_8 simplex!) */
+static const uint16_t HADAMARD_2X8_POS[8] = {
+    0x7FFFu, /* p=0: +H_8[0] */
+    0x5555u, /* p=1: +H_8[1] */
+    0x3333u, /* p=2: +H_8[2] */
+    0x1999u, /* p=3: +H_8[3] */
+    0x0F0Fu, /* p=4: +H_8[4] */
+    0x25A5u, /* p=5: +H_8[5] */
+    0x43C3u, /* p=6: +H_8[6] */
+    0x6969u  /* p=7: +H_8[7] */
 };
 
 static void maml_run_2x6_hadamard_burst(uint16_t en_mask, int tristate_off, uint8_t sck_div) {
@@ -877,27 +873,27 @@ static void maml_run_2x6_hadamard_burst(uint16_t en_mask, int tristate_off, uint
     t20_set_hadamard_mask(en_mask);
     t20_hadamard_tristate_center();
 
-    /* Identity scatter map: pulse t (0..13) writes directly to cap_ram[t] */
+    /* Identity scatter map: pulse t (0..15) writes directly to cap_ram[t] */
     AIO_REG(AIO_PI_INV_LO) = 0x76543210u;
     AIO_REG(AIO_PI_INV_HI) = 0xFEDCBA98u;
 
-    /* Load 2x7 = 14 contiguous interleaved 2.00 us pulses:
+    /* Load 2x8 = 16 contiguous interleaved 2.00 us pulses:
      *   - Step 2*p     : (+) pulse p
      *   - Step 2*p + 1 : (-) pulse p (exact complement, only 2.00 us after (+)!)
-     *   - Step 14      : 0x8000 Tri-State exit at 28.00 us */
-    for (int p = 0; p < 7; p++) {
-        uint16_t w_pos = tristate_off ? 0x8000u : (HADAMARD_2X7_POS[p] & 0x7FFFu);
-        uint16_t w_neg = tristate_off ? 0x8000u : ((~HADAMARD_2X7_POS[p]) & 0x7FFFu);
+     *   - Step 16      : 0x8000 Tri-State exit at 32.00 us */
+    for (int p = 0; p < 8; p++) {
+        uint16_t w_pos = tristate_off ? 0x8000u : (HADAMARD_2X8_POS[p] & 0x7FFFu);
+        uint16_t w_neg = tristate_off ? 0x8000u : ((~HADAMARD_2X8_POS[p]) & 0x7FFFu);
         *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * (2 * p))     = (uint32_t)w_pos;
         *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * (2 * p + 1)) = (uint32_t)w_neg;
     }
-    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 14) = 0x00008000u; /* Exit to Hi-Z at 28.00 us */
-    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 15) = 0x00008000u;
+    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 16) = 0x00008000u; /* Exit to Hi-Z at 32.00 us */
+    *(volatile uint32_t *)(T20_BRIDGE_BASE + T20_H_TABLE + 4 * 17) = 0x00008000u;
 
     /* Switch to Pipelined 2.00 us Contiguous Mode:
      *   - T20_CLK_PERIOD = 5 (10.0 MHz CLK9, 100 ns cycle)
      *   - T20_H_PERIOD   = 20 (20 CLK9 cycles = 2.000 us exact per pulse!)
-     *   - T20_H_COUNT    = 15 (14 active pulses = 28.000 us + step 14 = 0x8000 Hi-Z)
+     *   - T20_H_COUNT    = 17 (16 active pulses = 32.000 us + step 16 = 0x8000 Hi-Z)
      *   - r_settle_cycles = 1 (enables pipe_2us_mode, no CLK9 freeze), r_conv_cycles = 21 (locks S/H at 1.96 us) */
     g_tel.settle_cycles = 100u; /* 100 sys_clk cycles = 2.00 us per pulse */
     AIO_REG(AIO_SETTLE_CYCLES) = (21u << 16) | 1u;
@@ -905,7 +901,7 @@ static void maml_run_2x6_hadamard_burst(uint16_t en_mask, int tristate_off, uint
     AIO_REG(AIO_CTRL) = (((uint32_t)(sck_div & 0x0Fu)) << 8) | 0xA9u;
 
     T20_REG(T20_CLK_PERIOD) = 5u;
-    T20_REG(T20_H_COUNT)    = 15u;
+    T20_REG(T20_H_COUNT)    = 17u;
     T20_REG(T20_H_PERIOD)   = 20u;
     T20_REG(T20_H_CTRL)     = (1u << 2) | (1u << 9); /* Clear counters */
     T20_REG(T20_H_CTRL)     = (1u << 0) | (1u << 9); /* Fire single 28.00 us hardware burst! */
@@ -1003,22 +999,20 @@ static void aio_trigger_settled_adc_read(int16_t adc45_out[6], int16_t adc49_out
 }
 
 /* ============================================================================
- * 14-Pulse (2x7 Interleaved (+) and (-)) Exact Orthogonal Sylvester H_8 Demodulator
+ * 16-Pulse (2x8 Interleaved (+) and (-)) Exact Orthogonal Sylvester H_8 Demodulator
  *   - Pulse 2*p     : (+) Table response Y_pos[p][c]
  *   - Pulse 2*p + 1 : (-) Table response Y_neg[p][c] (2.00 us later)
  *   - Differential pair dY[p][c] = Y_pos[p][c] - Y_neg[p][c] cancels DC offset
- *     and linear capacitor discharge slope!
- *   - Exact Simplex Orthogonalization:
- *       raw_c[b] = sum_{p=0..6} sign(HADAMARD_2X7_POS[p], bit b) * dY[p][c]
- *       Since bit 6 (for M3) and bit 14 (for M8) are held in 3-State Hi-Z (y == 0),
- *       raw_c[6] = -2 * sum_{r=0..5} y_r.
- *       Therefore: raw_c[b] - raw_c[6] = 16 * y_b (100% zero cross-talk!).
+ *     and linear capacitor discharge slope across all 8 orthogonal rows!
+ *   - Exact Full-Rank H_8 Orthogonalization (H_8^T H_8 = 8 * I):
+ *       raw_corr[b] = sum_{p=0..7} sign(HADAMARD_2X8_POS[p], bit b) * dY[p][c] = 16 * y_b
+ *       Therefore: raw_corr[b] >> 1 = 8 * y_b for all M3 rows 0..7 and M8 rows 0..6.
  * ============================================================================ */
 static uint8_t maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16][6]) {
-    int32_t buf[14][6];
+    int32_t buf[16][6];
     uint8_t rail_clip_mask = 0u;
 
-    for (int k = 0; k < 14; k++) {
+    for (int k = 0; k < 16; k++) {
         uint32_t addr = cap_base_off + (uint32_t)(k * 16);
         uint32_t w01  = AIO_REG(addr + 0x0);
         uint32_t w23  = AIO_REG(addr + 0x4);
@@ -1036,21 +1030,21 @@ static uint8_t maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16
         }
     }
 
-    /* k = 0: DC average across the 14 samples */
+    /* k = 0: DC average across all 16 samples */
     for (int c = 0; c < 6; c++) {
         int32_t dc_sum = 0;
-        for (int k = 0; k < 14; k++) dc_sum += buf[k][c];
-        sens_out[0][c] = sat_q14(dc_sum / 14);
+        for (int k = 0; k < 16; k++) dc_sum += buf[k][c];
+        sens_out[0][c] = sat_q14(dc_sum >> 4);
     }
 
-    /* Raw 7-pulse Simplex correlation for bits b = 0..14 */
+    /* Full 8-pair orthogonal Sylvester H_8 correlation for bits b = 0..14 */
     int32_t raw_corr[15][6];
     for (int b = 0; b < 15; b++) {
         for (int c = 0; c < 6; c++) {
             int32_t corr = 0;
-            for (int p = 0; p < 7; p++) {
+            for (int p = 0; p < 8; p++) {
                 int32_t dy = buf[2 * p][c] - buf[2 * p + 1][c];
-                if ((HADAMARD_2X7_POS[p] >> b) & 1u) {
+                if ((HADAMARD_2X8_POS[p] >> b) & 1u) {
                     corr += dy;
                 } else {
                     corr -= dy;
@@ -1060,21 +1054,14 @@ static uint8_t maml_fwht16_demodulate(uint32_t cap_base_off, int16_t sens_out[16
         }
     }
 
-    /* Subtract silent reference basis (b=6 for M3 rows 0..5, b=14 for M8 rows 0..5)
-     * so cross-talk from the other 5 active rows cancels identically! */
+    /* Direct orthogonal projection for all 8 M3 rows (b=0..7) and all 7 M8 rows (b=8..14) */
     for (int c = 0; c < 6; c++) {
-        int32_t ref_m3 = raw_corr[6][c];
-        for (int r = 0; r < 6; r++) {
-            sens_out[r + 1][c] = sat_q14((raw_corr[r][c] - ref_m3) >> 1);
+        for (int r = 0; r < 8; r++) {
+            sens_out[r + 1][c] = sat_q14(raw_corr[r][c] >> 1);
         }
-        sens_out[7][c] = 0;
-        sens_out[8][c] = 0;
-
-        int32_t ref_m8 = raw_corr[14][c];
-        for (int r = 0; r < 6; r++) {
-            sens_out[r + 9][c] = sat_q14((raw_corr[r + 8][c] - ref_m8) >> 1);
+        for (int r = 0; r < 7; r++) {
+            sens_out[r + 9][c] = sat_q14(raw_corr[r + 8][c] >> 1);
         }
-        sens_out[15][c] = 0;
     }
     return rail_clip_mask;
 }
@@ -1149,16 +1136,16 @@ static void maml_measure_and_extract_gradients(uint8_t stratum_idx,
         rail_clip_49 = maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
         rail_clip_45 = maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
     } else {
-        /* 2. Sub-Window A: Perturb Matrix 8 FIRST (active rows 0..5 = 0x3F00, M3 3-stated Hi-Z) */
-        maml_run_permuted_hadamard_sweep(0x3F00u);
+        /* 2. Sub-Window A: Perturb Matrix 8 FIRST (all 7 rows 0..6 = 0x7F00, M3 3-stated Hi-Z) */
+        maml_run_permuted_hadamard_sweep(0x7F00u);
         rail_clip_49 = maml_fwht16_demodulate(AIO_CAP_ADC49_BASE, sens_m8_raw);
 
         /* 20 us quiet Tri-State separation between M8 table and M3 table */
         t20_hadamard_tristate_center();
         bsp_uDelay(20);
 
-        /* 3. Sub-Window B: Perturb Matrix 3 SECOND (active rows 0..5 = 0x003F, M8 3-stated Hi-Z) */
-        maml_run_permuted_hadamard_sweep(0x003Fu);
+        /* 3. Sub-Window B: Perturb Matrix 3 SECOND (all 8 rows 0..7 = 0x00FF, M8 3-stated Hi-Z) */
+        maml_run_permuted_hadamard_sweep(0x00FFu);
         rail_clip_45 = maml_fwht16_demodulate(AIO_CAP_ADC45_BASE, sens_m3_raw);
 
         /* 4. Return Hadamard carrier to 3-State (0x8000 Hi-Z) immediately after burst */
@@ -2092,16 +2079,17 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
         if (reg_m3_q16 > 32768u) reg_m3_q16 = 32768u;
         if (reg_m8_q16 > 32768u) reg_m8_q16 = 32768u;
         if (valid_samples > 0u) {
-            for (int r = 0; r < 6; r++) {
+            for (int r = 0; r < 8; r++) {
+                int32_t lim_m3 = (r < 6) ? lim_m3_q14 : lim_m8_q14;
                 for (int c = 0; c < 6; c++) {
                     int16_t g_avg = sat_q14(batch_acc_m3[r][c] / (int32_t)valid_samples);
                     g_w_m3_q14[r][c] = maml_momentum_step_antiwindup(
                         g_w_m3_q14[r][c], (int16_t)maml_wnull_m3_q14(r, c), g_avg,
-                        &g_vel_m3_q14[r][c], lim_m3_q14, (uint16_t)reg_m3_q16);
+                        &g_vel_m3_q14[r][c], lim_m3, (uint16_t)reg_m3_q16);
                     g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
                 }
             }
-            for (int r = 0; r < 6; r++) {
+            for (int r = 0; r < 7; r++) {
                 for (int c = 0; c < 6; c++) {
                     int16_t g_avg = sat_q14(batch_acc_m8[r][c] / (int32_t)valid_samples);
                     g_w_m8_q14[r][c] = maml_momentum_step_antiwindup(
@@ -2113,16 +2101,17 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
         } else {
             /* Clip-recovery: all samples clipped against thr45/thr49.
              * Halve momentum velocity and pull weights toward W_null via L2 decay. */
-            for (int r = 0; r < 6; r++) {
+            for (int r = 0; r < 8; r++) {
                 for (int c = 0; c < 6; c++) {
                     g_vel_m3_q14[r][c] /= 2;
                     int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
                                                (int32_t)reg_m3_q16, 16);
-                    g_w_m3_q14[r][c] = sat_comp_m3_q14((int32_t)g_w_m3_q14[r][c] - decay);
+                    int32_t w_next = (int32_t)g_w_m3_q14[r][c] - decay;
+                    g_w_m3_q14[r][c] = (r < 6) ? sat_comp_m3_q14(w_next) : sat_comp_w_q14(w_next);
                     g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
                 }
             }
-            for (int r = 0; r < 6; r++) {
+            for (int r = 0; r < 7; r++) {
                 for (int c = 0; c < 6; c++) {
                     g_vel_m8_q14[r][c] /= 2;
                     int32_t decay = rshift_rne(((int32_t)g_w_m8_q14[r][c] - maml_wnull_m8_q14(r, c)) *
@@ -2140,15 +2129,16 @@ static void maml_execute_strata_batch(uint8_t k_batch, uint8_t num_strata,
             uint32_t reg_m8_q16 = ((uint32_t)g_reg_lambda_q16 * (uint32_t)g_reg_m8_scale_q8) >> 8;
             if (reg_m3_q16 > 32768u) reg_m3_q16 = 32768u;
             if (reg_m8_q16 > 32768u) reg_m8_q16 = 32768u;
-            for (int r = 0; r < 6; r++) {
+            for (int r = 0; r < 8; r++) {
                 for (int c = 0; c < 6; c++) {
                     int32_t decay = rshift_rne(((int32_t)g_w_m3_q14[r][c] - maml_wnull_m3_q14(r, c)) *
                                                (int32_t)reg_m3_q16, 16);
-                    g_w_m3_q14[r][c] = sat_comp_m3_q14((int32_t)g_w_m3_q14[r][c] - decay);
+                    int32_t w_next = (int32_t)g_w_m3_q14[r][c] - decay;
+                    g_w_m3_q14[r][c] = (r < 6) ? sat_comp_m3_q14(w_next) : sat_comp_w_q14(w_next);
                     g_w0_m3_q14[r][c] = g_w_m3_q14[r][c];
                 }
             }
-            for (int r = 0; r < 6; r++) {
+            for (int r = 0; r < 7; r++) {
                 for (int c = 0; c < 6; c++) {
                     int32_t decay = rshift_rne(((int32_t)g_w_m8_q14[r][c] - maml_wnull_m8_q14(r, c)) *
                                                (int32_t)reg_m8_q16, 16);
@@ -2635,12 +2625,9 @@ static uint16_t maml_diag_hadamard(uint8_t mode, uint16_t en_mask,
     maml_hw_auto_pause();
 
     for (int i = 0; i < 16; i++) resp.perm[i] = (uint8_t)i;
-    for (int p = 0; p < 7; p++) {
-        resp.h_words[2 * p]     = HADAMARD_2X7_POS[p] & 0x7FFFu;
-        resp.h_words[2 * p + 1] = (~HADAMARD_2X7_POS[p]) & 0x7FFFu;
-    }
-    for (int k = 14; k < 16; k++) {
-        resp.h_words[k] = 0x8000u;
+    for (int p = 0; p < 8; p++) {
+        resp.h_words[2 * p]     = HADAMARD_2X8_POS[p] & 0x7FFFu;
+        resp.h_words[2 * p + 1] = (~HADAMARD_2X8_POS[p]) & 0x7FFFu;
     }
 
     if (mode == 4u) {

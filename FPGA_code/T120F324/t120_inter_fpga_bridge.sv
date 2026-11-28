@@ -197,25 +197,28 @@ module t120_inter_fpga_bridge #(
     wire smp_ev = (r_rx_dly == 3'd0) ? rise_ev : rise_dly[r_rx_dly - 3'd1];
 
     // ------------------------------------------------------------------
-    // Hardwired 14-Pulse (2x7 Interleaved Sylvester H_8 Simplex) ROM for Autonomous Mode
+    // Hardwired 16-Pulse (2x8 Interleaved Full Sylvester H_8) ROM for Autonomous Mode
+    //   Supports all 8 rows of M(3) (bits 0..7) and all 7 rows of M(8) (bits 8..14).
     // ------------------------------------------------------------------
-    function automatic [31:0] hw_hadamard_rom(input [3:0] idx);
+    function automatic [31:0] hw_hadamard_rom(input [4:0] idx);
         case (idx)
-            4'd0:  hw_hadamard_rom = 32'h0000_2AAA; // +H_8[1]
-            4'd1:  hw_hadamard_rom = 32'h0000_5555; // -H_8[1]
-            4'd2:  hw_hadamard_rom = 32'h0000_1999; // +H_8[2]
-            4'd3:  hw_hadamard_rom = 32'h0000_6666; // -H_8[2]
-            4'd4:  hw_hadamard_rom = 32'h0000_4CCC; // +H_8[3]
-            4'd5:  hw_hadamard_rom = 32'h0000_3333; // -H_8[3]
-            4'd6:  hw_hadamard_rom = 32'h0000_0787; // +H_8[4]
-            4'd7:  hw_hadamard_rom = 32'h0000_7878; // -H_8[4]
-            4'd8:  hw_hadamard_rom = 32'h0000_52D2; // +H_8[5]
-            4'd9:  hw_hadamard_rom = 32'h0000_2D2D; // -H_8[5]
-            4'd10: hw_hadamard_rom = 32'h0000_61E1; // +H_8[6]
-            4'd11: hw_hadamard_rom = 32'h0000_1E1E; // -H_8[6]
-            4'd12: hw_hadamard_rom = 32'h0000_34B4; // +H_8[7]
-            4'd13: hw_hadamard_rom = 32'h0000_4B4B; // -H_8[7]
-            default: hw_hadamard_rom = 32'h0000_8000; // Step 14 & 15: 3-State Hi-Z (OE=0)
+            5'd0:  hw_hadamard_rom = 32'h0000_7FFF; // +H_8[0]
+            5'd1:  hw_hadamard_rom = 32'h0000_0000; // -H_8[0]
+            5'd2:  hw_hadamard_rom = 32'h0000_5555; // +H_8[1]
+            5'd3:  hw_hadamard_rom = 32'h0000_2AAA; // -H_8[1]
+            5'd4:  hw_hadamard_rom = 32'h0000_3333; // +H_8[2]
+            5'd5:  hw_hadamard_rom = 32'h0000_4CCC; // -H_8[2]
+            5'd6:  hw_hadamard_rom = 32'h0000_1999; // +H_8[3]
+            5'd7:  hw_hadamard_rom = 32'h0000_6666; // -H_8[3]
+            5'd8:  hw_hadamard_rom = 32'h0000_0F0F; // +H_8[4]
+            5'd9:  hw_hadamard_rom = 32'h0000_70F0; // -H_8[4]
+            5'd10: hw_hadamard_rom = 32'h0000_25A5; // +H_8[5]
+            5'd11: hw_hadamard_rom = 32'h0000_5A5A; // -H_8[5]
+            5'd12: hw_hadamard_rom = 32'h0000_43C3; // +H_8[6]
+            5'd13: hw_hadamard_rom = 32'h0000_3C3C; // -H_8[6]
+            5'd14: hw_hadamard_rom = 32'h0000_6969; // +H_8[7]
+            5'd15: hw_hadamard_rom = 32'h0000_1696; // -H_8[7]
+            default: hw_hadamard_rom = 32'h0000_8000; // Step 16+: 3-State Hi-Z (OE=0)
         endcase
     endfunction
 
@@ -238,7 +241,7 @@ module t120_inter_fpga_bridge #(
         if (apb_wr && paddr[11:10] == 2'b11) h_tab[paddr[9:2]]  <= pwdata;
         if (rx_we) rx_ram[rx_waddr] <= rx_wdata;
         tx_rd_q <= tx_ram[sb_tx_addr];
-        h_rd_q  <= hw_auto_active ? hw_hadamard_rom(h_rd_addr[3:0]) : h_tab[h_rd_addr];
+        h_rd_q  <= hw_auto_active ? hw_hadamard_rom(h_rd_addr[4:0]) : h_tab[h_rd_addr];
         rx_rd_q <= rx_ram[paddr[9:2]];
     end
 
@@ -313,7 +316,7 @@ module t120_inter_fpga_bridge #(
         .rd_addr(h_rd_addr), .rd_data(h_rd_q),
         .start(hw_auto_active ? hw_hbus_start : p_h_start), .stop(p_h_stop), .clr(p_h_clr),
         .loop_en(hw_auto_active ? 1'b0 : r_h_loop), .ack_en(hw_auto_active ? 1'b1 : r_h_ack_en),
-        .count(hw_auto_active ? 16'd15 : r_h_count), .period(hw_auto_active ? 16'd20 : r_h_period),
+        .count(hw_auto_active ? 16'd17 : r_h_count), .period(hw_auto_active ? 16'd20 : r_h_period),
         .ack_min(r_h_ack_win[7:0]), .ack_max(r_h_ack_win[15:8]),
         .h_sync(h_sync), .h_data(h_data), .ack_in(rx_s2[0]),
         .ext_hold_busy(h_hold_busy),

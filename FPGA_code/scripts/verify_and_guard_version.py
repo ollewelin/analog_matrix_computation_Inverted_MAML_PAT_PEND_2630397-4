@@ -23,7 +23,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from gui.udp_client import MamlUdpClient
 
-EXPECTED_HW_DEFAULT = "0x20261030"
+EXPECTED_HW_DEFAULT = "0x20261128"
 EXPECTED_HW_ID_DEFAULT = "MAM1"
 EXPECTED_SW_DEFAULT = "v2.2-MAML"
 

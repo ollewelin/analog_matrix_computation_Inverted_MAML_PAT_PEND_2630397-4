@@ -928,13 +928,13 @@ module t120_analog_io_ctrl (
                         end
 
                         // ---------------------------------------------------------
-                        // Phase 3b: Configure T20 for Sub-Window A (Matrix 8 = 0x3F00)
+                        // Phase 3b: Configure T20 for Sub-Window A (Matrix 8 = 0x7F00, all 7 rows 0..6)
                         // ---------------------------------------------------------
                         HWF_M8_CFG: begin
                             if (hw_sub_cnt == 16'd0) begin
-                                // CH 0x02 OP 0x1 SET_EN = 0x3F00 (big endian: pay[0]=0x3F, pay[1]=0x00)
+                                // CH 0x02 OP 0x1 SET_EN = 0x7F00 (big endian: pay[0]=0x7F, pay[1]=0x00)
                                 hw_sbus_hdr   <= 32'h02_01_0002;
-                                hw_sbus_pay0  <= 32'h0000_003F;
+                                hw_sbus_pay0  <= 32'h0000_007F;
                                 hw_sbus_start <= 1'b1;
                             end else if (hw_sub_cnt == 16'd1250) begin
                                 // CH 0x02 OP 0x2 SET_STATIC (static_on=0, vec=0x8000)
@@ -954,14 +954,14 @@ module t120_analog_io_ctrl (
                         end
 
                         // ---------------------------------------------------------
-                        // Phase 3c: Sub-Window A Hadamard Burst (14 x 2.00 us on M8 -> cap49_ram)
+                        // Phase 3c: Sub-Window A Hadamard Burst (16 x 2.00 us on M8 -> cap49_ram)
                         // ---------------------------------------------------------
                         HWF_M8_BURST: begin
                             if (hw_sub_cnt == 16'd2) begin
                                 hw_hbus_start <= 1'b1;
                             end
 
-                            if (hw_sub_cnt >= 16'd1799 && !h_active && !adc_busy) begin
+                            if (hw_sub_cnt >= 16'd2099 && !h_active && !adc_busy) begin
                                 hw_sub_cnt    <= 16'd0;
                                 hw_clk9_10mhz <= 1'b0;
                                 hw_clk9_sync  <= 1'b1;
@@ -991,13 +991,13 @@ module t120_analog_io_ctrl (
                         end
 
                         // ---------------------------------------------------------
-                        // Phase 3e: Configure T20 for Sub-Window B (Matrix 3 = 0x003F)
+                        // Phase 3e: Configure T20 for Sub-Window B (Matrix 3 = 0x00FF, all 8 rows 0..7)
                         // ---------------------------------------------------------
                         HWF_M3_CFG: begin
                             if (hw_sub_cnt == 16'd0) begin
-                                // CH 0x02 OP 0x1 SET_EN = 0x003F (big endian: pay[0]=0x00, pay[1]=0x3F)
+                                // CH 0x02 OP 0x1 SET_EN = 0x00FF (big endian: pay[0]=0x00, pay[1]=0xFF)
                                 hw_sbus_hdr   <= 32'h02_01_0002;
-                                hw_sbus_pay0  <= 32'h0000_3F00;
+                                hw_sbus_pay0  <= 32'h0000_FF00;
                                 hw_sbus_start <= 1'b1;
                             end else if (hw_sub_cnt == 16'd1250) begin
                                 // CH 0x02 OP 0x2 SET_STATIC (static_on=0, vec=0x8000)
@@ -1017,14 +1017,14 @@ module t120_analog_io_ctrl (
                         end
 
                         // ---------------------------------------------------------
-                        // Phase 3f: Sub-Window B Hadamard Burst (14 x 2.00 us on M3 -> cap45_ram)
+                        // Phase 3f: Sub-Window B Hadamard Burst (16 x 2.00 us on M3 -> cap45_ram)
                         // ---------------------------------------------------------
                         HWF_M3_BURST: begin
                             if (hw_sub_cnt == 16'd2) begin
                                 hw_hbus_start <= 1'b1;
                             end
 
-                            if (hw_sub_cnt >= 16'd1799 && !h_active && !adc_busy) begin
+                            if (hw_sub_cnt >= 16'd2099 && !h_active && !adc_busy) begin
                                 hw_sub_cnt    <= 16'd0;
                                 hw_clk9_10mhz <= 1'b0;
                                 hw_clk9_sync  <= 1'b1;
@@ -1139,7 +1139,7 @@ module t120_analog_io_ctrl (
                                  quiet_bus_freeze, h_hold_busy, adc_busy, dac_busy};
                 6'h04: prdata = {8'd0, r_conv_cycles, r_settle_cycles};
                 6'h05: prdata = {18'd0, r_ovr_bank, 1'b0, r_ovr_ch, r_ovr_val};
-                6'h06: prdata = 32'h2026_1030; // HW Logic Version Date: 2026-10-30 (BCD)
+                6'h06: prdata = 32'h2026_1128; // HW Logic Version Date: 2026-11-28 (BCD)
                 6'h07: prdata = 32'h4D41_4D31; // HW Logic Subsystem: "MAM1" (Mode A Logic v1)
                 6'h08: prdata = r_dac2_lo;
                 6'h09: prdata = r_dac2_hi;
