@@ -1,0 +1,41 @@
+{
+  "name": "w3_staircase_plus_minus_40_pattern",
+  "description": "Matrix 3 (M3) Reference Clock and Bias Staircase Pattern evenly distributed between -40 and +40 LSB across 6 columns",
+  "date_created": "2026-11-06",
+  "hardware_target": "Card 2 (PCB v1.3.2, 1k/3.3k Attenuator)",
+  "step_size_lsb": 16,
+  "staircase_vector": [-40, -24, -8, 8, 24, 40],
+  "columns": [0, 1, 2, 3, 4, 5],
+  "matrix_3_shape": [8, 6],
+  "matrix_3_rows_description": {
+    "rows_0_to_5": "Data rows (Inputs X0..X5) - Flat zero baseline [0, 0, 0, 0, 0, 0]",
+    "row_6": "Reference Clock Cell (ClkB1, 330k discharge resistor, fast dynamic ramp) - Ascending staircase [-40, -24, -8, 8, 24, 40]",
+    "row_7": "Bias / Reference DC Anchor Cell (ClkRef, slow retention) - Complementary staircase [+40, +24, +8, -8, -24, -40]"
+  },
+  "rationale": "Complementary polarities (Row 6 + Row 7 = 0 at t=0) prevent ColTIA summing junction DC saturation while maximizing dynamic differential clock ramp across the Sigmoid 4 activation function across the 4.5 ms to 5.5 ms temporal window.",
+  "w_m3_lsb": [
+    [  0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0],
+    [  0,   0,   0,   0,   0,   0],
+    [-40, -24,  -8,   8,  24,  40],
+    [ 40,  24,   8,  -8, -24, -40]
+  ],
+  "matrix_8_shape": [7, 6],
+  "matrix_8_rows_description": {
+    "rows_0_to_5": "Vernier rows - Flat zero baseline",
+    "row_6": "Bias row - Flat zero baseline"
+  },
+  "w_m8_lsb": [
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0]
+  ]
+}
+

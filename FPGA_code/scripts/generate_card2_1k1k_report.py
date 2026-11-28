@@ -395,6 +395,8 @@ def main():
         ("Card 2 (`1k/1k`, 60% 4×ON, 0.5×/2× L2)", LOGS_DIR / "card2_1k1k_60pct_4xon_m3reg0p5x_m8reg2x_r20_lr0p055_l2_1920_mom0p85_cl90.json", CONFIG_DIR / "card2_1k1k_60pct_4xon_m3reg0p5x_m8reg2x_dc_cal.json"),
         ("Card 2 (`1k/1k`, 60% 4×ON, ExtHad 8×6/7×6, 0.5×/2×)", LOGS_DIR / "card2_1k1k_60pct_4xon_exthad_8x6_7x6_staircase_r20_lr0p055_l2_1920_mom0p85_cl90.json", CONFIG_DIR / "card2_1k1k_60pct_4xon_exthad_8x6_7x6_staircase_dc_cal.json"),
         ("Card 2 (`1k/1k`, 60% 4×ON, ExtHad 8×6/7×6, 1×/1×)", LOGS_DIR / "card2_1k1k_60pct_4xon_exthad_8x6_7x6_l2_1x_1x_r20_lr0p055_l2_1920_mom0p85_cl90.json", CONFIG_DIR / "card2_1k1k_60pct_4xon_exthad_8x6_7x6_l2_1x_1x_dc_cal.json"),
+        ("Card 2 (`1k/1k`, 60% 4×ON, ExtHad 8×6/7×6, 0.5×/0.5× Mom0.90)", LOGS_DIR / "card2_1k1k_60pct_4xon_exthad_8x6_7x6_l2_0p5x_0p5x_mom0p90_r20_lr0p055_l2_960_mom0p90_cl90.json", CONFIG_DIR / "card2_1k1k_60pct_4xon_exthad_8x6_7x6_l2_0p5x_0p5x_mom0p90_dc_cal.json"),
+        ("Card 2 (`1k/1k`, 60% 4×ON, ExtHad 8×6/7×6, 0.5× Mom0.90 LR0.0275)", LOGS_DIR / "card2_1k1k_60pct_4xon_exthad_8x6_7x6_l2_0p5x_mom0p90_lr0p0275_r20_lr0p0275_l2_960_mom0p90_cl90.json", CONFIG_DIR / "card2_1k1k_60pct_4xon_exthad_8x6_7x6_l2_0p5x_mom0p90_lr0p0275_dc_cal.json"),
     ]
     if json_path.resolve() not in {p[1].resolve() for p in cross_specs}:
         cross_specs.append((f"{args.slug} ★", json_path, dc_cal_path))
