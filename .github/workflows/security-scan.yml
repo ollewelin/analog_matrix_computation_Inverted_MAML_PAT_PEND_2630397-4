@@ -21,7 +21,14 @@ jobs:
           sudo apt-get install -y clamav
 
       - name: Update ClamAV virus definitions
-        run: sudo freshclam
+        run: |
+          sudo systemctl stop clamav-freshclam || true
+          sudo rm -f /var/log/clamav/freshclam.log
+          if ! sudo freshclam; then
+            echo "freshclam failed; checking if clamav-freshclam already populated definitions..."
+            ls -lh /var/lib/clamav/
+            test -n "$(find /var/lib/clamav -maxdepth 1 \( -name '*.cvd' -o -name '*.cld' \) -print -quit)"
+          fi
 
       - name: Run recursive ClamAV scan
         run: |
