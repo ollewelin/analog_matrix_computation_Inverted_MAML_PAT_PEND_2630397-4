@@ -196,11 +196,21 @@ def make_timeline_figure(data: dict, base_t: np.ndarray, base_e: np.ndarray, bas
     plt.close()
 
 
-ROW_COLORS_6 = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
+ROW_COLORS_8 = [
+    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
+    "#9467bd", "#8c564b", "#e377c2", "#17becf",
+]
 
 
-def make_matrix_by_col_figure(data: dict, weights: np.ndarray, title: str, y_lim: float, out_path: Path):
-    """Plot weights split across Col 0..5 (2x3 subplots), 6 distinct colors for Row 0..5."""
+def make_matrix_by_col_figure(
+    data: dict,
+    weights: np.ndarray,
+    title: str,
+    y_lim: float,
+    out_path: Path,
+    row_labels: list[str] | None = None,
+):
+    """Plot ALL matrix weights split across Col 0..5 (2x3 subplots), with one distinct color per row."""
     hist = data["history"]
     meta = data["metadata"]
     t_min = np.array([float(r["elapsed_s"]) / 60.0 for r in hist])
@@ -214,9 +224,11 @@ def make_matrix_by_col_figure(data: dict, weights: np.ndarray, title: str, y_lim
             last_p = p
     bounds.append(t_min[-1])
 
-    fig, axes = plt.subplots(2, 3, figsize=(15, 8.2), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 3, figsize=(15, 8.4), sharex=True, sharey=True)
     axes_flat = axes.ravel()
-    num_rows_plot = min(6, weights.shape[1])
+    num_rows_plot = weights.shape[1]
+    if row_labels is None:
+        row_labels = [f"R{r}" for r in range(num_rows_plot)]
 
     for col in range(6):
         ax = axes_flat[col]
@@ -224,16 +236,19 @@ def make_matrix_by_col_figure(data: dict, weights: np.ndarray, title: str, y_lim
             reg = meta["phases"][pi]["regler"]
             ax.axvspan(bounds[pi], bounds[pi + 1], color="#e8f5e9" if reg else "#ffebee", alpha=0.45, zorder=0)
         for row in range(num_rows_plot):
+            lw = 1.45 if row >= 6 else 1.15
+            ls = "--" if row >= 6 else "-"
             ax.plot(
                 t_min, weights[:, row, col],
-                color=ROW_COLORS_6[row], linewidth=1.15, alpha=0.88,
-                label=f"R{row}" if col == 0 else None,
+                color=ROW_COLORS_8[row % len(ROW_COLORS_8)],
+                linewidth=lw, linestyle=ls, alpha=0.90,
+                label=row_labels[row] if col == 0 else None,
             )
         ax.axhline(0, color="gray", linewidth=0.7, alpha=0.7)
         if y_lim >= 90:
             ax.axhline(+90, color="#b71c1c", linestyle="--", linewidth=0.8, alpha=0.7)
             ax.axhline(-90, color="#b71c1c", linestyle="--", linewidth=0.8, alpha=0.7)
-        ax.set_title(f"Column {col} (Rows 0–5)", fontsize=10.5, fontweight="bold")
+        ax.set_title(f"Column {col} (Rows 0–{num_rows_plot - 1})", fontsize=10.5, fontweight="bold")
         ax.set_ylim(-y_lim, y_lim)
         ax.grid(True, linestyle=":", alpha=0.55)
         if col % 3 == 0:
@@ -241,7 +256,7 @@ def make_matrix_by_col_figure(data: dict, weights: np.ndarray, title: str, y_lim
         if col >= 3:
             ax.set_xlabel("Elapsed Time (min)", fontweight="bold")
         if col == 0:
-            ax.legend(loc="upper left", ncol=3, fontsize=8, framealpha=0.9)
+            ax.legend(loc="upper left", ncol=2, fontsize=7.5, framealpha=0.92)
 
     fig.suptitle(title, fontsize=13, fontweight="bold")
     plt.tight_layout()
@@ -291,6 +306,8 @@ def main():
     parser.add_argument("--title-prefix", default="INVERTED_MAML_CARD2_1K1K_R20_LR0P055_L2_1920_MOM0P85_CL90_THERMAL_SLICING_REPORT")
     parser.add_argument("--rel-name", default="Release_20261127_Card2_1k1k_BitSlicing_R20")
     parser.add_argument("--heat-label", default="30%/40% PWM")
+    parser.add_argument("--fw-info", default="T120_SOC_ETH_FW v2.2-MAML (SW Build Nov 28 2026)")
+    parser.add_argument("--hw-logic", default="0x20261030")
     args = parser.parse_args()
 
     json_path = args.json if args.json.is_absolute() else REPO_ROOT / args.json
@@ -325,14 +342,16 @@ def main():
 
     w8_msb_arr = np.array([r["w8_msb"] for r in hist])
     w8_lsb_arr = np.array([r["w8_lsb"] for r in hist])
-    w3_msb_arr = np.array([r["w3_msb"] for r in hist])[:, :6, :]
-    w3_lsb_arr = np.array([r["w3_lsb"] for r in hist])[:, :6, :]
-    w3_ylim = max(35.0, float(max(np.max(np.abs(w3_msb_arr)), np.max(np.abs(w3_lsb_arr)))) + 4.0)
+    w3_msb_arr = np.array([r["w3_msb"] for r in hist])
+    w3_lsb_arr = np.array([r["w3_lsb"] for r in hist])
+    w3_ylim = max(45.0, float(max(np.max(np.abs(w3_msb_arr)), np.max(np.abs(w3_lsb_arr)))) + 5.0)
 
-    make_matrix_by_col_figure(data, w8_msb_arr, f"{args.slug}: Matrix 8 MSB by Column (6-Color R0–R5)", 98.0, w8_msb_col_fig)
-    make_matrix_by_col_figure(data, w8_lsb_arr, f"{args.slug}: Matrix 8 LSB by Column (6-Color R0–R5)", 98.0, w8_lsb_col_fig)
-    make_matrix_by_col_figure(data, w3_msb_arr, f"{args.slug}: Matrix 3 MSB by Column (6-Color R0–R5)", w3_ylim, w3_msb_col_fig)
-    make_matrix_by_col_figure(data, w3_lsb_arr, f"{args.slug}: Matrix 3 LSB by Column (6-Color R0–R5)", w3_ylim, w3_lsb_col_fig)
+    m8_row_labels = ["R0", "R1", "R2", "R3", "R4", "R5", "R6 (Bias)"]
+    m3_row_labels = ["R0", "R1", "R2", "R3", "R4", "R5", "R6 (Clk/Bias)", "R7 (Ref)"]
+    make_matrix_by_col_figure(data, w8_msb_arr, f"{args.slug}: Matrix 8 MSB by Column (All 7 Rows R0–R6)", 98.0, w8_msb_col_fig, m8_row_labels)
+    make_matrix_by_col_figure(data, w8_lsb_arr, f"{args.slug}: Matrix 8 LSB by Column (All 7 Rows R0–R6)", 98.0, w8_lsb_col_fig, m8_row_labels)
+    make_matrix_by_col_figure(data, w3_msb_arr, f"{args.slug}: Matrix 3 MSB by Column (All 8 Rows R0–R7)", w3_ylim, w3_msb_col_fig, m3_row_labels)
+    make_matrix_by_col_figure(data, w3_lsb_arr, f"{args.slug}: Matrix 3 LSB by Column (All 8 Rows R0–R7)", w3_ylim, w3_lsb_col_fig, m3_row_labels)
 
     # Copy figures + raw logs to dedicated Card 2 storage + artifacts
     for src in (tl_fig, w_fig, w8_msb_col_fig, w8_lsb_col_fig, w3_msb_col_fig, w3_lsb_col_fig):
@@ -372,6 +391,8 @@ def main():
         ("Card 2 (`1k/1k`, 30/40%)", LOGS_DIR / "card2_1k1k_r20_lr0p055_l2_1920_mom0p85_cl90.json", CONFIG_DIR / "card2_1k1k_dc_cal.json"),
         ("Card 2 (`1k/1k`, 50% const)", LOGS_DIR / "card2_1k1k_50pct_r20_lr0p055_l2_1920_mom0p85_cl90.json", CONFIG_DIR / "card2_1k1k_50pct_dc_cal.json"),
         ("Card 2 (`1k/1k`, 60% 4×ON, 1× M3 L2)", LOGS_DIR / "card2_1k1k_60pct_4xon_r20_lr0p055_l2_1920_mom0p85_cl90.json", CONFIG_DIR / "card2_1k1k_60pct_4xon_dc_cal.json"),
+        ("Card 2 (`1k/1k`, 60% 4×ON, 4× M3 L2)", LOGS_DIR / "card2_1k1k_60pct_4xon_m3reg4x_r20_lr0p055_l2_1920_mom0p85_cl90.json", CONFIG_DIR / "card2_1k1k_60pct_4xon_m3reg4x_dc_cal.json"),
+        ("Card 2 (`1k/1k`, 60% 4×ON, 0.5×/2× L2)", LOGS_DIR / "card2_1k1k_60pct_4xon_m3reg0p5x_m8reg2x_r20_lr0p055_l2_1920_mom0p85_cl90.json", CONFIG_DIR / "card2_1k1k_60pct_4xon_m3reg0p5x_m8reg2x_dc_cal.json"),
     ]
     if json_path.resolve() not in {p[1].resolve() for p in cross_specs}:
         cross_specs.append((f"{args.slug} ★", json_path, dc_cal_path))
@@ -427,7 +448,7 @@ def main():
     md_text = f"""# Inverted MAML Card 2 (`1k / 1k` = 50/50 Summing Attenuator, {args.heat_label}): R20 Thermal Bit-Slicing Report
 
 **Hardware Target:** Card 2 (`Trion T120F324` Master SoC + `Trion T20F256` Coprocessor, **`1k / 1k` (50/50) Passive Summing Attenuator**)  
-**Firmware:** `T120_SOC_ETH_FW v2.2-MAML (SW Build Nov 27 2026 20:52:38)`, `HW_LOGIC: 0x20261030`  
+**Firmware:** `{args.fw_info}`, `HW_LOGIC: {args.hw_logic}`  
 **Dataset:** [`FPGA_code/logs/bit_slicing/{json_path.name}`](../logs/bit_slicing/{json_path.name}) (`{len(hist):,}` pairs)  
 **Dedicated Card 2 Storage:** `FPGA_code/releases/{args.rel_name}/reports_and_logs/`  
 **DC Calibration (Cold):** [`FPGA_code/config/{dc_cal_path.name}`](../config/{dc_cal_path.name})  
@@ -484,11 +505,11 @@ def main():
 
 ![Card 2 1k/1k R20 Performance & Weight Envelope Timeline](figures/{tl_fig.name})
 
-**Weight Coverage:** All **84 `W(8)`** (`7x6` MSB + `7x6` LSB) and **96 `W(3)`** (`8x6` MSB + `8x6` LSB) individual weights plotted across all `{len(hist):,}` pairs, both combined and resolved per column (`Col 0..5`) in 6 distinct row colors (`R0–R5`).
+**Weight Coverage:** All **84 `W(8)`** (`7x6` MSB + `7x6` LSB) and **96 `W(3)`** (`8x6` MSB + `8x6` LSB) individual weights plotted across all `{len(hist):,}` pairs, both combined and resolved per column (`Col 0..5`) in distinct row colors (`R0–R6` for `M(8)` and `R0–R7` for `M(3)`).
 
 ![Card 2 1k/1k R20 All W(8) and W(3) Weights](figures/{w_fig.name})
 
-### Per-Column 6-Color Weight Resolution (`Col 0–5`, `R0–R5`)
+### Per-Column Multi-Color Weight Resolution (`Col 0–5`, All Matrix Rows)
 
 ![Matrix 8 MSB by Column](figures/{w8_msb_col_fig.name})
 ![Matrix 8 LSB by Column](figures/{w8_lsb_col_fig.name})
@@ -518,7 +539,7 @@ def main():
     story = [
         Paragraph(f"Inverted MAML Card 2 (1k / 1k = 50/50, {args.heat_label}): R20 Thermal Bit-Slicing", t_style),
         Paragraph(
-            f"Firmware: T120_SOC_ETH_FW v2.2-MAML (Build Nov 27 2026) | HW_LOGIC: 0x20261030 | "
+            f"Firmware: {args.fw_info} | HW_LOGIC: {args.hw_logic} | "
             f"LR={meta['lr']}, L2={meta['l2_reg']}, Mom={meta['momentum']}, Clamp=±{meta['clamp_lsb']} LSB | {len(hist):,} Pairs",
             sub_style,
         ),
@@ -596,12 +617,12 @@ def main():
     story.append(Paragraph("Full 180-Weight Dynamics: 84 W(8) & 96 W(3) Trajectories", h2_style))
     story.append(Image(str(w_fig), width=530, height=330))
     story.append(PageBreak())
-    story.append(Paragraph("Matrix 8 MSB & LSB Per-Column Trajectories (6-Color R0–R5)", h2_style))
+    story.append(Paragraph("Matrix 8 MSB & LSB Per-Column Trajectories (7-Color R0–R6)", h2_style))
     story.append(Image(str(w8_msb_col_fig), width=530, height=285))
     story.append(Spacer(1, 8))
     story.append(Image(str(w8_lsb_col_fig), width=530, height=285))
     story.append(PageBreak())
-    story.append(Paragraph("Matrix 3 MSB & LSB Per-Column Trajectories (6-Color R0–R5)", h2_style))
+    story.append(Paragraph("Matrix 3 MSB & LSB Per-Column Trajectories (8-Color R0–R7)", h2_style))
     story.append(Image(str(w3_msb_col_fig), width=530, height=285))
     story.append(Spacer(1, 8))
     story.append(Image(str(w3_lsb_col_fig), width=530, height=285))
