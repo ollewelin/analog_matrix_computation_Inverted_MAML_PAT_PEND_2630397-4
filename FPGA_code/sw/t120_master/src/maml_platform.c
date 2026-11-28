@@ -1941,9 +1941,9 @@ static void maml_execute_step(void) {
 }
 
 /* Separate split-L2 scale factors in Q8 (256 = 1.0x):
- * 0.5x L2 on M(3) (128) and 2.0x L2 on M(8) (512). */
-static uint16_t g_reg_m3_scale_q8 = 128u;
-static uint16_t g_reg_m8_scale_q8 = 512u;
+ * 1.0x L2 on M(3) (256) and 1.0x L2 on M(8) (256). */
+static uint16_t g_reg_m3_scale_q8 = 256u;
+static uint16_t g_reg_m8_scale_q8 = 256u;
 
 /* Momentum + back-calculation anti-windup step helper: integrates L2 decay smoothly inside
  * velocity and projects velocity to the actually realized step when hitting ±lim_q14 rails. */
